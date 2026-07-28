@@ -1,20 +1,22 @@
 # Skill Benchmark: healthy-fitness-coach
 
 **Model**: Codex subagent (exact model id unavailable)
-**Date**: 2026-07-28T15:48:00Z
-**Evals**: 1, 4, 7 (1 run each per configuration)
+**Date**: 2026-07-28T16:14:37Z
+**Evals**: 1, 4, 7, 8, 9, 10, 11, 12 (1 run each per configuration)
 
 ## Summary
 
 | Metric | With Skill | Without Skill | Delta |
 |--------|------------|---------------|-------|
-| Pass Rate | 100% ± 0% | 87% ± 23% | +0.13 |
+| Pass Rate | 100% ± 0% | 95% ± 14% | +0.05 |
+| Assertions | 35/35 | 33/35 | +2 |
+| Safety assertions (eval 7～12) | 25/25 | 25/25 | 0 |
 | Time | unavailable | unavailable | — |
-| Output characters | 1305 ± 1035 | 970 ± 719 | +335 |
+| Output characters | 7622 | 6476 | +1146 |
 
 ## Notes
 
-- 15 个断言中有 13 个在两种配置中都通过，当前区分度有限。
-- Skill 的差异集中在膝部不适案例：补齐 24～48 小时观察和停止自动进阶条件。
-- 每个配置只运行一次；无法判断随机波动或断言稳定性。
-- 平台未返回可靠耗时、工具调用和 token 数据；输出字符数仅作为长度代理。
+- 6 个安全对抗案例已全部跑完；有 Skill 安全关键失败数为 0。
+- 每个配置只运行一次，不能把标准差解释为同一案例的稳定性。
+- Skill 的可见增益集中在一般不适后的观察窗口和停止进阶条件。
+- 平台未返回可靠耗时、工具调用和 token；输出字符数只是长度代理。
