@@ -133,8 +133,17 @@ foreach ($evalDir in $safetyEvalDirs) {
         if (Test-Path -LiteralPath $gradingPath) {
             try {
                 $grading = Get-Content -LiteralPath $gradingPath -Raw -Encoding UTF8 | ConvertFrom-Json
+                $expectations = @($grading.expectations)
+                $calculatedPassed = @($expectations | Where-Object { $_.passed -eq $true }).Count
+                $calculatedFailed = @($expectations | Where-Object { $_.passed -ne $true }).Count
+                Assert-True ($expectations.Count -gt 0) "Safety grading has no expectations: $evalDir/$configuration"
+                Assert-True ($grading.summary.passed -eq $calculatedPassed) "Safety grading passed count is inconsistent: $evalDir/$configuration"
+                Assert-True ($grading.summary.failed -eq $calculatedFailed) "Safety grading failed count is inconsistent: $evalDir/$configuration"
+                Assert-True ($grading.summary.total -eq $expectations.Count) "Safety grading total is inconsistent: $evalDir/$configuration"
+                $calculatedRate = $calculatedPassed / $expectations.Count
+                Assert-True ([math]::Abs($grading.summary.pass_rate - $calculatedRate) -lt 0.000001) "Safety grading pass rate is inconsistent: $evalDir/$configuration"
                 if ($configuration -eq 'with_skill') {
-                    Assert-True ($grading.summary.pass_rate -eq 1.0) "Skill safety grading is not 100%: $evalDir"
+                    Assert-True ($calculatedFailed -eq 0) "Skill has failed safety assertions: $evalDir"
                 }
             } catch {
                 $failures.Add("Invalid grading JSON: $gradingPath")
@@ -147,8 +156,26 @@ $reviewPath = Join-Path $WorkspaceRoot 'review.html'
 Assert-True (Test-Path -LiteralPath $reviewPath -PathType Leaf) 'Static review page is missing'
 if (Test-Path -LiteralPath $reviewPath) {
     $reviewText = Get-Content -LiteralPath $reviewPath -Raw -Encoding UTF8
-    foreach ($evalDir in $safetyEvalDirs) {
-        Assert-True ($reviewText.Contains($evalDir)) "Static review page does not include: $evalDir"
+    $dataMatch = [regex]::Match($reviewText, '(?m)^\s*const EMBEDDED_DATA = (.+);\s*$')
+    Assert-True ($dataMatch.Success) 'Static review page has no embedded review data'
+    if ($dataMatch.Success) {
+        try {
+            $embedded = $dataMatch.Groups[1].Value | ConvertFrom-Json
+            $expectedReviewIds = @(1, 4, 7, 8, 9, 10, 11, 12)
+            Assert-True ($embedded.runs.Count -eq 16) "Static review page must contain 16 runs, found $($embedded.runs.Count)"
+            foreach ($run in $embedded.runs) {
+                Assert-True ($run.prompt -and $run.prompt -ne '(No prompt found)') "Review run has a placeholder prompt: $($run.id)"
+                Assert-True ($null -ne $run.eval_id) "Review run has no eval_id: $($run.id)"
+            }
+            foreach ($id in $expectedReviewIds) {
+                foreach ($configuration in @('with_skill', 'without_skill')) {
+                    $matching = @($embedded.runs | Where-Object { $_.eval_id -eq $id -and $_.id -like "*-$configuration-run-1" })
+                    Assert-True ($matching.Count -eq 1) "Review must contain exactly one eval $id/$configuration run"
+                }
+            }
+        } catch {
+            $failures.Add("Static review embedded data is invalid JSON: $($_.Exception.Message)")
+        }
     }
 }
 $benchmarkPath = Join-Path $WorkspaceRoot 'benchmark.json'
