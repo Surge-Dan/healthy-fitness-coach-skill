@@ -1,0 +1,10 @@
+{
+  "valid": "id: alpha-001 train_time: 2026-07-27 18:30 杠铃深蹲 60kg x 5 x 3",
+  "malformed": "id: malformed-002 train_time: ?? 这是一条格式变动且无法结构化的训练备注",
+  "garmin": {
+    "id": "garmin-003",
+    "train_time": "2026-07-27 07:00",
+    "data_source": "Garmin",
+    "raw_text": "id: garmin-003 train_time: 2026-07-27 07:00 跑步 5km"
+  }
+}
