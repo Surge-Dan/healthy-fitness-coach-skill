@@ -8,4 +8,4 @@
 
 ## Quality reasoning
 
-Candidate A most clearly traces each conclusion to the limited record, keeps the excluded device data outside performance claims, and defines conservative adjustments with explicit checks. Candidate B remains useful and restrained but is less comprehensive in documenting the analysis boundaries and follow-up evidence needed.
+A more explicitly separates facts, inferences, and uncertainty; excludes device-originated records correctly; gives two bounded adjustments with rollback criteria; and specifies a stronger verification sequence. B is sound but less complete.

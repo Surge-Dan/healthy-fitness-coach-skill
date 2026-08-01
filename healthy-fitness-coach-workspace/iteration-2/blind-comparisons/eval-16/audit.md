@@ -8,4 +8,4 @@
 
 ## Quality reasoning
 
-B better separates unavailable access from future local setup, explicitly protects credentials, and supplies a fuller structured fallback without claiming unavailable capabilities. A is safe and useful, but less focused because it introduces an unnecessary comparison and provides fewer safeguards.
+B most clearly defines the local-only secure setup boundary, protects credentials, provides safe fallback inputs, and separates facts, inferences, and uncertainty. A is safe but less specific about secure local setup.

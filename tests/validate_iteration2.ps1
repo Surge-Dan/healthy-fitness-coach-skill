@@ -160,6 +160,7 @@ if (Test-Path -LiteralPath $mappingPath -PathType Leaf) {
         $comparisonDirectory = Split-Path -Parent $comparisonPath
         $promptPath = Join-Path $comparisonDirectory 'comparator-prompt.md'
         $auditPath = Join-Path $comparisonDirectory 'audit.md'
+        $provenancePath = Join-Path $comparisonDirectory 'provenance.json'
         $candidateAPath = Join-Path $comparisonDirectory 'candidate-a\submission.md'
         $candidateBPath = Join-Path $comparisonDirectory 'candidate-b\submission.md'
         Assert-True (Test-Path -LiteralPath $promptPath -PathType Leaf) "Missing blind comparator prompt: $($entry.eval_id)"
@@ -185,6 +186,24 @@ if (Test-Path -LiteralPath $mappingPath -PathType Leaf) {
                 $blindText = Get-Content -LiteralPath $blindFile -Raw -Encoding UTF8
                 Assert-True ($blindText -notmatch '(?i)\bmapping\b|\bV[12]\b|healthy-fitness-coach|with_skill|without_skill|eval-[a-z0-9-]+') "Blind artifact reveals hidden identity: $blindFile"
                 Assert-True ($blindText -notmatch '(?i)(?:\.\./)?(?:healthy-fitness-coach-workspace|eval-[a-z0-9-]+)/(?:with_skill|without_skill)') "Blind artifact names a source output path: $blindFile"
+            }
+        }
+        Assert-True (Test-Path -LiteralPath $provenancePath -PathType Leaf) "Missing blind comparison provenance: $($entry.eval_id)"
+        if (Test-Path -LiteralPath $provenancePath -PathType Leaf) {
+            try {
+                $provenance = Get-Content -LiteralPath $provenancePath -Raw -Encoding UTF8 | ConvertFrom-Json
+                Assert-True ([string]$provenance.generated_at_utc -match '^\d{4}-\d{2}-\d{2}T.*Z$') "Invalid provenance UTC timestamp: $($entry.eval_id)"
+                Assert-True (-not [string]::IsNullOrWhiteSpace([string]$provenance.comparator_task)) "Missing comparator task identity: $($entry.eval_id)"
+                Assert-True ($provenance.mapping_not_supplied -eq $true) "Provenance must declare mapping withheld: $($entry.eval_id)"
+                $permitted = @($provenance.permitted_files | ForEach-Object { [string]$_ } | Sort-Object)
+                Assert-True (($permitted -join "`n") -eq (@('candidate-a/submission.md', 'candidate-b/submission.md', 'comparator-prompt.md') -join "`n")) "Invalid permitted files: $($entry.eval_id)"
+                Assert-True ($provenance.input_sha256.candidate_a -eq (Get-FileHash -LiteralPath $candidateAPath -Algorithm SHA256).Hash) "Candidate A provenance hash mismatch: $($entry.eval_id)"
+                Assert-True ($provenance.input_sha256.candidate_b -eq (Get-FileHash -LiteralPath $candidateBPath -Algorithm SHA256).Hash) "Candidate B provenance hash mismatch: $($entry.eval_id)"
+                Assert-True ($provenance.result_sha256 -eq (Get-FileHash -LiteralPath $comparisonPath -Algorithm SHA256).Hash) "Comparator result provenance hash mismatch: $($entry.eval_id)"
+                $provenanceText = Get-Content -LiteralPath $provenancePath -Raw -Encoding UTF8
+                Assert-True ($provenanceText -notmatch '(?i)\bV[12]\b|healthy-fitness-coach|with_skill|without_skill|(?:\.\./)?(?:healthy-fitness-coach-workspace|eval-[a-z0-9-]+)/(?:with_skill|without_skill)') "Provenance reveals hidden identity or source path: $($entry.eval_id)"
+            } catch {
+                $failures.Add("Invalid provenance JSON: $($entry.eval_id): $($_.Exception.Message)")
             }
         }
         if (Test-Path -LiteralPath $comparisonPath -PathType Leaf) {

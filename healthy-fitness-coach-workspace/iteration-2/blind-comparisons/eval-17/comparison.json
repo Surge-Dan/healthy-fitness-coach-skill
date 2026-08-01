@@ -1,4 +1,4 @@
 {
   "winner": "A",
-  "reasoning": "Candidate A gives the more complete evidence-bounded analysis. It explicitly separates facts, inferences, and uncertainties; explains the stale cache, unknown-source warning, partial-record rate, and excluded device records; and connects two bounded changes to measurable follow-up. Candidate B is concise and appropriately cautious, but provides less structured coverage of those limits and verification conditions."
+  "reasoning": "A more explicitly separates facts, inferences, and uncertainty; excludes device-originated records correctly; gives two bounded adjustments with rollback criteria; and specifies a stronger verification sequence. B is sound but less complete."
 }

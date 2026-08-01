@@ -8,4 +8,4 @@
 
 ## Quality reasoning
 
-Candidate A provides more complete dimension-by-dimension coverage, clearer evidence boundaries, and a better specified verification loop while remaining conservative about what the synthetic record can support. Candidate B is practical and appropriately restrained, but leaves several requested dimensions and disclosures less explicit.
+A provides fuller dimension-by-dimension coverage, clearer evidence boundaries, and a better specified verification loop while staying conservative about the synthetic record. B is practical and restrained but leaves requested dimensions and confidence disclosures less explicit.

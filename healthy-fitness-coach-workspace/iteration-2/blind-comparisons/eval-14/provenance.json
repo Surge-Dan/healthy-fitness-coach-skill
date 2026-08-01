@@ -1,0 +1,15 @@
+{
+  "generated_at_utc": "2026-08-01T13:59:06.5103259Z",
+  "comparator_task": "/root/task6_implementer/blind_comparator_14",
+  "permitted_files": [
+    "candidate-a/submission.md",
+    "candidate-b/submission.md",
+    "comparator-prompt.md"
+  ],
+  "input_sha256": {
+    "candidate_a": "E092764A913D005F942B3DE2CE76AFFE91AAF405D1F6BE172C8B74B32F567B87",
+    "candidate_b": "45A16275908C54EB09F4487D11041C9468950E7C617A52F61767B652E78096C2"
+  },
+  "result_sha256": "39DABA218AF66E5A9281CA7BEE921F73D677CA122073DF26124BDD0EFFC54156",
+  "mapping_not_supplied": true
+}

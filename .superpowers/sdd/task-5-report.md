@@ -49,8 +49,8 @@ The release check exposed a protocol defect in the test handshake, not the conne
 
 | Artifact | Size | SHA-256 / inventory |
 | --- | ---: | --- |
-| `dist/healthy-fitness-coach.skill` | 38,815 bytes | `3D8C7ED4E5ACCCDC8CDC0E2F9C8B14E5D3CB46A17BB184077638F924E95DA7DD` |
-| `dist/healthy-fitness-coach-plugin/` | 44 files / 162,829 bytes | source/dist parity validated |
+| `dist/healthy-fitness-coach.skill` | 39,889 bytes | `AC65A28B7077093E8122CC0D3500B76874DBEA9B33813CCD46B11806469D8A25` |
+| `dist/healthy-fitness-coach-plugin/` | 45 files / 170,161 bytes | source/dist parity validated |
 
 ## Limitations
 

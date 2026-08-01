@@ -1,4 +1,4 @@
 {
   "winner": "A",
-  "reasoning": "Candidate A more completely separates facts, inferences, and uncertainties across all eight requested dimensions. It explicitly handles data freshness, partial records, and excluded device data; preserves the effective structure; limits itself to two changes; and specifies measurable follow-up checks. Candidate B is concise and cautious, but its coverage of the requested dimensions and boundary disclosures is less systematic."
+  "reasoning": "A covers all eight dimensions, clearly separates facts, inferences, and uncertainty, and explains data range, cache freshness, partial records, and excluded device boundaries. Its retained structure, two-or-fewer changes, and verification metrics are more specific and actionable; B is concise and cautious but less complete on coverage and confidence disclosure."
 }
