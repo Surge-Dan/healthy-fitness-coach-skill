@@ -19,14 +19,7 @@ const MARKDOWN_TASKS = new Set([
   'user_profile'
 ]);
 
-function normalizeInstruction(value) {
-  return String(value || '')
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[\s\u3000\p{P}\p{S}_-]+/gu, '');
-}
-
-function normalizeCommandText(value) {
+function normalizeText(value) {
   return String(value || '')
     .normalize('NFKC')
     .toLowerCase()
@@ -35,52 +28,79 @@ function normalizeCommandText(value) {
     .replace(/-/g, ' ');
 }
 
-function hasUnnegatedChineseCommand(normalized, commands) {
-  for (const command of commands) {
-    let index = normalized.indexOf(command);
-    while (index !== -1) {
-      const prefix = normalized.slice(Math.max(0, index - 12), index);
-      if (!/(?:不想|不要|不需要|无需|不必|别|拒绝|勿)(?:再)?(?:给我)?$/u.test(prefix)) return true;
-      index = normalized.indexOf(command, index + command.length);
+function splitClauses(instruction) {
+  return normalizeText(instruction)
+    .replace(/[?？]/gu, '?|')
+    .replace(/[;；。！!\r\n]+/gu, '|')
+    .replace(/(但是|不过|然后|之后|接着|随后|后来|现在|但)/gu, '|')
+    .replace(/\b(then|but|however)\b/giu, '|')
+    .split('|')
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+}
+
+function stripChineseAffirmativeDecorations(clause) {
+  let value = clause.replace(/[\s\u3000\p{P}\p{S}_]+/gu, '');
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const prefix of ['请', '帮我', '麻烦', '我要', '我想', '现在', '那就', '还是']) {
+      if (value.startsWith(prefix)) {
+        value = value.slice(prefix.length);
+        changed = true;
+      }
     }
   }
-  return false;
-}
-
-function isNegatedEnglishContext(prefix) {
-  const context = prefix
-    .replace(/[\u2018\u2019\u02bc]/gu, "'")
-    .replace(/[\u2010-\u2015\u2212]/gu, ' ')
-    .replace(/[^a-z0-9']+/giu, ' ')
-    .trim()
-    .split(/\s+/u)
-    .slice(-8)
-    .join(' ');
-  return /(?:^|\s)(?:do not|don't|dont)(?:\s+(?:want|need)(?:\s+(?:a|to))?)?$/iu.test(context)
-    || /(?:^|\s)not\s+want(?:\s+(?:a|to))?$/iu.test(context)
-    || /(?:^|\s)(?:no need(?:\s+to)?|refuse(?:\s+to)?|never)$/iu.test(context);
-}
-
-function hasUnnegatedEnglishCommand(text, pattern) {
-  pattern.lastIndex = 0;
-  for (const match of text.matchAll(pattern)) {
-    const commandStart = match.index + match[0].lastIndexOf(match[1]);
-    if (!isNegatedEnglishContext(text.slice(0, commandStart))) return true;
+  for (const suffix of ['谢谢', '一下', '好吗', '吧', '呀', '啊']) {
+    if (value.endsWith(suffix)) value = value.slice(0, -suffix.length);
   }
-  return false;
+  return value;
+}
+
+function stripEnglishAffirmativeDecorations(clause) {
+  let value = clause.replace(/[^a-z0-9']+/giu, ' ').trim();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const prefix of ['please ', 'can you ', 'could you ', 'i want ', "let's ", 'then ', 'now ']) {
+      if (value.startsWith(prefix)) {
+        value = value.slice(prefix.length);
+        changed = true;
+      }
+    }
+  }
+  for (const suffix of [' please', ' now', ' for me', ' thanks', ' thank you']) {
+    if (value.endsWith(suffix)) value = value.slice(0, -suffix.length);
+  }
+  return value;
+}
+
+function explicitOverrideForClause(clause) {
+  if (/[?？]|(?:吗|么|是否|如何|怎么)/u.test(clause) || /^(?:can|could|do|does|did|would|will|are|is)\s+you\b/iu.test(clause)) return null;
+  if (/[\u4E00-\u9FFF]/u.test(clause)) {
+    const value = stripChineseAffirmativeDecorations(clause);
+    if (value === '直接出报告' || value === '直接输出报告') return 'direct_report';
+    if (value === '进入跟练' || value === '开始跟练') return 'enter_tracking';
+    if (value === '保存刚才内容' || value === '把刚才内容保存下来') return 'save_prior_content';
+    return null;
+  }
+  const value = stripEnglishAffirmativeDecorations(clause);
+  if (value === 'direct report' || value === 'directly report' || value === 'a direct report') return 'direct_report';
+  if (value === 'enter tracking') return 'enter_tracking';
+  if (value === 'save prior content' || value === 'save the prior content') return 'save_prior_content';
+  return null;
 }
 
 function explicitOverride(instruction) {
-  const normalized = normalizeInstruction(instruction);
-  const commandText = normalizeCommandText(instruction);
-  if (hasUnnegatedChineseCommand(normalized, ['直接出报告', '直接输出报告']) || hasUnnegatedEnglishCommand(commandText, /(?:^|[^a-z0-9])(direct(?:ly)?[\s\p{P}\p{S}_-]+report)(?=$|[^a-z0-9])/giu)) {
-    return { mode: 'markdown', reason: 'explicit_command', override: 'direct_report' };
-  }
-  if (hasUnnegatedChineseCommand(normalized, ['进入跟练', '开始跟练']) || hasUnnegatedEnglishCommand(commandText, /(?:^|[^a-z0-9])(enter[\s\p{P}\p{S}_-]+tracking)(?=$|[^a-z0-9])/giu)) {
-    return { mode: 'conversation', reason: 'explicit_command', override: 'enter_tracking' };
-  }
-  if (hasUnnegatedChineseCommand(normalized, ['保存刚才内容', '把刚才内容保存下来']) || hasUnnegatedEnglishCommand(commandText, /(?:^|[^a-z0-9])(save[\s\p{P}\p{S}_-]+(?:the[\s\p{P}\p{S}_-]+)?prior[\s\p{P}\p{S}_-]+content)(?=$|[^a-z0-9])/giu)) {
-    return { mode: 'markdown', reason: 'explicit_command', override: 'save_prior_content' };
+  for (const clause of splitClauses(instruction)) {
+    const override = explicitOverrideForClause(clause);
+    if (override) {
+      return {
+        mode: override === 'enter_tracking' ? 'conversation' : 'markdown',
+        reason: 'explicit_command',
+        override
+      };
+    }
   }
   return null;
 }

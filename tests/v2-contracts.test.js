@@ -101,24 +101,31 @@ test('does not override task defaults for negated Chinese or English commands', 
   const cases = [
     { taskType: 'today_workout', userInstruction: '我不想直接出报告。', mode: 'conversation' },
     { taskType: 'today_workout', userInstruction: '不要直接出报告。', mode: 'conversation' },
+    { taskType: 'today_workout', userInstruction: '暂时不直接出报告。', mode: 'conversation' },
     { taskType: 'today_workout', userInstruction: '我不需要直接出报告。', mode: 'conversation' },
     { taskType: 'today_workout', userInstruction: '请不要给我直接出报告。', mode: 'conversation' },
     { taskType: 'today_workout', userInstruction: '无需直接出报告。', mode: 'conversation' },
     { taskType: 'training_plan', userInstruction: '不要进入跟练。', mode: 'markdown' },
+    { taskType: 'training_plan', userInstruction: '请不要让我进入跟练。', mode: 'markdown' },
     { taskType: 'training_plan', userInstruction: '我不需要进入跟练。', mode: 'markdown' },
     { taskType: 'training_plan', userInstruction: '无需进入跟练。', mode: 'markdown' },
     { taskType: 'today_workout', userInstruction: '不要保存刚才内容。', mode: 'conversation' },
+    { taskType: 'today_workout', userInstruction: '我不愿意保存刚才内容。', mode: 'conversation' },
     { taskType: 'today_workout', userInstruction: '请不要给我保存刚才内容。', mode: 'conversation' },
     { taskType: 'today_workout', userInstruction: '无需保存刚才内容。', mode: 'conversation' },
     { taskType: 'today_workout', userInstruction: 'Do not direct report.', mode: 'conversation' },
     { taskType: 'today_workout', userInstruction: 'Don’t direct report.', mode: 'conversation' },
     { taskType: 'today_workout', userInstruction: 'Do-not direct report.', mode: 'conversation' },
     { taskType: 'today_workout', userInstruction: 'I do not want a direct report.', mode: 'conversation' },
+    { taskType: 'today_workout', userInstruction: "I don't really want a direct report.", mode: 'conversation' },
     { taskType: 'today_workout', userInstruction: 'I not want a direct report.', mode: 'conversation' },
     { taskType: 'training_plan', userInstruction: "Don't enter tracking.", mode: 'markdown' },
     { taskType: 'training_plan', userInstruction: 'I do not want to enter tracking.', mode: 'markdown' },
+    { taskType: 'today_workout', userInstruction: 'Can you direct report', mode: 'conversation' },
+    { taskType: 'training_plan', userInstruction: 'Could you please enter tracking', mode: 'markdown' },
     { taskType: 'today_workout', userInstruction: 'Do not save prior content.', mode: 'conversation' },
-    { taskType: 'today_workout', userInstruction: 'No need to save prior content.', mode: 'conversation' }
+    { taskType: 'today_workout', userInstruction: 'No need to save prior content.', mode: 'conversation' },
+    { taskType: 'today_workout', userInstruction: 'Do you directly report training data?', mode: 'conversation' }
   ];
 
   for (const { taskType, userInstruction, mode } of cases) {
@@ -130,6 +137,36 @@ test('does not override task defaults for negated Chinese or English commands', 
   }
 });
 
+test('accepts only complete affirmative command clauses after polite request prefixes', () => {
+  const cases = [
+    {
+      input: { taskType: 'today_workout', userInstruction: '请直接出报告。' },
+      expected: { mode: 'markdown', reason: 'explicit_command', override: 'direct_report' }
+    },
+    {
+      input: { taskType: 'today_workout', userInstruction: '请直接出报告吧，谢谢。' },
+      expected: { mode: 'markdown', reason: 'explicit_command', override: 'direct_report' }
+    },
+    {
+      input: { taskType: 'today_workout', userInstruction: 'I want a direct report.' },
+      expected: { mode: 'markdown', reason: 'explicit_command', override: 'direct_report' }
+    },
+    {
+      input: { taskType: 'training_plan', userInstruction: '帮我进入跟练。' },
+      expected: { mode: 'conversation', reason: 'explicit_command', override: 'enter_tracking' }
+    },
+    {
+      input: { taskType: 'today_workout', userInstruction: 'Please save prior content.' },
+      expected: { mode: 'markdown', reason: 'explicit_command', override: 'save_prior_content' }
+    },
+    {
+      input: { taskType: 'today_workout', userInstruction: 'Please　save—prior content.' },
+      expected: { mode: 'markdown', reason: 'explicit_command', override: 'save_prior_content' }
+    }
+  ];
+  for (const { input, expected } of cases) assert.deepEqual(routeOutput(input), expected);
+});
+
 test('allows a later independent affirmative command after a negated command', () => {
   assert.deepEqual(routeOutput({
     taskType: 'today_workout',
@@ -139,6 +176,10 @@ test('allows a later independent affirmative command after a negated command', (
     taskType: 'training_plan',
     userInstruction: "Don't enter tracking, but enter tracking now."
   }), { mode: 'conversation', reason: 'explicit_command', override: 'enter_tracking' });
+  assert.deepEqual(routeOutput({
+    taskType: 'today_workout',
+    userInstruction: '不要直接出报告，然后直接出报告。'
+  }), { mode: 'markdown', reason: 'explicit_command', override: 'direct_report' });
 });
 
 test('ships the V2 routing, Xunji, analysis, research, and report guidance', () => {
