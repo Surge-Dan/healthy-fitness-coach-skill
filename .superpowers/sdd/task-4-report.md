@@ -21,6 +21,10 @@ The source Skill was deterministically copied into the Plugin. The first copy wa
 3. First GREEN attempt caught the flattened Skill layout (`skill agents/assets/evals/references is missing SKILL.md`) and an MCP handshake timeout. Correcting the nested copy fixed both causes.
 4. GREEN: `tests/validate_plugin.ps1` passes official schema validation, declared stdio initialize/tools-list, source/Plugin Skill SHA-256 parity, privacy/path checks, README boundaries, and source-to-dist parity.
 
+## Portability follow-up
+
+The validator test originally defaulted `-PluginValidator` to a machine-specific user path. A focused static RED test rejected that default. GREEN keeps the optional override but resolves the default from `$env:CODEX_HOME` when present, otherwise from the current Windows user profile plus `.codex/skills/.system/plugin-creator/scripts/validate_plugin.py`; it validates that resolved file and gives an actionable override/install error when absent. Static coverage now rejects machine-absolute user paths in validation tooling, Plugin source, and dist. This test-only portability fix does not change either packaged artifact or the hashes below.
+
 ## Validation executed
 
 ```powershell

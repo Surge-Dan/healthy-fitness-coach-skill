@@ -3,7 +3,7 @@ param(
     [string]$PluginRoot = '',
     [string]$SkillRoot = '',
     [string]$DistRoot = '',
-    [string]$PluginValidator = 'C:\Users\Daniel\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py',
+    [string]$PluginValidator = '',
     [switch]$SkipStdio,
     [switch]$SkipDist
 )
@@ -13,6 +13,13 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $PluginRoot) { $PluginRoot = Join-Path $scriptDir '..\healthy-fitness-coach-plugin' }
 if (-not $SkillRoot) { $SkillRoot = Join-Path $scriptDir '..\healthy-fitness-coach' }
 if (-not $DistRoot) { $DistRoot = Join-Path $scriptDir '..\dist\healthy-fitness-coach-plugin' }
+if (-not $PluginValidator) {
+    $codexRoot = $env:CODEX_HOME
+    if ([string]::IsNullOrWhiteSpace($codexRoot)) {
+        $codexRoot = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.codex'
+    }
+    $PluginValidator = Join-Path $codexRoot 'skills\.system\plugin-creator\scripts\validate_plugin.py'
+}
 $failures = [System.Collections.Generic.List[string]]::new()
 
 function Assert-True {
@@ -58,6 +65,7 @@ function Assert-InventoryMatch {
 $pluginRootFull = Get-AbsolutePath $PluginRoot
 $skillRootFull = Get-AbsolutePath $SkillRoot
 $distRootFull = Get-AbsolutePath $DistRoot
+$PluginValidator = Get-AbsolutePath $PluginValidator
 $authorName = [string]([char]0x6885) + [char]0x4E43 + [char]0x4E39
 $chineseTerms = @(
     ([string]([char]0x4E0D) + [char]0x8981 + [char]0x628A + [char]0x5BC6 + [char]0x94A5 + [char]0x7C98 + [char]0x8D34 + [char]0x5230 + [char]0x804A + [char]0x5929),
@@ -71,6 +79,32 @@ $manifestPath = Join-Path $pluginRootFull '.codex-plugin\plugin.json'
 $mcpPath = Join-Path $pluginRootFull '.mcp.json'
 $readmePath = Join-Path $pluginRootFull 'README.md'
 $pluginSkillRoot = Join-Path $pluginRootFull 'skills\healthy-fitness-coach'
+$validationToolPath = Join-Path $scriptDir 'validate_plugin.ps1'
+
+if (Test-Path -LiteralPath $validationToolPath -PathType Leaf) {
+    $validationToolText = Get-Content -LiteralPath $validationToolPath -Raw -Encoding UTF8
+    Assert-True ($validationToolText -notmatch '(?im)\[string\]\$PluginValidator\s*=\s*["''][A-Z]:\\') 'Validation tooling must not default PluginValidator to a machine-absolute user path'
+    Assert-True ($validationToolText.Contains('$env:CODEX_HOME')) 'Validation tooling must prefer CODEX_HOME when available'
+    Assert-True ($validationToolText.Contains("GetFolderPath('UserProfile')")) 'Validation tooling must derive a portable UserProfile fallback'
+    Assert-True ($validationToolText.Contains('validate_plugin.py')) 'Validation tooling must derive the official validator script path'
+    Assert-True ($validationToolText.Contains('Test-Path -LiteralPath $PluginValidator -PathType Leaf')) 'Validation tooling must validate the resolved official validator path'
+}
+
+$windowsUserPathPattern = '[A-Z]:' + [regex]::Escape([string][char]92) + 'Users' + [regex]::Escape([string][char]92)
+$slash = [string][char]47
+$percent = [string][char]37
+$absoluteUserPathPattern = '(?im)(?:' + $windowsUserPathPattern + '|' + $slash + 'Users' + $slash + '|' + $slash + 'home' + $slash + '|' + $percent + 'USERPROFILE' + $percent + ')'
+$portabilityFiles = @()
+if (Test-Path -LiteralPath $validationToolPath -PathType Leaf) { $portabilityFiles += Get-Item -LiteralPath $validationToolPath }
+foreach ($root in @($pluginRootFull, $distRootFull)) {
+    if (Test-Path -LiteralPath $root -PathType Container) {
+        $portabilityFiles += Get-ChildItem -LiteralPath $root -Recurse -File | Where-Object { $_.FullName -notmatch '[\\/]node_modules[\\/]' -and $_.Extension -in @('.json', '.js', '.md', '.ps1', '.yaml', '.yml') }
+    }
+}
+foreach ($file in $portabilityFiles) {
+    $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
+    Assert-True ($text -notmatch $absoluteUserPathPattern) "Machine-absolute user path included: $($file.FullName)"
+}
 
 Assert-True (Test-Path -LiteralPath $PluginRoot -PathType Container) "Plugin root is missing: $PluginRoot"
 foreach ($path in @($manifestPath, $mcpPath, $readmePath, (Join-Path $pluginSkillRoot 'SKILL.md'))) {
@@ -133,7 +167,9 @@ if ($mcp) {
 if ((Test-Path -LiteralPath $PluginValidator -PathType Leaf) -and (Test-Path -LiteralPath $PluginRoot -PathType Container)) {
     & python $PluginValidator $PluginRoot
     Assert-True ($LASTEXITCODE -eq 0) 'Official plugin validator failed'
-} else { $failures.Add('Official plugin validator is missing') }
+} else {
+    $failures.Add("Official Plugin validator was not found at '$PluginValidator'. Install the Codex plugin-creator skill or pass -PluginValidator <path-to-validate_plugin.py>.")
+}
 
 if ((Test-Path -LiteralPath $SkillRoot -PathType Container) -and (Test-Path -LiteralPath $pluginSkillRoot -PathType Container)) {
     Assert-InventoryMatch (Get-Inventory $skillRootFull) (Get-Inventory $pluginSkillRoot) 'Plugin Skill parity'
@@ -144,7 +180,7 @@ if ($manifest -and $mcp -and (Test-Path -LiteralPath $pluginSkillRoot -PathType 
     Get-ChildItem -LiteralPath $pluginRootFull -Force -Recurse | ForEach-Object {
         foreach ($name in $prohibited) { Assert-True (-not ($_.Name -like $name)) "Prohibited runtime/user artifact included: $($_.FullName)" }
     }
-    $machinePathPattern = '(?im)(?:C:\\Users\\|/Users/|/home/|%USERPROFILE%)'
+    $machinePathPattern = $absoluteUserPathPattern
     $credentialValuePattern = '(?im)(?:api[_-]?key|xunji[_-]?key|secret|token)\s*[:=]\s*["''](?:[^"'']{8,})'
     Get-ChildItem -LiteralPath $pluginRootFull -Recurse -File | Where-Object { $_.FullName -notmatch '[\\/]node_modules[\\/]' -and $_.Extension -in @('.json', '.js', '.md', '.ps1', '.yaml', '.yml') } | ForEach-Object {
         $text = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8
