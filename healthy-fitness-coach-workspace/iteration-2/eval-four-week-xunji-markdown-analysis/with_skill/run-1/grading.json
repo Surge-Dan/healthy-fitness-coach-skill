@@ -1,0 +1,71 @@
+{
+  "expectations": [
+    {
+      "text": "生成非空 .md 报告文件，且报告覆盖四周范围、缓存新鲜度与置信度",
+      "passed": true,
+      "evidence": "four-week-analysis.md 非空，写明范围 2026-07-04 至 2026-07-29、缓存时间戳 2026-07-30T08:00:00Z，并以中等/受限或低置信度标示各类结论。"
+    },
+    {
+      "text": "报告包含八个分析维度，并将事实、推断与不确定性区分",
+      "passed": true,
+      "evidence": "报告的“八维分析”表列出 1–8 个维度，每行单列“事实”“推断”“不确定性/置信度”和验证指标；核心结论也分为事实、推断和结论边界。"
+    },
+    {
+      "text": "报告说明 7 月 22 日为部分记录，且不把 Garmin 过滤记录当作分析细节",
+      "passed": true,
+      "evidence": "报告称 2026-07-22 仅有“上肢训练完成”的部分记录，不能推断动作、组数、强度或质量；并明确 3 条 source=Garmin 跑步记录已过滤且未纳入任何表现、容量或恢复结论。"
+    },
+    {
+      "text": "保留已有有效训练结构，调整建议不超过两项",
+      "passed": true,
+      "evidence": "“应保留的内容”明确保留当前节奏及深蹲/卧推可记录的渐进方式；“调整（最多两项）”恰有 2 项，且未重写整套计划。"
+    },
+    {
+      "text": "每项建议有可验证的下周指标，不做精确但无依据的进阶承诺",
+      "passed": true,
+      "evidence": "两项调整都规定应记录的字段、条件和回退条件；下一周期列出完成率、正式组、RIR、部分记录等验证指标。负重进阶仅在技术、RIR 和耐受条件满足时才考虑，未承诺具体增重结果。"
+    }
+  ],
+  "summary": { "passed": 5, "failed": 0, "total": 5, "pass_rate": 1.0 },
+  "execution_metrics": {
+    "eval_id": 14,
+    "run_number": 1,
+    "configuration": "with_skill",
+    "synthetic_data_only": true,
+    "external_access": false,
+    "tool_calls": [],
+    "total_tool_calls": 0,
+    "input_tokens": null,
+    "output_tokens": null,
+    "duration_ms": null,
+    "output_chars": 3866,
+    "transcript_chars": 530,
+    "notes": "Markdown report created from synthetic prompt data only; no connector call was made."
+  },
+  "timing": null,
+  "claims": [
+    {
+      "claim": "11/12 次计划完成，深蹲和卧推均在相同组次下增加 2.5 kg。",
+      "type": "factual",
+      "verified": true,
+      "evidence": "该表述与 eval_metadata.json 中的合成输入一致，报告也明确限定为合成摘要事实。"
+    },
+    {
+      "claim": "这些结果支持保留结构，但不足以证明长期平台期、最优训练量或恢复状态。",
+      "type": "quality",
+      "verified": true,
+      "evidence": "报告列出了缺失的 RIR/RPE、技术、恢复和原始逐组数据，结论边界与证据量匹配。"
+    },
+    {
+      "claim": "未调用连接器、未访问真实账户或写回数据。",
+      "type": "process",
+      "verified": true,
+      "evidence": "转录、output.md、报告和 metrics.json 一致声明 external_access=false、tool_calls 为空。"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": ["缺少精确分析时刻、逐条记录 ID/原文、RIR/RPE、技术、恢复、疼痛和营养数据。"],
+    "needs_review": [],
+    "workarounds": ["将 Garmin 记录完全排除，仅使用用户提供的合成摘要。"]
+  }
+}

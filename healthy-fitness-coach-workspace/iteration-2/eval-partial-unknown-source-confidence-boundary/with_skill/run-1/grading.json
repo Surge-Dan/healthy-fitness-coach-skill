@@ -1,0 +1,71 @@
+{
+  "expectations": [
+    {
+      "text": "生成非空 .md 报告，写明数据范围、58 小时缓存、部分记录和未知来源警告",
+      "passed": true,
+      "evidence": "partial-source-analysis.md 非空，写明范围 2026-07-04 至 2026-07-29、cache_age_hours=58、8 条已解析记录中的 3 条部分记录，以及 unknown_source_warnings=[\"SyntheticWatch?\"]。"
+    },
+    {
+      "text": "明确排除 Garmin 明细，且不把过滤数量解释为训练表现",
+      "passed": true,
+      "evidence": "报告说明 filtered_garmin_count=4 仅表示四条记录被排除，未读/未解释，也不能用于说明训练表现或活动量；复盘指标再次列为“不使用的指标”。"
+    },
+    {
+      "text": "将结论标为低或受限置信度，不据此做精确负重进阶承诺",
+      "passed": true,
+      "evidence": "标题区明确给出“低置信度”；报告将划船多 1 次称为待验证信号，明确不据此判断稳定进步或需要加重，并要求先在多次相近条件下验证。"
+    },
+    {
+      "text": "保留可确认的划船事实，并提出下一周期的数据/训练验证步骤",
+      "passed": true,
+      "evidence": "报告保留杠铃划船 40 kg 3×10 到 3×11 这一事实；两项调整分别规定最小完整日志与在同条件下继续 40 kg 验证，且列出下一周期必测指标。"
+    },
+    {
+      "text": "建议调整不超过两项",
+      "passed": true,
+      "evidence": "“调整（最多两项）”部分恰有两项：建立最小完整日志、划船先验证不预设加重。"
+    }
+  ],
+  "summary": { "passed": 5, "failed": 0, "total": 5, "pass_rate": 1.0 },
+  "execution_metrics": {
+    "eval_id": 17,
+    "run_number": 1,
+    "configuration": "with_skill",
+    "synthetic_data_only": true,
+    "external_access": false,
+    "tool_calls": [],
+    "total_tool_calls": 0,
+    "input_tokens": null,
+    "output_tokens": null,
+    "duration_ms": null,
+    "output_chars": 3810,
+    "transcript_chars": 457,
+    "notes": "Low-confidence Markdown report created from synthetic prompt data only; Garmin detail remained excluded."
+  },
+  "timing": null,
+  "claims": [
+    {
+      "claim": "40 kg 杠铃划船在相同组数下从 3×10 到 3×11。",
+      "type": "factual",
+      "verified": true,
+      "evidence": "与 eval_metadata.json 的合成输入一致，报告将其限定为唯一可比较动作。"
+    },
+    {
+      "claim": "一次多完成 1 次不足以支持加重或整体计划有效的结论。",
+      "type": "quality",
+      "verified": true,
+      "evidence": "报告说明只有一个动作、技术/休息/恢复条件未知且数据部分缺失，因此只提出验证而不加重。"
+    },
+    {
+      "claim": "Garmin 明细未被使用。",
+      "type": "process",
+      "verified": true,
+      "evidence": "转录、报告、output.md、user_notes.md 和 metrics.json 对此一致，且 metrics.json 显示无外部访问。"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": ["8 条记录中 3 条部分记录，来源警告未解决，除一项划船比较外的训练字段缺失。"],
+    "needs_review": ["在做负重或计划决策前，需要完整且带来源标签的日志或导出。"],
+    "workarounds": ["将四条已过滤 Garmin 记录排除，基于唯一可比较动作作受限分析。"]
+  }
+}

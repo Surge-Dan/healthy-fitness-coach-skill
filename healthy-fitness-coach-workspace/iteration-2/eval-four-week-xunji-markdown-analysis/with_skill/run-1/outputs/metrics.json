@@ -1,0 +1,12 @@
+{
+  "eval_id": 14,
+  "run_number": 1,
+  "configuration": "with_skill",
+  "synthetic_data_only": true,
+  "external_access": false,
+  "tool_calls": [],
+  "input_tokens": null,
+  "output_tokens": null,
+  "duration_ms": null,
+  "notes": "Markdown report created from synthetic prompt data only; no connector call was made."
+}

@@ -1,0 +1,23 @@
+{
+  "purpose": "Private A/B mappings for blind comparator runs. Do not provide this file to comparator agents.",
+  "mappings": [
+    {
+      "eval_id": 14,
+      "comparison_file": "comparison-14.json",
+      "A": "with_skill",
+      "B": "without_skill"
+    },
+    {
+      "eval_id": 16,
+      "comparison_file": "comparison-16.json",
+      "A": "without_skill",
+      "B": "with_skill"
+    },
+    {
+      "eval_id": 17,
+      "comparison_file": "comparison-17.json",
+      "A": "with_skill",
+      "B": "without_skill"
+    }
+  ]
+}

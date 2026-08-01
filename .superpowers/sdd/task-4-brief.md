@@ -60,7 +60,7 @@ Before creating the manifest/copy, add `tests/validate_plugin.ps1` and/or Node t
 
 ## Packaging
 
-- Use the official Skill packager from `C:\Users\Daniel\.codex\skills\skill-creator` with `PYTHONIOENCODING=utf-8` and `python -m scripts.package_skill <skill-root> <dist-root>` to replace `dist/healthy-fitness-coach.skill`.
+- Use the official Skill packager from `%USERPROFILE%\.codex\skills\skill-creator` with `PYTHONIOENCODING=utf-8` and `python -m scripts.package_skill <skill-root> <dist-root>` to replace `dist/healthy-fitness-coach.skill`.
 - Create `dist/healthy-fitness-coach-plugin/` as a clean copy of the validated Plugin source, excluding `node_modules`, coverage/temp files, caches, credentials, and user reports.
 - Optionally create a ZIP only if tests verify it; the required deliverable is the dist directory.
 - Validate package archive contents against source (not just successful command exit).

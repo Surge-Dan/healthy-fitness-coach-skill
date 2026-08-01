@@ -9,7 +9,7 @@
 The official scaffold baseline was recreated in the ignored local directory with the same command used for this task:
 
 ```powershell
-python C:\Users\Daniel\.codex\skills\.system\plugin-creator\scripts\create_basic_plugin.py healthy-fitness-coach-plugin --path C:\Users\Daniel\Documents\健身Skill\tmp\plugin-scaffold --with-skills --with-mcp --with-scripts --with-assets --force
+python %USERPROFILE%\.codex\skills\.system\plugin-creator\scripts\create_basic_plugin.py healthy-fitness-coach-plugin --path %USERPROFILE%\Documents\健身Skill\tmp\plugin-scaffold --with-skills --with-mcp --with-scripts --with-assets --force
 ```
 
 The source Skill was deterministically copied into the Plugin. The first copy was intentionally caught by validation because PowerShell flattened it into `skills/`; the content was then moved to the required `skills/healthy-fitness-coach/` directory and the clean dist copy was mirrored from that corrected source.
@@ -29,9 +29,9 @@ The validator test originally defaulted `-PluginValidator` to a machine-specific
 
 ```powershell
 $env:PYTHONIOENCODING='utf-8'; $env:PYTHONUTF8='1'
-python C:\Users\Daniel\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py healthy-fitness-coach-plugin
-python C:\Users\Daniel\.codex\skills\skill-creator\scripts\quick_validate.py healthy-fitness-coach
-python C:\Users\Daniel\.codex\skills\skill-creator\scripts\quick_validate.py healthy-fitness-coach-plugin\skills\healthy-fitness-coach
+python %USERPROFILE%\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py healthy-fitness-coach-plugin
+python %USERPROFILE%\.codex\skills\skill-creator\scripts\quick_validate.py healthy-fitness-coach
+python %USERPROFILE%\.codex\skills\skill-creator\scripts\quick_validate.py healthy-fitness-coach-plugin\skills\healthy-fitness-coach
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\validate_plugin.ps1
 node --test tests\v2-contracts.test.js
 npm --prefix healthy-fitness-coach-plugin\mcp\xunji test
@@ -53,8 +53,8 @@ The standalone archive was produced with the required official module command:
 
 ```powershell
 $env:PYTHONIOENCODING='utf-8'; $env:PYTHONUTF8='1'
-Set-Location C:\Users\Daniel\.codex\skills\skill-creator
-python -m scripts.package_skill C:\Users\Daniel\Documents\健身Skill\healthy-fitness-coach C:\Users\Daniel\Documents\健身Skill\dist
+Set-Location %USERPROFILE%\.codex\skills\skill-creator
+python -m scripts.package_skill %USERPROFILE%\Documents\健身Skill\healthy-fitness-coach %USERPROFILE%\Documents\健身Skill\dist
 ```
 
 `PYTHONUTF8=1` is additionally required on this Windows host because the official packager calls `Path.read_text()` without an explicit encoding and otherwise inherits the GBK default.

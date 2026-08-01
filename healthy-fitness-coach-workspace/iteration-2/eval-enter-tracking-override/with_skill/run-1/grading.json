@@ -1,0 +1,65 @@
+{
+  "expectations": [
+    {
+      "text": "以会话方式开始逐组跟练，而非输出 Markdown 报告",
+      "passed": true,
+      "evidence": "output.md 以“进入跟练”开场，要求用户完成第一组后回复变式、负重、次数和 RIR；内容是会话引导，不是训练分析报告。"
+    },
+    {
+      "text": "先确认或给出第一组的动作、组数或目标次数、RIR 和休息提示",
+      "passed": true,
+      "evidence": "output.md 给出杯式深蹲或徒手深蹲，1 组×8 次、约 3 RIR、休息 90 秒，并说明结束后要回复的四项。"
+    },
+    {
+      "text": "不声称已经记录或保存用户数据",
+      "passed": true,
+      "evidence": "输出仅请求用户在第一组后回报数据，没有任何“已记录”“已保存”或写回声明；metrics.json 也表明 external_access=false、tool_calls 为空。"
+    },
+    {
+      "text": "不生成 .md 报告文件",
+      "passed": true,
+      "evidence": "除评测系统用于承载助手文本的 output.md 外，run 中没有训练报告或额外 .md 交付物；output.md 的内容明确说不生成报告，并实际保持为第一组会话提示。"
+    }
+  ],
+  "summary": { "passed": 4, "failed": 0, "total": 4, "pass_rate": 1.0 },
+  "execution_metrics": {
+    "eval_id": 15,
+    "run_number": 1,
+    "configuration": "with_skill",
+    "synthetic_data_only": true,
+    "external_access": false,
+    "tool_calls": [],
+    "total_tool_calls": 0,
+    "input_tokens": null,
+    "output_tokens": null,
+    "duration_ms": null,
+    "output_chars": 378,
+    "transcript_chars": 442,
+    "notes": "Explicit enter-tracking override routed to conversation; no report or data write was claimed."
+  },
+  "timing": null,
+  "claims": [
+    {
+      "claim": "已进入逐组跟练模式，而非展开三天计划。",
+      "type": "process",
+      "verified": true,
+      "evidence": "输出直接安排第一组并要求完成后回复，未展开三天计划。"
+    },
+    {
+      "claim": "没有生成报告或保存训练数据。",
+      "type": "process",
+      "verified": true,
+      "evidence": "仅存在评测文本载体 output.md；没有额外报告文件，且 metrics.json 显示无外部访问或工具调用。"
+    }
+  ],
+  "user_notes_summary": { "uncertainties": [], "needs_review": [], "workarounds": [] },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "不生成 .md 报告文件",
+        "reason": "评测框架本身会把每次助手回复保存为 output.md，字面文件存在性会造成假失败。建议断言为“不创建额外的报告型交付物，且回复保持逐组会话格式”。"
+      }
+    ],
+    "overall": "其余断言能有效检查会话覆盖与第一组要素；文件名断言需排除框架生成的回复载体。"
+  }
+}

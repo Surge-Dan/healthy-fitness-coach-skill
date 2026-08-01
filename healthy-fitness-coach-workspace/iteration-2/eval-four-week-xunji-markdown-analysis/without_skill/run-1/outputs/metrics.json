@@ -1,0 +1,10 @@
+{
+  "run_number": 1,
+  "configuration": "without_skill",
+  "skill_version": "V1 snapshot",
+  "model": "gpt-5.6-terra",
+  "duration_ms": null,
+  "total_tokens": null,
+  "total_duration_seconds": null,
+  "telemetry_note": "Timing and token telemetry were not supplied for this baseline run."
+}

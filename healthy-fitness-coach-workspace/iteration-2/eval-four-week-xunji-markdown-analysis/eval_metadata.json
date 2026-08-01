@@ -1,0 +1,21 @@
+﻿{
+    "eval_id":  14,
+    "eval_name":  "four-week-xunji-markdown-analysis",
+    "prompt":  "请直接出报告。以下是明显合成的只读连接器输出（无真实账户）：cache_freshness=2026-07-30T08:00:00Z，analysis_date=2026-08-01，records：Synthetic-U17 在 2026-07-04 至 2026-07-29 完成 11/12 次计划；深蹲 60kg 3x8 到 62.5kg 3x8，卧推 45kg 3x8 到 47.5kg 3x8；7 月 22 日只有一条“上肢训练完成”部分记录；source=Garmin 的 3 条跑步记录已过滤。请分析这四周。",
+    "expected_output":  "生成真实 Markdown 报告，披露范围、缓存新鲜度和置信度，以八维度分离事实/推断/不确定性，保留有效项，只给至多两项调整及验证指标。",
+    "assertions":  [
+                       "生成非空 .md 报告文件，且报告覆盖四周范围、缓存新鲜度与置信度",
+                       "报告包含八个分析维度，并将事实、推断与不确定性区分",
+                       "报告说明 7 月 22 日为部分记录，且不把 Garmin 过滤记录当作分析细节",
+                       "保留已有有效训练结构，调整建议不超过两项",
+                       "每项建议有可验证的下周指标，不做精确但无依据的进阶承诺"
+                   ],
+    "configuration_mapping":  {
+                                  "with_skill":  "V2 candidate: healthy-fitness-coach",
+                                  "without_skill":  "V1 baseline: healthy-fitness-coach-workspace/skill-v1-snapshot"
+                              },
+    "run_number":  1,
+    "model":  "gpt-5.6-terra",
+    "synthetic_data_only":  true,
+    "statistical_note":  "One run per configuration; functional coverage only, not evidence of statistical stability."
+}

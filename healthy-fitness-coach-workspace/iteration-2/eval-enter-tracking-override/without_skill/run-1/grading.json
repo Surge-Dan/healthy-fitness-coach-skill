@@ -1,0 +1,10 @@
+{"expectations":[
+{"text":"\u4EE5\u4F1A\u8BDD\u65B9\u5F0F\u5F00\u59CB\u9010\u7EC4\u8DDF\u7EC3\uFF0C\u800C\u975E\u8F93\u51FA Markdown \u62A5\u544A","passed":true,"evidence":"output.md opens follow-along mode, explicitly sets aside the three-day plan, starts the first set, and asks for results before the next set; it is not a report."},
+{"text":"\u5148\u786E\u8BA4\u6216\u7ED9\u51FA\u7B2C\u4E00\u7EC4\u7684\u52A8\u4F5C\u3001\u7EC4\u6570\u6216\u76EE\u6807\u6B21\u6570\u3001RIR \u548C\u4F11\u606F\u63D0\u793A","passed":true,"evidence":"It provides a goblet-squat first set with target repetitions, RIR 3, load-selection guidance, and about two minutes of rest after an initial red-flag check."},
+{"text":"\u4E0D\u58F0\u79F0\u5DF2\u7ECF\u8BB0\u5F55\u6216\u4FDD\u5B58\u7528\u6237\u6570\u636E","passed":true,"evidence":"output.md explicitly says it will not assume any record has already been saved; the transcript likewise records no persisted-log claim."},
+{"text":"\u4E0D\u751F\u6210 .md \u62A5\u544A\u6587\u4EF6","passed":true,"evidence":"The only deliverable is the conversational output.md; no separately generated report is present or claimed."}],
+"summary":{"passed":4,"failed":0,"total":4,"pass_rate":1.0},
+"execution_metrics":{"run_number":1,"configuration":"without_skill","skill_version":"V1 snapshot","model":"gpt-5.6-terra","duration_ms":null,"total_tokens":null,"total_duration_seconds":null,"telemetry_note":"Timing and token telemetry were not supplied for this baseline run.","output_chars":466,"transcript_chars":459},
+"timing":{"executor_duration_seconds":null,"grader_duration_seconds":null,"total_duration_seconds":null},
+"claims":[{"claim":"The prior three-day-plan request is overridden by follow-along mode.","type":"process","verified":true,"evidence":"Transcript records the override and output.md says the plan will not be expanded now."},{"claim":"The next set will be selected after the user reports four inputs.","type":"process","verified":true,"evidence":"output.md asks for load, repetitions, remaining reps, and discomfort after the first set."}],
+"user_notes_summary":{"uncertainties":[],"needs_review":[],"workarounds":[]}}

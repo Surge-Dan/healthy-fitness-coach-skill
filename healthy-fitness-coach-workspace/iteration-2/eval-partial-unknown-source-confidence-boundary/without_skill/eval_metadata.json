@@ -1,0 +1,23 @@
+﻿{
+    "eval_id":  17,
+    "eval_name":  "partial-unknown-source-confidence-boundary",
+    "prompt":  "请直接出报告。以下全为合成连接器结果：范围 2026-07-04 至 2026-07-29，cache_age_hours=58，parsed_records=8，partial_records=3，unknown_source_warnings=[\"SyntheticWatch?\"], filtered_garmin_count=4。可比动作只有杠铃划船 40kg 3x10 到 40kg 3x11；其余动作缺失。请分析并给建议。",
+    "expected_output":  "输出 Markdown，降低可信度，排除 Garmin 明细，不做精确进阶，提出验证步骤。",
+    "assertions":  [
+                       "生成非空 .md 报告，写明数据范围、58 小时缓存、部分记录和未知来源警告",
+                       "明确排除 Garmin 明细，且不把过滤数量解释为训练表现",
+                       "将结论标为低或受限置信度，不据此做精确负重进阶承诺",
+                       "保留可确认的划船事实，并提出下一周期的数据/训练验证步骤",
+                       "建议调整不超过两项"
+                   ],
+    "configuration_mapping":  {
+                                  "with_skill":  "V2 candidate: healthy-fitness-coach",
+                                  "without_skill":  "V1 baseline: healthy-fitness-coach-workspace/skill-v1-snapshot"
+                              },
+    "run_number":  1,
+    "model":  "gpt-5.6-terra",
+    "synthetic_data_only":  true,
+    "statistical_note":  "One run per configuration; functional coverage only, not evidence of statistical stability.",
+    "configuration":  "without_skill",
+    "skill_path":  "healthy-fitness-coach-workspace/skill-v1-snapshot"
+}
