@@ -301,7 +301,7 @@ test('report path helper avoids an existing filesystem artifact without creating
   try {
     await require('node:fs/promises').mkdir(reportDirectory);
     await writeFile(occupied, 'synthetic existing report', 'utf8');
-    const recommendation = recommendReportArtifactPath({ workspaceRoot: workspace, reportType: 'weekly_review' });
+    const recommendation = recommendReportArtifactPath({ workspaceRoot: workspace, reportType: 'weekly_review', existsSync: () => false });
     assert.equal(recommendation, join(reportDirectory, 'fitness-weekly-review-2.md'));
     assert.equal(readFileSync(occupied, 'utf8'), 'synthetic existing report');
     assert.equal(existsSync(recommendation), false);

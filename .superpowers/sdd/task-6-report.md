@@ -11,7 +11,7 @@ Implemented release-blocker remediation without using a live endpoint, real cred
 3. `powershell -NoProfile -ExecutionPolicy Bypass -File tests/secret-scan.test.ps1` failed as expected because manifest-hashed explicit Xunji-shaped text was skipped.
 4. `node --test test/server.test.js` then failed as expected for two concurrent same-account cache factories; this closed the creation-race gap.
 5. `powershell -NoProfile -ExecutionPolicy Bypass -File tests/validate_iteration2.ps1` failed as expected for missing comparison provenance before it was added.
-6. `node --test tests/v2-contracts.test.js` failed as expected for a real temporary-directory collision: with an existing `fitness-reports/fitness-weekly-review.md`, the helper still recommended that occupied path.
+6. `node --test tests/v2-contracts.test.js` failed as expected for a real temporary-directory collision: with an existing `fitness-reports/fitness-weekly-review.md`, a malicious `existsSync: () => false` option caused the helper to recommend that occupied path.
 
 ## GREEN implementation
 
@@ -32,18 +32,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/verify_v1_snapshot.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/validate_iteration2.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/validate_plugin.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/secret-scan.test.ps1
+$roots = @('healthy-fitness-coach', 'healthy-fitness-coach-plugin', 'dist\healthy-fitness-coach-plugin', 'healthy-fitness-coach-workspace\skill-v1-snapshot', 'healthy-fitness-coach-workspace\iteration-1', 'healthy-fitness-coach-workspace\iteration-2', 'dist\healthy-fitness-coach.skill')
+$manifests = @('healthy-fitness-coach-workspace\iteration-1\frozen-evaluator-evidence-manifest.json', 'healthy-fitness-coach-workspace\iteration-2\baseline-evidence-manifest.json')
 .\tests\secret-scan.ps1 -Roots $roots -ImmutableManifest $manifests
+node tests/plugin-stdio-handshake.js healthy-fitness-coach-plugin node ./mcp/xunji src/server.js
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/verify_skill_archive_parity.ps1
 git diff --check
 ```
 
-- The focused real-directory collision test passes: it preserves the pre-existing synthetic file, creates nothing, and recommends `fitness-weekly-review-2.md`.
+- The focused real-directory collision test passes even with a malicious `existsSync: () => false` option: it preserves the pre-existing synthetic file, creates nothing, and recommends `fitness-weekly-review-2.md`. Production collision checks always call Node's actual `fs.existsSync`; caller `existingPaths` can only add occupied paths.
 - Connector `npm test`: 34/34 pass; V2 contracts: 21/21 pass.
 - Frozen V1 snapshot, iteration-2 consistency/provenance validator, Plugin validator and stdio handshake: pass.
 - Focused and full canonical/Plugin/dist/V1/iteration/archive secret scans pass; archive parity is 21/21 non-eval canonical files.
 
 ## Current artifacts and limits
 
-- `dist/healthy-fitness-coach.skill`: 39,926 bytes; SHA-256 `BD931E118AC364774134441D5403D7CFFBBB385E67D832E9BB858CA31EFC51A4`.
-- `dist/healthy-fitness-coach-plugin`: 45 files / 170,286 bytes; source/dist parity pass.
+- `dist/healthy-fitness-coach.skill`: 39,922 bytes; SHA-256 `FA0FA12582E218839249C16922B1C04DACB42ED5CF5FD77200B1C2F2177EB934`.
+- `dist/healthy-fitness-coach-plugin`: 45 files / 170,261 bytes; source/dist parity pass.
 - Local production MCP remains Plugin `.mcp.json` stdio. `agents/openai.yaml` was intentionally not given unsupported streamable-HTTP dependency metadata.
 - One execution per comparison/configuration is functional evidence, not variance estimation; no live Xunji smoke was run.
