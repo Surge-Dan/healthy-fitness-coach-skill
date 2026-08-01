@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const { existsSync, readFileSync } = require('node:fs');
-const { join } = require('node:path');
+const { basename, join } = require('node:path');
 const test = require('node:test');
 const {
   assertNoFixtureCredential,
@@ -199,6 +199,7 @@ test('uses fixed output-command priority instead of mixed-command text order', (
 test('ships the V2 routing, Xunji, analysis, research, and report guidance', () => {
   const requiredFiles = [
     'references/output-routing.md',
+    'references/report-artifact.js',
     'references/xunji-integration.md',
     'references/multidimensional-analysis.md',
     'references/web-research.md',
@@ -275,6 +276,19 @@ test('fetches only missing dates for a range read', async () => {
   assert.deepEqual(client.calls, ['2026-07-26', '2026-07-27']);
   assert.equal(result.cache_hits, 1);
   assert.equal(result.network_fetches, 2);
+  assert.deepEqual(result.days.map((day) => day.date), ['2026-07-25', '2026-07-26', '2026-07-27']);
+  assert.ok(result.records.every((record) => record.record_date));
+});
+
+test('recommends a non-PII Markdown path inside the workspace report directory', () => {
+  const { recommendReportArtifactPath } = require(join(skillRoot, 'references', 'report-artifact.js'));
+  const workspace = join(repositoryRoot, 'tmp', 'report-path-contract');
+  const first = recommendReportArtifactPath({ workspaceRoot: workspace, reportType: 'weekly_review', existingPaths: new Set() });
+  const second = recommendReportArtifactPath({ workspaceRoot: workspace, reportType: 'weekly_review', existingPaths: new Set([first]) });
+
+  assert.match(first, /fitness-reports[\\/]fitness-weekly-review\.md$/);
+  assert.match(second, /fitness-reports[\\/]fitness-weekly-review-2\.md$/);
+  assert.doesNotMatch(basename(first), /(?:Daniel|@|\d{11}|[A-Z][a-z]+\s[A-Z][a-z]+)/);
 });
 
 test('reads records from the res array of a gzip response', () => {

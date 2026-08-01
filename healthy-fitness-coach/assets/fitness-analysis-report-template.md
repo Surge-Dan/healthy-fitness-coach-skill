@@ -1,6 +1,7 @@
 # 健身训练分析报告：{{report_title}}
 
 - 生成日期：{{generated_date}}
+- 默认保存建议：`fitness-reports/fitness-training-analysis.md`（仅在用户明确给出安全位置时改用该位置；同名时追加数字后缀）
 - 用户目标与背景：{{goal_and_context}}
 
 ## 核心结论
@@ -11,6 +12,9 @@
 
 - 日期范围：{{date_range}}
 - 数据来源：{{source}}；缓存新鲜度：{{cache_freshness}}
+- 成功日期 / 缺失日期：{{successful_dates}} / {{missing_dates_or_none}}
+- 每日抓取时间：{{fetched_at_by_date}}
+- 缓存命中 / 网络抓取：{{cache_hits}} / {{network_fetches}}
 - 记录 ID / train_time / 原始文本保留情况：{{record_evidence}}
 - 缺失项与警告：{{missingness_and_warnings}}
 - 数据质量与置信度：{{quality_and_confidence}}

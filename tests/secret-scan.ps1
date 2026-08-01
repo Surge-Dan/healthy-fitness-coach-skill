@@ -166,10 +166,10 @@ function Test-ExistingMarkdownReference {
 }
 
 function Test-SecretText {
-    param([string]$Text, [string]$Location, [System.Collections.Generic.HashSet[string]]$ArchiveEntries)
+    param([string]$Text, [string]$Location, [System.Collections.Generic.HashSet[string]]$ArchiveEntries, [switch]$SkipGenericEntropy)
     $patterns = @(
         @{ Kind = 'xunji_token'; Pattern = '(?i)\bxjllm_[A-Za-z0-9_-]{16,}\b' },
-        @{ Kind = 'bearer_token'; Pattern = '(?i)\bBearer\s+[A-Za-z0-9._~-]{20,}\b' },
+        @{ Kind = 'bearer_token'; Pattern = '(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{20,}(?![A-Za-z0-9._~+/=-])' },
         @{ Kind = 'labelled_secret'; Pattern = '(?i)(?<![?&])\b(?:api[-_ ]?key|token|secret)\b\s*[:=]\s*["'']?[A-Za-z0-9._~-]{16,}' }
     )
     foreach ($item in $patterns) {
@@ -177,6 +177,7 @@ function Test-SecretText {
     }
     Test-UrlText $Text $Location
 
+    if ($SkipGenericEntropy) { return }
     foreach ($match in [regex]::Matches($Text, '\b[A-Za-z0-9_-]{32,}\b')) {
         $token = $match.Value
         if (Test-DocumentedHashContext $Text $match.Index $token) { continue }
@@ -193,8 +194,12 @@ function Scan-TextFile {
     $fullPath = [IO.Path]::GetFullPath($File.FullName)
     if ($script:immutableHashes.ContainsKey($fullPath)) {
         $actual = (Get-FileHash -LiteralPath $fullPath -Algorithm SHA256).Hash
-        if ($actual -eq $script:immutableHashes[$fullPath]) { return }
-        Add-Finding $Label 'immutable_hash_mismatch'
+        if ($actual -ne $script:immutableHashes[$fullPath]) {
+            Add-Finding $Label 'immutable_hash_mismatch'
+            return
+        }
+        $text = [IO.File]::ReadAllText($File.FullName, [Text.Encoding]::UTF8)
+        Test-SecretText $text $Label $null -SkipGenericEntropy
         return
     }
     $text = [IO.File]::ReadAllText($File.FullName, [Text.Encoding]::UTF8)

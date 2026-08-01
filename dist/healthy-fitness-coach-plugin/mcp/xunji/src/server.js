@@ -33,35 +33,46 @@ function dateRange(startDate, endDate) {
 
 function createTrainingService({ cache = null, cacheFactory, client = new XunjiClient(), credentialProvider = readWindowsCredential, logger = null, now = Date.now, today = null, localAppData = process.env.LOCALAPPDATA } = {}) {
   const pending = new Map();
-  let activeCache = cache;
+  const accountCaches = new Map();
   const getCache = async (credential) => {
-    if (activeCache) return activeCache;
+    // `cache` is a test-only single-store injection. Production always keys its
+    // stores by the one-way credential fingerprint below.
+    if (cache) return cache;
     if (!localAppData) throw connectorError('cache_error');
+    const fingerprint = credentialFingerprint(credential);
+    if (accountCaches.has(fingerprint)) return accountCaches.get(fingerprint);
     const root = join(localAppData, 'HealthyFitnessCoach', 'xunji-cache');
-    activeCache = cacheFactory ? await cacheFactory(credential) : new FileCache({ root, fingerprint: credentialFingerprint(credential) });
-    return activeCache;
+    const storePromise = cacheFactory ? Promise.resolve().then(() => cacheFactory(credential)) : Promise.resolve(new FileCache({ root, fingerprint }));
+    accountCaches.set(fingerprint, storePromise);
+    try {
+      return await storePromise;
+    } catch (error) {
+      if (accountCaches.get(fingerprint) === storePromise) accountCaches.delete(fingerprint);
+      throw error;
+    }
   };
 
   const resultFromEntry = (date, entry, cacheHit, networkFetches) => {
     const filtered = filterModelFacingRecords(entry.records || []);
+    const records = filtered.map((record) => ({ ...record, record_date: date }));
     return {
+      date,
+      fetched_at: entry.fetched_at,
       cache_hit: cacheHit,
       cache_hits: cacheHit ? 1 : 0,
       network_fetches: networkFetches,
       dates: [date],
-      records: filtered,
+      records,
       warnings: [...(entry.warnings || []), ...filtered.warnings],
       data_freshness: cacheHit ? 'cached' : 'network'
     };
   };
 
-  async function fetchMissing(date) {
-    if (pending.has(date)) return pending.get(date);
+  async function fetchMissing(date, credential, store) {
+    const pendingKey = `${credentialFingerprint(credential)}:${date}`;
+    if (pending.has(pendingKey)) return pending.get(pendingKey);
     const operation = (async () => {
-      let credential;
       try {
-        credential = await credentialProvider();
-        const store = await getCache(credential);
         const response = await client.fetchDay(date, credential);
         const decoded = response && Array.isArray(response.records) ? response : decodeXunjiResponse(response);
         const parsed = parseTrainingRecords(decoded.records);
@@ -75,35 +86,31 @@ function createTrainingService({ cache = null, cacheFactory, client = new XunjiC
         return { error: toPublicError(error) };
       }
     })();
-    pending.set(date, operation);
-    try { return await operation; } finally { pending.delete(date); }
+    pending.set(pendingKey, operation);
+    try { return await operation; } finally { pending.delete(pendingKey); }
   }
 
   async function getTrainingDay({ date, refresh = false } = {}) {
     try {
       assertDate(date);
-      if (!activeCache) {
-        const credential = await credentialProvider();
-        await getCache(credential);
-      }
-      if (activeCache) {
-        const entry = await activeCache.get(date);
-        if (entry) {
-          const elapsed = now() - entry.fetched_at;
-          if (refresh && elapsed >= 0 && elapsed < REFRESH_WINDOW_MS) {
-            return { error: toPublicError(Object.assign(new Error('rate limited'), { code: 'rate_limited', retry_after_seconds: (REFRESH_WINDOW_MS - elapsed) / 1000 })) };
-          }
-          if (!refresh) return resultFromEntry(date, entry, true, 0);
-          const refreshed = await fetchMissing(date);
-          if (refreshed.error) {
-            const fallback = resultFromEntry(date, entry, true, 0);
-            fallback.warnings = [...fallback.warnings, 'refresh_failed_using_cache'];
-            return fallback;
-          }
-          return refreshed;
+      const credential = await credentialProvider();
+      const store = await getCache(credential);
+      const entry = await store.get(date);
+      if (entry) {
+        const elapsed = now() - entry.fetched_at;
+        if (refresh && elapsed >= 0 && elapsed < REFRESH_WINDOW_MS) {
+          return { error: toPublicError(Object.assign(new Error('rate limited'), { code: 'rate_limited', retry_after_seconds: (REFRESH_WINDOW_MS - elapsed) / 1000 })) };
         }
+        if (!refresh) return resultFromEntry(date, entry, true, 0);
+        const refreshed = await fetchMissing(date, credential, store);
+        if (refreshed.error) {
+          const fallback = resultFromEntry(date, entry, true, 0);
+          fallback.warnings = [...fallback.warnings, 'refresh_failed_using_cache'];
+          return fallback;
+        }
+        return refreshed;
       }
-      return await fetchMissing(date);
+      return await fetchMissing(date, credential, store);
     } catch (error) {
       return { error: toPublicError(error) };
     }
@@ -112,16 +119,25 @@ function createTrainingService({ cache = null, cacheFactory, client = new XunjiC
   async function getTrainingRange({ start_date, end_date, refresh_today = false } = {}) {
     let dates;
     try { dates = dateRange(start_date, end_date); } catch (error) { return { error: toPublicError(error) }; }
-    const aggregate = { cache_hits: 0, network_fetches: 0, dates, records: [], warnings: [], data_freshness: 'mixed' };
+    const aggregate = { cache_hits: 0, network_fetches: 0, dates, days: [], records: [], missing_dates: [], warnings: [], data_freshness: 'mixed', partial: false };
+    let firstError = null;
     const todayDate = today ? today() : currentShanghaiDate(now());
     for (const date of dates) {
       const day = await getTrainingDay({ date, refresh: refresh_today && date === todayDate });
-      if (day.error) return { error: day.error };
+      if (day.error) {
+        if (!firstError) firstError = day.error;
+        aggregate.missing_dates.push(date);
+        aggregate.warnings.push(`missing_date:${date}:${day.error.code}`);
+        continue;
+      }
       aggregate.cache_hits += day.cache_hits;
       aggregate.network_fetches += day.network_fetches;
+      aggregate.days.push(day);
       aggregate.records.push(...day.records);
       aggregate.warnings.push(...day.warnings);
     }
+    if (aggregate.days.length === 0) return { error: firstError };
+    aggregate.partial = aggregate.missing_dates.length > 0;
     if (aggregate.network_fetches === 0) aggregate.data_freshness = 'cached';
     if (aggregate.cache_hits === 0) aggregate.data_freshness = 'network';
     return aggregate;

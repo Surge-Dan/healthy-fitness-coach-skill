@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 $scanner = Join-Path $PSScriptRoot 'secret-scan.ps1'
 $fixtures = Join-Path $PSScriptRoot 'fixtures\secret-scan'
 
-foreach ($name in @('xunji-token.txt', 'bearer-token.txt', 'quoted-api-key.txt', 'unquoted-api-key.txt', 'bare-high-entropy.txt')) {
+foreach ($name in @('xunji-token.txt', 'bearer-token.txt', 'bearer-rfc6750.txt', 'quoted-api-key.txt', 'unquoted-api-key.txt', 'bare-high-entropy.txt')) {
     & $scanner -Roots (Join-Path $fixtures $name) -Quiet
     if ($LASTEXITCODE -ne 1) { throw "Expected detector failure for $name" }
 }
@@ -49,7 +49,23 @@ $manifestPath = Join-Path $env:TEMP 'healthy-fitness-secret-scan-immutable-manif
 $manifest = @{ files = @(@{ path = (Resolve-Path $immutableFixture).Path; sha256 = (Get-FileHash -LiteralPath $immutableFixture -Algorithm SHA256).Hash }) } | ConvertTo-Json
 Set-Content -LiteralPath $manifestPath -Value $manifest -Encoding UTF8
 & $scanner -Roots $immutableFixture -ImmutableManifest $manifestPath -Quiet
-if ($LASTEXITCODE -ne 0) { throw 'Exact immutable manifest hash must allow only its verified fixture' }
+if ($LASTEXITCODE -ne 1) { throw 'Verified immutable text must still fail explicit Xunji credential detection' }
+
+foreach ($name in @('bearer-rfc6750.txt', 'unquoted-api-key.txt', 'known-host-query-token.txt')) {
+    $fixture = Join-Path $fixtures $name
+    $fixtureManifestPath = Join-Path $env:TEMP "healthy-fitness-secret-scan-immutable-$name.json"
+    $fixtureManifest = @{ files = @(@{ path = (Resolve-Path $fixture).Path; sha256 = (Get-FileHash -LiteralPath $fixture -Algorithm SHA256).Hash }) } | ConvertTo-Json
+    Set-Content -LiteralPath $fixtureManifestPath -Value $fixtureManifest -Encoding UTF8
+    & $scanner -Roots $fixture -ImmutableManifest $fixtureManifestPath -Quiet
+    if ($LASTEXITCODE -ne 1) { throw "Verified immutable text must still fail its explicit detector: $name" }
+}
+
+$benignImmutableFixture = Join-Path $fixtures 'known-evidence-source-url.txt'
+$benignManifestPath = Join-Path $env:TEMP 'healthy-fitness-secret-scan-benign-immutable-manifest.json'
+$benignManifest = @{ files = @(@{ path = (Resolve-Path $benignImmutableFixture).Path; sha256 = (Get-FileHash -LiteralPath $benignImmutableFixture -Algorithm SHA256).Hash }) } | ConvertTo-Json
+Set-Content -LiteralPath $benignManifestPath -Value $benignManifest -Encoding UTF8
+& $scanner -Roots $benignImmutableFixture -ImmutableManifest $benignManifestPath -Quiet
+if ($LASTEXITCODE -ne 0) { throw 'Verified immutable public URL may skip only generic entropy detection' }
 
 $tamperedFixture = Join-Path $env:TEMP 'healthy-fitness-secret-scan-tampered-fixture.txt'
 Copy-Item -LiteralPath $immutableFixture -Destination $tamperedFixture -Force

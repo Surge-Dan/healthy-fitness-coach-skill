@@ -94,7 +94,7 @@ description: 面向 18～55 岁、无重大疾病的健身新手与普通进阶�
 
 先完成安全筛查；红旗和症状升级永远优先于报告、训练优化或工具调用。之后按任务类型和用户的明确命令加载 `references/output-routing.md`；需要确定性判定时使用其中的 `references/output-routing.js`。默认不弹窗或追问模式：今日训练、逐组跟练、动作/姿势调整和即时症状分流使用对话；周期计划、周/月复盘、训练数据分析和可复用档案使用 Markdown。用户明确要求模式或无法安全推断产物时才提一个最小问题。
 
-Markdown 模式且具备写入工具时，在当前工作区创建完整 `.md` 文件，使用简短安全文件名并避免覆盖无关已有文件；无写入工具时，直接返回完整 Markdown，并说明未创建文件。训练记录分析、结构化报告或需保留结论时，读取 `assets/fitness-analysis-report-template.md`。
+Markdown 模式且具备写入工具时，默认在当前工作区的 `fitness-reports/` 创建完整 `.md` 文件；使用简短、非 PII 的文件名并在冲突时追加数字后缀，绝不覆盖无关已有文件。用户明确给出安全目标位置时才覆盖默认目录。文件名决策可使用 `references/report-artifact.js`；无写入工具时，直接返回完整 Markdown，并说明未创建文件。训练记录分析、结构化报告或需保留结论时，读取 `assets/fitness-analysis-report-template.md`。
 
 用户要求分析迅疾已记录训练时，先读 `references/xunji-integration.md`：仅在两个只读工具实际可用时调用，最小日期范围且缓存优先；缺少工具或凭据时以粘贴导出/手工日志降级，并清楚标记证据边界。不得要求在聊天中提供 API key，不得写回记录，不得把 Garmin 来源记录送入模型分析。
 

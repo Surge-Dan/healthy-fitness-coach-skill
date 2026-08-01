@@ -27,6 +27,107 @@ test('service merges concurrent same-date misses into one fetch', async () => {
   assert.deepEqual(second.records, first.records);
 });
 
+test('service scopes cache entries to the credential active for each request', async () => {
+  const factories = [];
+  const stores = new Map();
+  const credentials = ['SYNTHETIC_ACCOUNT_A', 'SYNTHETIC_ACCOUNT_B'];
+  const service = createTrainingService({
+    cacheFactory: async (credential) => {
+      factories.push(credential);
+      if (!stores.has(credential)) stores.set(credential, memoryCache());
+      return stores.get(credential);
+    },
+    credentialProvider: async () => credentials.shift(),
+    client: { async fetchDay(date, credential) { return { records: [`id: ${credential === 'SYNTHETIC_ACCOUNT_A' ? 'account-a' : 'account-b'} train_time: ${date} 08:00 name: Press`] }; } },
+    now: () => 1000
+  });
+
+  const first = await service.getTrainingDay({ date: '2026-08-01' });
+  const second = await service.getTrainingDay({ date: '2026-08-01' });
+
+  assert.equal(first.records[0].id, 'account-a');
+  assert.equal(second.records[0].id, 'account-b');
+  assert.deepEqual(factories, ['SYNTHETIC_ACCOUNT_A', 'SYNTHETIC_ACCOUNT_B']);
+});
+
+test('service does not merge concurrent same-date misses from distinct accounts', async () => {
+  const credentials = ['SYNTHETIC_ACCOUNT_A', 'SYNTHETIC_ACCOUNT_B'];
+  const calls = [];
+  const service = createTrainingService({
+    cacheFactory: async () => memoryCache(),
+    credentialProvider: async () => credentials.shift(),
+    client: { async fetchDay(date, credential) { calls.push(`${credential}:${date}`); return { records: [] }; } },
+    now: () => 1000
+  });
+
+  await Promise.all([
+    service.getTrainingDay({ date: '2026-08-01' }),
+    service.getTrainingDay({ date: '2026-08-01' })
+  ]);
+
+  assert.deepEqual(calls.sort(), ['SYNTHETIC_ACCOUNT_A:2026-08-01', 'SYNTHETIC_ACCOUNT_B:2026-08-01']);
+});
+
+test('service creates one cache for concurrent requests from the same account', async () => {
+  let factoryCalls = 0;
+  let releaseFactory;
+  const factoryWait = new Promise((resolve) => { releaseFactory = resolve; });
+  const service = createTrainingService({
+    cacheFactory: async () => { factoryCalls += 1; await factoryWait; return memoryCache(); },
+    credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
+    client: { async fetchDay() { return { records: [] }; } },
+    now: () => 1000
+  });
+  const first = service.getTrainingDay({ date: '2026-08-01' });
+  const second = service.getTrainingDay({ date: '2026-08-01' });
+  await new Promise((resolve) => setImmediate(resolve));
+  releaseFactory();
+  await Promise.all([first, second]);
+  assert.equal(factoryCalls, 1);
+});
+
+test('day results expose fetched time and requested-date provenance on records', async () => {
+  const service = createTrainingService({
+    cache: memoryCache(),
+    credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
+    client: { async fetchDay() { return { records: ['id: trace-1 train_time: 2026-08-01 08:00 name: Press'] }; } },
+    now: () => 123456
+  });
+
+  const result = await service.getTrainingDay({ date: '2026-08-01' });
+
+  assert.equal(result.date, '2026-08-01');
+  assert.equal(result.fetched_at, 123456);
+  assert.equal(result.records[0].record_date, '2026-08-01');
+  assert.equal(result.records[0].parse_status, 'complete');
+  assert.match(result.records[0].raw_text, /^id: trace-1/);
+});
+
+test('range results keep successful days grouped and return a partial result after one failure', async () => {
+  const service = createTrainingService({
+    cache: memoryCache(),
+    credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
+    client: {
+      async fetchDay(date) {
+        if (date === '2026-08-02') throw Object.assign(new Error('offline'), { code: 'network_error' });
+        return { records: [`id: range-${date} train_time: ${date} 08:00 name: Press`] };
+      }
+    },
+    now: () => 123456
+  });
+
+  const result = await service.getTrainingRange({ start_date: '2026-08-01', end_date: '2026-08-02' });
+
+  assert.deepEqual(result.dates, ['2026-08-01', '2026-08-02']);
+  assert.equal(result.days.length, 1);
+  assert.equal(result.days[0].date, '2026-08-01');
+  assert.equal(result.days[0].fetched_at, 123456);
+  assert.deepEqual(result.missing_dates, ['2026-08-02']);
+  assert.equal(result.partial, true);
+  assert.equal(result.records[0].record_date, '2026-08-01');
+  assert.ok(result.warnings.some((warning) => warning.includes('2026-08-02')));
+});
+
 test('service returns stable invalid-date and oversized-range errors', async () => {
   const service = createTrainingService({ cache: memoryCache(), client: {}, credentialProvider: async () => 'FAKE_TEST_CREDENTIAL' });
   assert.equal((await service.getTrainingDay({ date: '2026-02-30' })).error.code, 'invalid_date');
