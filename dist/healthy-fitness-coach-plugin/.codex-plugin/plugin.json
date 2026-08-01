@@ -1,0 +1,22 @@
+{
+  "name": "healthy-fitness-coach-plugin",
+  "version": "0.2.0",
+  "description": "基于健康边界的训练、营养与恢复指导，并可只读分析训记训练数据。",
+  "author": {
+    "name": "梅乃丹"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "健康健身教练",
+    "shortDescription": "以健康边界为先的训练、营养和恢复指导。",
+    "longDescription": "提供基于证据边界的健康健身指导；配置本地凭据后，可通过只读 MCP 分析训记训练记录。",
+    "developerName": "梅乃丹",
+    "category": "Health & Fitness",
+    "capabilities": [
+      "健康健身指导",
+      "只读训记训练数据查询"
+    ],
+    "defaultPrompt": "分析我最近四周训练，并给出安全的下一步建议。"
+  },
+  "mcpServers": "./.mcp.json"
+}

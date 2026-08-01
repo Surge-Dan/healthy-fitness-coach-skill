@@ -1,0 +1,20 @@
+{
+  "name": "healthy-fitness-coach-xunji-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Read-only Xunji training data MCP connector",
+  "main": "src/server.js",
+  "scripts": {
+    "test": "node --test test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "3.24.2"
+  },
+  "overrides": {
+    "@hono/node-server": "1.19.17"
+  }
+}

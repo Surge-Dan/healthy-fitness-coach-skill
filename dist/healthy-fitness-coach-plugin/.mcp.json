@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "xunji": {
+      "command": "node",
+      "args": [
+        "src/server.js"
+      ],
+      "cwd": "./mcp/xunji"
+    }
+  }
+}
