@@ -11,7 +11,7 @@
 | 3. Skill V2 behavior layer | Complete | `task3_implementer` | Approved after routing redesign | `ce4a742`, `953b4f0`, `c97fa29`, `6616376`, `9c29bd0` |
 | 4. Plugin packaging | Complete | `task4_implementer` | Approved after portability fix | `8258556`, `c847d28` |
 | 5. Evaluation and release verification | Complete with final hardening | `task5_implementer` | Approved after evidence fixes | `f581162`, `1202e71`, `f3d5efd` |
-| 6. Final release remediation | In progress | Pending | Pending | Pending |
+| 6. Final release remediation | Complete | `task6_implementer` | Approved after collision hardening | `3f34bb3`, `6752484`, `4633b10` |
 
 ## Non-negotiable constraints
 
@@ -52,3 +52,7 @@
 - Whole-branch review found account-cache isolation, production result traceability, report privacy path, and release-evidence issues that require fixes before merge.
 - `agents/openai.yaml` supports MCP dependency metadata for documented streamable-HTTP servers; the packaged local stdio MCP remains declared through the Plugin `.mcp.json`. Do not add unsupported metadata fields solely to silence a review finding.
 
+## Task 6 approval
+
+- Final task review approved after real-filesystem collision checks were made non-bypassable.
+- Final release values: connector 34/34, V2 contracts 21/21, standalone archive 39,922 bytes with SHA-256 `FA0FA12582E218839249C16922B1C04DACB42ED5CF5FD77200B1C2F2177EB934`, Plugin dist 45 files / 170,261 bytes.
