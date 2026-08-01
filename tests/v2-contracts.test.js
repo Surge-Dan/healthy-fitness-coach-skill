@@ -97,6 +97,26 @@ test('normalizes command spacing and punctuation without matching unrelated word
   }
 });
 
+test('does not override task defaults for negated Chinese or English commands', () => {
+  const cases = [
+    { taskType: 'today_workout', userInstruction: '我不想直接出报告。', mode: 'conversation' },
+    { taskType: 'today_workout', userInstruction: '不要直接出报告。', mode: 'conversation' },
+    { taskType: 'training_plan', userInstruction: '不要进入跟练。', mode: 'markdown' },
+    { taskType: 'today_workout', userInstruction: '不要保存刚才内容。', mode: 'conversation' },
+    { taskType: 'today_workout', userInstruction: 'Do not direct report.', mode: 'conversation' },
+    { taskType: 'training_plan', userInstruction: "Don't enter tracking.", mode: 'markdown' },
+    { taskType: 'today_workout', userInstruction: 'Do not save prior content.', mode: 'conversation' }
+  ];
+
+  for (const { taskType, userInstruction, mode } of cases) {
+    assert.deepEqual(routeOutput({ taskType, userInstruction }), {
+      mode,
+      reason: 'default_task_type',
+      override: null
+    });
+  }
+});
+
 test('ships the V2 routing, Xunji, analysis, research, and report guidance', () => {
   const requiredFiles = [
     'references/output-routing.md',

@@ -34,3 +34,7 @@ Completed the `healthy-fitness-coach` V2 behavior layer without renaming the Ski
 ## Scope notes
 
 The Skill describes browser/search/MCP behavior only as available capabilities, never guaranteed dependencies. No real API, credential, training record, cloud storage, write-back, crawler, or Task 5 evaluation was used.
+
+## P1 follow-up: negated routing commands
+
+Added Chinese and English regressions for every explicit command: `不想/不要直接出报告`, `不要进入跟练`, `不要保存刚才内容`, `Do not direct report`, `Don't enter tracking`, and `Do not save prior content`. The new test was RED because a negated command selected `direct_report`. The helper now evaluates each command occurrence independently, accepts only unnegated Chinese commands and token-bounded English commands, and therefore keeps a negated command on the task-type default route without suppressing a later independent positive command. Focused and full V2 contracts are GREEN at 16 pass / 0 fail; connector, snapshot/Skill validators, credential scan, and diff check were rerun before the follow-up commit.

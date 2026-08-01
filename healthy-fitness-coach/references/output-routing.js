@@ -25,19 +25,38 @@ function normalizeInstruction(value) {
     .replace(/[\s\u3000\p{P}\p{S}_-]+/gu, '');
 }
 
-function hasEnglishCommand(instruction, pattern) {
-  return pattern.test(String(instruction || ''));
+function hasUnnegatedChineseCommand(normalized, commands) {
+  for (const command of commands) {
+    let index = normalized.indexOf(command);
+    while (index !== -1) {
+      const prefix = normalized.slice(Math.max(0, index - 4), index);
+      if (!/(?:不想|不要|不必|别|勿)(?:再)?$/u.test(prefix)) return true;
+      index = normalized.indexOf(command, index + command.length);
+    }
+  }
+  return false;
+}
+
+function hasUnnegatedEnglishCommand(instruction, pattern) {
+  const text = String(instruction || '');
+  pattern.lastIndex = 0;
+  for (const match of text.matchAll(pattern)) {
+    const commandStart = match.index + match[0].lastIndexOf(match[1]);
+    const prefix = text.slice(0, commandStart).replace(/[\s\p{P}\p{S}_-]+$/gu, '');
+    if (!/(?:\bdo\s+not|\bdon'?t|\bdont|\bnever)$/iu.test(prefix)) return true;
+  }
+  return false;
 }
 
 function explicitOverride(instruction) {
   const normalized = normalizeInstruction(instruction);
-  if (normalized.includes('直接出报告') || normalized.includes('直接输出报告') || hasEnglishCommand(instruction, /(?:^|[^a-z0-9])direct[\s\p{P}\p{S}_-]+report(?=$|[^a-z0-9])/iu)) {
+  if (hasUnnegatedChineseCommand(normalized, ['直接出报告', '直接输出报告']) || hasUnnegatedEnglishCommand(instruction, /(?:^|[^a-z0-9])(direct(?:ly)?[\s\p{P}\p{S}_-]+report)(?=$|[^a-z0-9])/giu)) {
     return { mode: 'markdown', reason: 'explicit_command', override: 'direct_report' };
   }
-  if (normalized.includes('进入跟练') || normalized.includes('开始跟练') || hasEnglishCommand(instruction, /(?:^|[^a-z0-9])enter[\s\p{P}\p{S}_-]+tracking(?=$|[^a-z0-9])/iu)) {
+  if (hasUnnegatedChineseCommand(normalized, ['进入跟练', '开始跟练']) || hasUnnegatedEnglishCommand(instruction, /(?:^|[^a-z0-9])(enter[\s\p{P}\p{S}_-]+tracking)(?=$|[^a-z0-9])/giu)) {
     return { mode: 'conversation', reason: 'explicit_command', override: 'enter_tracking' };
   }
-  if (normalized.includes('保存刚才内容') || normalized.includes('把刚才内容保存下来') || hasEnglishCommand(instruction, /(?:^|[^a-z0-9])save[\s\p{P}\p{S}_-]+(?:the[\s\p{P}\p{S}_-]+)?prior[\s\p{P}\p{S}_-]+content(?=$|[^a-z0-9])/iu)) {
+  if (hasUnnegatedChineseCommand(normalized, ['保存刚才内容', '把刚才内容保存下来']) || hasUnnegatedEnglishCommand(instruction, /(?:^|[^a-z0-9])(save[\s\p{P}\p{S}_-]+(?:the[\s\p{P}\p{S}_-]+)?prior[\s\p{P}\p{S}_-]+content)(?=$|[^a-z0-9])/giu)) {
     return { mode: 'markdown', reason: 'explicit_command', override: 'save_prior_content' };
   }
   return null;
