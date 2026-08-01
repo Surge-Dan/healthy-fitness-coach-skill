@@ -8,8 +8,8 @@
 |---|---|---|---|---|
 | 1. V1 snapshot and RED contracts | Complete | `task1_implementer` | Approved after fixes | `0db2f38`, `da64323`, `638bab2` |
 | 2. Secure read-only Xunji MCP | Complete | `task2_implementer` | Approved after security fixes | `031f094`, `29b6fda` |
-| 3. Skill V2 behavior layer | In progress | Pending | Pending | Pending |
-| 4. Plugin packaging | Pending | Pending | Pending | Pending |
+| 3. Skill V2 behavior layer | Complete | `task3_implementer` | Approved after routing redesign | `ce4a742`, `953b4f0`, `c97fa29`, `6616376`, `9c29bd0` |
+| 4. Plugin packaging | In progress | Pending | Pending | Pending |
 | 5. Evaluation and release verification | Pending | Pending | Pending | Pending |
 
 ## Non-negotiable constraints
@@ -31,4 +31,11 @@
 - V2 contracts: 9 passing, only three Task 3 routing contracts remain intentionally RED.
 - Node 18 compatibility requires an exact `@hono/node-server` 1.19.17 override. Its documented static-server advisory is not reachable through the stdio-only connector path; retain this residual-risk note.
 - Future polish: source matching is intentionally fail-closed for any source label containing `garmin`; unknown-source warnings may be deduplicated.
+
+## Task 3 notes
+
+- V2 behavior/static contracts: 19/19 passing; connector remains 29/29.
+- Output override boundary is conservative: only complete affirmative command clauses match; negations, questions, and descriptive uses fall back to task defaults.
+- Fixed mixed-command priority: `direct_report` > `enter_tracking` > `save_prior_content`.
+- Frozen V1 snapshot remains immutable; current-source equality is now an opt-in historical check.
 
