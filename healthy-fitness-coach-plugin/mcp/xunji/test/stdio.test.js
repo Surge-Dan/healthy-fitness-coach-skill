@@ -25,6 +25,7 @@ test('stdio initializes and lists exactly two tools without invoking a tool', as
         let message;
         try { message = JSON.parse(line); } catch (error) { finish(error); return; }
         if (message.id === 1) {
+          child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }) + '\n');
           child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }) + '\n');
         }
         if (message.id === 2) {
