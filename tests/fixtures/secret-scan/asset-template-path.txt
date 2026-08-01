@@ -1,0 +1,1 @@
+assets/fitness-analysis-report-template.md

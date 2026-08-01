@@ -1,4 +1,4 @@
-﻿{
+{
     "eval_id":  16,
     "eval_name":  "xunji-unavailable-secure-degradation",
     "prompt":  "帮我分析最近四周训练。当前没有任何 MCP 工具可用，也没有数据附件。",

@@ -1,4 +1,4 @@
-﻿{
+{
     "eval_id":  17,
     "eval_name":  "partial-unknown-source-confidence-boundary",
     "prompt":  "请直接出报告。以下全为合成连接器结果：范围 2026-07-04 至 2026-07-29，cache_age_hours=58，parsed_records=8，partial_records=3，unknown_source_warnings=[\"SyntheticWatch?\"], filtered_garmin_count=4。可比动作只有杠铃划船 40kg 3x10 到 40kg 3x11；其余动作缺失。请分析并给建议。",

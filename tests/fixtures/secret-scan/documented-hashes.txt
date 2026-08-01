@@ -1,0 +1,8 @@
+SHA-256: A0F04CE0CE72DF1EE4258001E57BE9852FE7C3485F9867A2E21D92AE0A361ACD
+commit f5811622f9ca068760906d036023e3e3f7a75f65
+integrity sha512-Q7p9Nv2Lm4Rx8Za1Bc3De5Fg6Hj0KlMn
+"integrity": "sha512-PW2kjD5vQ7p9Nv2Lm4Rx8Za1Bc3De5Fg+Hj0KlMn"
+"integrity": "sha512-/PW2kjD5vQ7p9Nv2Lm4Rx8Za1Bc3De5Fg"
+{{facts_first_then_inference_then_uncertainty}}
+{{template_field_2026_with_long_descriptive_name}}
+https://www.strongerbyscience.com/path/this-10-year-evidence-based-training-reference-2026

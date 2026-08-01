@@ -15,6 +15,56 @@ function Compare-Number {
     return [math]::Abs(([double]$Left) - ([double]$Right)) -lt 0.000001
 }
 
+$baselineManifestPath = Join-Path $WorkspaceRoot 'baseline-evidence-manifest.json'
+Assert-True (Test-Path -LiteralPath $baselineManifestPath -PathType Leaf) 'Missing immutable baseline manifest'
+if (Test-Path -LiteralPath $baselineManifestPath -PathType Leaf) {
+    try {
+        $baselineManifest = Get-Content -LiteralPath $baselineManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        Assert-True ($baselineManifest.baseline_commit -eq '7b0db7a') 'Baseline manifest must name the immutable pre-Task5 commit'
+        Assert-True (@($baselineManifest.files).Count -eq 3) 'Baseline manifest must cover exactly three referenced files'
+        foreach ($entry in @($baselineManifest.files)) {
+            Assert-True (Test-Path -LiteralPath $entry.path -PathType Leaf) "Immutable baseline file is missing: $($entry.path)"
+            if (Test-Path -LiteralPath $entry.path -PathType Leaf) {
+                $baseBlob = (git rev-parse "$($baselineManifest.baseline_commit):$($entry.path)").Trim()
+                $currentBlob = (git hash-object --no-filters $entry.path).Trim()
+                $currentHash = (Get-FileHash -LiteralPath $entry.path -Algorithm SHA256).Hash
+                Assert-True ($baseBlob -eq $entry.git_blob_sha1) "Baseline blob manifest mismatch: $($entry.path)"
+                Assert-True ($currentBlob -eq $baseBlob) "Immutable baseline bytes changed: $($entry.path)"
+                Assert-True ($currentHash -eq $entry.sha256) "Immutable baseline SHA-256 changed: $($entry.path)"
+            }
+        }
+    } catch {
+        $failures.Add("Invalid baseline manifest: $($_.Exception.Message)")
+    }
+}
+
+$frozenRoot = Join-Path $PSScriptRoot '..\healthy-fitness-coach-workspace\iteration-1'
+$frozenManifestPath = Join-Path $frozenRoot 'frozen-evaluator-evidence-manifest.json'
+Assert-True (Test-Path -LiteralPath $frozenManifestPath -PathType Leaf) 'Missing frozen evaluator evidence manifest'
+if (Test-Path -LiteralPath $frozenManifestPath -PathType Leaf) {
+    try {
+        $frozenManifest = Get-Content -LiteralPath $frozenManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        Assert-True ($frozenManifest.baseline_commit -eq '7b0db7a') 'Frozen evaluator manifest must name the immutable pre-Task5 commit'
+        Assert-True (-not [string]::IsNullOrWhiteSpace([string]$frozenManifest.scope)) 'Frozen evaluator manifest must describe its restricted scope'
+        $expectedFrozenPaths = @(Get-ChildItem -LiteralPath $frozenRoot -Recurse -File | Where-Object { $_.FullName -match '[\\/]outputs[\\/].*\.md$' -or $_.Name -eq 'review.html' } | ForEach-Object { $_.FullName.Substring((Get-Location).Path.Length + 1).Replace('\', '/') } | Sort-Object)
+        $manifestPaths = @($frozenManifest.files | ForEach-Object { [string]$_.path } | Sort-Object)
+        Assert-True (($expectedFrozenPaths -join "`n") -eq ($manifestPaths -join "`n")) 'Frozen evaluator manifest has missing or extra preserved files'
+        foreach ($entry in @($frozenManifest.files)) {
+            Assert-True (Test-Path -LiteralPath $entry.path -PathType Leaf) "Frozen evaluator file is missing: $($entry.path)"
+            if (Test-Path -LiteralPath $entry.path -PathType Leaf) {
+                $baseBlob = (git rev-parse "$($frozenManifest.baseline_commit):$($entry.path)").Trim()
+                $currentBlob = (git hash-object --no-filters $entry.path).Trim()
+                $currentHash = (Get-FileHash -LiteralPath $entry.path -Algorithm SHA256).Hash
+                Assert-True ($baseBlob -eq $entry.git_blob_sha1) "Frozen evaluator blob manifest mismatch: $($entry.path)"
+                Assert-True ($currentBlob -eq $baseBlob) "Frozen evaluator bytes changed: $($entry.path)"
+                Assert-True ($currentHash -eq $entry.sha256) "Frozen evaluator SHA-256 changed: $($entry.path)"
+            }
+        }
+    } catch {
+        $failures.Add("Invalid frozen evaluator manifest: $($_.Exception.Message)")
+    }
+}
+
 $gradingFiles = @(Get-ChildItem -LiteralPath $WorkspaceRoot -Recurse -Filter grading.json -File)
 Assert-True ($gradingFiles.Count -eq 14) 'Expected exactly 14 fresh grading files (12 paired behavior runs plus 2 V2 safety runs)'
 
@@ -71,7 +121,31 @@ $reviewPath = Join-Path $WorkspaceRoot 'review.html'
 Assert-True (Test-Path -LiteralPath $reviewPath -PathType Leaf) 'Missing official static review.html'
 if (Test-Path -LiteralPath $reviewPath -PathType Leaf) {
     $review = Get-Content -LiteralPath $reviewPath -Raw -Encoding UTF8
-    Assert-True ($review -match 'const EMBEDDED_DATA') 'Review page lacks embedded data'
+    $dataMatch = [regex]::Match($review, '(?m)^\s*const EMBEDDED_DATA = (.+);\s*$')
+    Assert-True ($dataMatch.Success) 'Review page lacks embedded data'
+    if ($dataMatch.Success) {
+        try {
+            $embedded = $dataMatch.Groups[1].Value | ConvertFrom-Json
+            $pairedRoots = @(Get-ChildItem -LiteralPath $WorkspaceRoot -Directory | Where-Object { $_.Name -like 'eval-*' -and $_.Name -notlike 'eval-fresh-*' })
+            Assert-True ($pairedRoots.Count -eq 6) 'Expected six paired eval roots for review validation'
+            $pairedRuns = @($embedded.runs | Where-Object { $_.id -match '-(with_skill|without_skill)-run-1$' -and $_.eval_id -in @(13, 14, 15, 16, 17, 18) })
+            Assert-True ($pairedRuns.Count -eq 12) 'Review must embed exactly twelve paired behavior runs'
+            foreach ($root in $pairedRoots) {
+                $metadata = Get-Content -LiteralPath (Join-Path $root.FullName 'eval_metadata.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+                foreach ($configuration in @('with_skill', 'without_skill')) {
+                    $expectedId = "$($root.Name)-$configuration-run-1"
+                    $matching = @($pairedRuns | Where-Object { $_.id -eq $expectedId })
+                    Assert-True ($matching.Count -eq 1) "Review missing paired run $expectedId"
+                    if ($matching.Count -eq 1) {
+                        Assert-True ($null -ne $matching[0].eval_id -and [int]$matching[0].eval_id -eq [int]$metadata.eval_id) "Review eval_id mismatch: $expectedId"
+                        Assert-True ($matching[0].prompt -eq $metadata.prompt) "Review prompt mismatch: $expectedId"
+                    }
+                }
+            }
+        } catch {
+            $failures.Add("Review embedded data is invalid or incomplete: $($_.Exception.Message)")
+        }
+    }
     Assert-True ($review -notmatch '(?i)C:\\Users\\Daniel|api[_-]?key\s*[:=]\s*["'']') 'Review page contains a user path or credential-like value'
 }
 
@@ -83,9 +157,24 @@ if (Test-Path -LiteralPath $mappingPath -PathType Leaf) {
     foreach ($entry in @($mapping.mappings)) {
         $comparisonPath = Join-Path (Split-Path -Parent $mappingPath) $entry.comparison_file
         Assert-True (Test-Path -LiteralPath $comparisonPath -PathType Leaf) "Missing comparison output: $($entry.comparison_file)"
+        $comparisonDirectory = Split-Path -Parent $comparisonPath
+        $promptPath = Join-Path $comparisonDirectory 'comparator-prompt.md'
+        $auditPath = Join-Path $comparisonDirectory 'audit.md'
+        Assert-True (Test-Path -LiteralPath $promptPath -PathType Leaf) "Missing blind comparator prompt: $($entry.eval_id)"
+        Assert-True (Test-Path -LiteralPath $auditPath -PathType Leaf) "Missing blind comparator audit: $($entry.eval_id)"
+        foreach ($blindFile in @($promptPath, $auditPath)) {
+            if (Test-Path -LiteralPath $blindFile -PathType Leaf) {
+                $blindText = Get-Content -LiteralPath $blindFile -Raw -Encoding UTF8
+                Assert-True ($blindText -notmatch '(?i)\bmapping\b|\bV[12]\b|healthy-fitness-coach') "Blind artifact reveals hidden identity: $blindFile"
+            }
+        }
         if (Test-Path -LiteralPath $comparisonPath -PathType Leaf) {
             $comparison = Get-Content -LiteralPath $comparisonPath -Raw -Encoding UTF8 | ConvertFrom-Json
             Assert-True (@('A', 'B', 'TIE') -contains $comparison.winner) "Invalid blind winner: $($entry.comparison_file)"
+            if ($comparison.winner -in @('A', 'B')) {
+                $winningConfiguration = [string]$entry.($comparison.winner)
+                Assert-True ($winningConfiguration -eq 'with_skill') "Unblinded blind winner is not the candidate: eval $($entry.eval_id)"
+            }
         }
     }
 }

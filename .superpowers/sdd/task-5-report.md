@@ -29,15 +29,19 @@ Mappings are stored separately in `blind-comparisons/mapping.json` and were with
 | 16: no-tool degradation | B, 9.7 vs 8.3 | V2 | Explicit local-only DPAPI setup boundary and non-sensitive fallback |
 | 17: partial/unknown source | A, 10.0 vs 9.7 | V2 | More auditable confidence and decision boundaries; both passed assertions |
 
-## Reviewer and consistency artifacts
+## Evidence integrity and reviewer artifacts
 
 - Official static reviewer: `healthy-fitness-coach-workspace/iteration-2/review.html`.
-- Benchmark and notes: `benchmark.json`, schema-aligned `benchmark.md`, and `analysis_notes.json`.
-- Automated recomputation check: `tests/validate_iteration2.ps1`; it validates all 14 grading summaries, 12 benchmark runs, aggregate means, embedded reviewer content, and all three blind results.
+- All iteration-2 `eval_metadata.json` files are UTF-8 without BOM; the official viewer now embeds the exact ID and prompt for each of the 12 paired runs.
+- `baseline-evidence-manifest.json` proves the three specifically restored files equal their `7b0db7a` Git blobs and SHA-256 values. `iteration-1/frozen-evaluator-evidence-manifest.json` separately covers the exact 17 frozen evaluator output/static-review files; missing, extra, changed, or hash-mismatched entries fail validation before scanner exemption.
+- Benchmark and notes: `benchmark.json`, schema-aligned `benchmark.md`, and `analysis_notes.json`. These were regenerated after metadata normalization; no raw output or expectation changed, so executor/grader results were not rerun.
+- Automated recomputation check: `tests/validate_iteration2.ps1`; it validates all 14 grading summaries, 12 benchmark runs, aggregate means, reviewer IDs/prompts, frozen evidence manifests, and all three blind results.
 
 ## Release checks
 
-Passed: canonical and Plugin Skill validators; Plugin schema/privacy/parity validator; stdio initialize → `notifications/initialized` → `tools/list`; V2 contracts (19/19); connector suite (29/29); frozen V1 snapshot; iteration-2 consistency validator; archive/source/Plugin/dist parity; tracked-artifact, high-confidence secret, and machine-path scans; and `git diff --check`.
+Passed: canonical and Plugin Skill validators; Plugin schema/privacy/parity validator; stdio initialize → `notifications/initialized` → `tools/list`; V2 contracts (19/19); connector suite (29/29); frozen V1 snapshot; iteration-2 consistency validator; archive/source/Plugin/dist parity; `tests/secret-scan.test.ps1`; full source/Plugin/dist/V1/iteration-2/archive secret scan; and `git diff --check`.
+
+The scanner has RED/GREEN fixtures for Xunji, Bearer, quoted/unquoted API-key, and bare high-entropy patterns; it also rejects unknown URLs, query-string token/signature values, traversal/absolute/nonexistent repository paths, and tampered frozen evidence. Its narrowly allowed contexts are exact verified frozen hashes, package integrity attributes, exact known public source hosts with path-only identifiers, structured evaluator run IDs, and existing lowercase `assets/` or `references/` Markdown paths. It emits only location and detector category, never the matched value.
 
 The release check exposed a protocol defect in the test handshake, not the connector: MCP SDK requires `notifications/initialized` before `tools/list`. The focused harness and connector stdio test now send that notification; both focused and full suites pass.
 
@@ -45,8 +49,8 @@ The release check exposed a protocol defect in the test handshake, not the conne
 
 | Artifact | Size | SHA-256 / inventory |
 | --- | ---: | --- |
-| `dist/healthy-fitness-coach.skill` | 38,833 bytes | `A0F04CE0CE72DF1EE4258001E57BE9852FE7C3485F9867A2E21D92AE0A361ACD` |
-| `dist/healthy-fitness-coach-plugin/` | 44 files / 162,840 bytes | source/dist parity validated |
+| `dist/healthy-fitness-coach.skill` | 38,815 bytes | `3D8C7ED4E5ACCCDC8CDC0E2F9C8B14E5D3CB46A17BB184077638F924E95DA7DD` |
+| `dist/healthy-fitness-coach-plugin/` | 44 files / 162,829 bytes | source/dist parity validated |
 
 ## Limitations
 

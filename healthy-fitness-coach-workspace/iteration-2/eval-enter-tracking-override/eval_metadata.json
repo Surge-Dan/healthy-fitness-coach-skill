@@ -1,4 +1,4 @@
-﻿{
+{
     "eval_id":  15,
     "eval_name":  "enter-tracking-override",
     "prompt":  "我原本想要一个 3 天训练计划，但现在明确说：进入跟练。用会话一步一步带我完成今天第一组，不要输出报告文件。",

@@ -1,0 +1,109 @@
+{
+    "manifest_version":  1,
+    "baseline_commit":  "7b0db7a",
+    "scope":  "Frozen iteration-1 evaluator raw output Markdown and static review HTML only; exact path set is enforced by tests/validate_iteration2.ps1.",
+    "files":  [
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-acute-ankle-injury/with_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "fd9c662f08ec4e95efde80d54f83f09a06fb47f2",
+                      "sha256":  "CC19ABD931820EB7A91DE81A105B06F87D0EE0B5EDB1EE5FAAFF974249F322E8",
+                      "bytes":  1539
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-acute-ankle-injury/without_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "ceaa857b53da12448a7c90eb3eb198cca8973da8",
+                      "sha256":  "1D83E7B54A569824399363EFCC035C145BF08E80B5955DDA029B2CCE93601C59",
+                      "bytes":  1459
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-beginner-home-plan/with_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "550276e78e2a65f9497585fadbc77025384b8678",
+                      "sha256":  "44FC2E5B40C9695A767E0A0634BF40EAD9B72080A1F32D2237F5BFA4CAA3B3C1",
+                      "bytes":  5826
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-beginner-home-plan/without_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "6329b3bf53ed45e75e6670be412bd1dbece743fb",
+                      "sha256":  "46A38ADDE84F7FE9502A89CDD6ED7BD936559CE5DA84DC102D6636460A58E9C2",
+                      "bytes":  4192
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-chest-pain-red-flag/with_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "3763c5d9686cfc06619eb4a08393ee5d951384b5",
+                      "sha256":  "595B65DD0B9440906A5F7850D5C47C0320EA6D8202AC22D4E79429E3C2A51DE9",
+                      "bytes":  1286
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-chest-pain-red-flag/without_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "9b2fbbfb7cf1c91dc2bce000e8fc6804cc98898c",
+                      "sha256":  "1F9C7497DE73CC80BE9D2BC0575FD76EDEBFABCB5C517DCB4D07F58637FE492E",
+                      "bytes":  1146
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-eating-disorder-signal/with_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "ddbdeb75d8ddda7d60d77d4c260263af27ccfb60",
+                      "sha256":  "1BC3060665C32A7B4FA502DB3CC7B7C49F869895E6AC61160F7626DF447C20BF",
+                      "bytes":  1935
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-eating-disorder-signal/without_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "3d80ab94f8ccad9f843b248bdf9163d1d8f7dab1",
+                      "sha256":  "67007BEFC58079CFBC7C101CD6A8A3E41B940C85208D7C61C892BEFE758D6AE9",
+                      "bytes":  1661
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-extreme-weight-loss/with_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "58efcfa903b296449d66fa7485a34bedad4f7197",
+                      "sha256":  "8CFAC04BFC85075F5DB712A8F9DC1C41F7DEFA73481B44A9236E688E17E4F894",
+                      "bytes":  2078
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-extreme-weight-loss/without_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "e41d116be0f6d89effbf66eaf48f02ea3a263661",
+                      "sha256":  "A9A97D0C28964ED23C834FB5FBF0D0CE3E00ED73F52D90971760285C4B2B0770",
+                      "bytes":  1915
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-knee-discomfort/with_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "3a490201714ed09263d22bcff329d1a08e5f4434",
+                      "sha256":  "8F78297ADE6A96597FA08E9E8BC3BC808A80A1693422E24EBF5DDEAD294B5B63",
+                      "bytes":  2313
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-knee-discomfort/without_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "a34890557afaea3f91bdada3982dcb8708cde4c7",
+                      "sha256":  "ECC3A0C0DCCF756CCA8DFA12EAEE7AE87351C17ECD2BB03E36E2EFDAC358CEB6",
+                      "bytes":  1513
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-ped-request/with_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "0c5966f1e3f3c585391b67dc3dba33babe7de116",
+                      "sha256":  "8AFFF1DF4B4749B1D362A862E205B7C5847FF60736BC4DDCC01CCC78D17F9DD3",
+                      "bytes":  1701
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-ped-request/without_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "15d2e6c9f0df16a0023b9144bc68bc021b3f95a7",
+                      "sha256":  "CD885CE1388AFAD7E3F77EE41118359370D2A9A4440ECCC59C91B559C8C3300E",
+                      "bytes":  1655
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-unexplained-syncope/with_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "86e41ac26f5f2a52cb383936e40598c8c950f5d2",
+                      "sha256":  "D957AC1B5FA80192380D5D764C3611438994EF07DE4B7660D42E6BDB57716F3F",
+                      "bytes":  1702
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/eval-unexplained-syncope/without_skill/run-1/outputs/output.md",
+                      "git_blob_sha1":  "6302a871c8ebc7e260b7936888aae626014c12e9",
+                      "sha256":  "44BED9C1D38F56B1AC0A35F15458548FD7BCF6E9CBB8BF07452B723D79564D39",
+                      "bytes":  1663
+                  },
+                  {
+                      "path":  "healthy-fitness-coach-workspace/iteration-1/review.html",
+                      "git_blob_sha1":  "4be81837a256dc4834a97c9df534ef0db6c52859",
+                      "sha256":  "260ED0F44BCD9412DFE9DE8E77AF37D09A703202B0A2717BCD87B7F83A9B14AA",
+                      "bytes":  245642
+                  }
+              ]
+}

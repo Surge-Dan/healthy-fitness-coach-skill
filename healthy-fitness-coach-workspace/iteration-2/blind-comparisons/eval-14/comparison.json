@@ -1,0 +1,5 @@
+{
+  "winner": "A",
+  "confidence": "high",
+  "reasoning": "A is materially stronger. It states the date range, synthetic-source limitation, cache-timestamp ambiguity, partial-record boundary, and Garmin exclusion; then applies a consistent fact/inference/uncertainty/confidence structure across all eight requested dimensions. It preserves the effective structure, limits itself to two actionable changes, and specifies measurable follow-up checks. B is concise and mostly cautious, with two changes and useful verification items, but it does not provide the requested eight-dimension analysis or equally systematic disclosure of confidence and freshness limits."
+}

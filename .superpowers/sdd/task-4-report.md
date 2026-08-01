@@ -9,7 +9,7 @@
 The official scaffold baseline was recreated in the ignored local directory with the same command used for this task:
 
 ```powershell
-python %USERPROFILE%\.codex\skills\.system\plugin-creator\scripts\create_basic_plugin.py healthy-fitness-coach-plugin --path %USERPROFILE%\Documents\健身Skill\tmp\plugin-scaffold --with-skills --with-mcp --with-scripts --with-assets --force
+python %USERPROFILE%\.codex\skills\.system\plugin-creator\scripts\create_basic_plugin.py healthy-fitness-coach-plugin --path .\tmp\plugin-scaffold --with-skills --with-mcp --with-scripts --with-assets --force
 ```
 
 The source Skill was deterministically copied into the Plugin. The first copy was intentionally caught by validation because PowerShell flattened it into `skills/`; the content was then moved to the required `skills/healthy-fitness-coach/` directory and the clean dist copy was mirrored from that corrected source.
@@ -54,7 +54,7 @@ The standalone archive was produced with the required official module command:
 ```powershell
 $env:PYTHONIOENCODING='utf-8'; $env:PYTHONUTF8='1'
 Set-Location %USERPROFILE%\.codex\skills\skill-creator
-python -m scripts.package_skill %USERPROFILE%\Documents\健身Skill\healthy-fitness-coach %USERPROFILE%\Documents\健身Skill\dist
+python -m scripts.package_skill .\healthy-fitness-coach .\dist
 ```
 
 `PYTHONUTF8=1` is additionally required on this Windows host because the official packager calls `Path.read_text()` without an explicit encoding and otherwise inherits the GBK default.

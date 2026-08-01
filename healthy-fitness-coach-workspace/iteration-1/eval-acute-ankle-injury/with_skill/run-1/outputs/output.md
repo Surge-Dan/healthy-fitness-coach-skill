@@ -8,7 +8,7 @@
 2. 就医前保护伤脚，尽量不负重；请他人陪同，避免自己驾车。休息时把脚踝垫高。
 3. 为缓解疼痛和肿胀，可用毛巾包住冷敷袋，每次约 15～20 分钟；不要让冰直接接触皮肤。不要强行拉伸、按摩或自行掰动测试稳定性。
 
-“无法负重”和“明显肿胀”本身就是需要尽快就医的警示信号。[NHS：Sprained Ankle Warning Signs](https://elht.nhs.uk/services/integrated-m[redacted-token]/sprained-ankle)
+“无法负重”和“明显肿胀”本身就是需要尽快就医的警示信号。[NHS：Sprained Ankle Warning Signs](https://elht.nhs.uk/services/integrated-msk-pain-and-rheumatology-service/sprained-ankle)
 
 如果脚踝明显变形、脚趾麻木或发冷发青、疼痛/肿胀快速加重、出现开放伤口，或完全无法移动脚踝，直接去急诊；必要时拨打 120。
 

@@ -10,4 +10,4 @@
 
 今天不建议安排任何需要站立、蹬地、固定双脚或可能失衡的训练。是否能做坐姿上肢训练，也应放在完成检查、确认没有骨折或严重损伤之后；现在优先保护和评估伤处。
 
-如果脚踝明显变形、出现开放伤口，脚趾麻木或发冷发白/发紫，疼痛迅速加重，或完全无法安全移动，立即拨打 120。无法负重和显著肿胀本身也属于应尽快就医的警示表现。[NHS 医疗机构：踝伤警示症状](https://elht.nhs.uk/services/integrated-m[redacted-token]/sprained-ankle)
+如果脚踝明显变形、出现开放伤口，脚趾麻木或发冷发白/发紫，疼痛迅速加重，或完全无法安全移动，立即拨打 120。无法负重和显著肿胀本身也属于应尽快就医的警示表现。[NHS 医疗机构：踝伤警示症状](https://elht.nhs.uk/services/integrated-msk-pain-and-rheumatology-service/sprained-ankle)
