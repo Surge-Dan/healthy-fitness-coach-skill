@@ -10,7 +10,8 @@
 | 2. Secure read-only Xunji MCP | Complete | `task2_implementer` | Approved after security fixes | `031f094`, `29b6fda` |
 | 3. Skill V2 behavior layer | Complete | `task3_implementer` | Approved after routing redesign | `ce4a742`, `953b4f0`, `c97fa29`, `6616376`, `9c29bd0` |
 | 4. Plugin packaging | Complete | `task4_implementer` | Approved after portability fix | `8258556`, `c847d28` |
-| 5. Evaluation and release verification | In progress | Pending | Pending | Pending |
+| 5. Evaluation and release verification | Complete with final hardening | `task5_implementer` | Approved after evidence fixes | `f581162`, `1202e71`, `f3d5efd` |
+| 6. Final release remediation | In progress | Pending | Pending | Pending |
 
 ## Non-negotiable constraints
 
@@ -45,4 +46,9 @@
 - Canonical/Plugin Skill and source/dist Plugin SHA-256 parity pass; `.skill` contains the 20 expected non-eval files.
 - Validation tooling derives the official validator from `CODEX_HOME` or the current user's `.codex` directory; no user-specific absolute default remains.
 - No marketplace or global installation state was changed.
+
+## Final review remediation
+
+- Whole-branch review found account-cache isolation, production result traceability, report privacy path, and release-evidence issues that require fixes before merge.
+- `agents/openai.yaml` supports MCP dependency metadata for documented streamable-HTTP servers; the packaged local stdio MCP remains declared through the Plugin `.mcp.json`. Do not add unsupported metadata fields solely to silence a review finding.
 
