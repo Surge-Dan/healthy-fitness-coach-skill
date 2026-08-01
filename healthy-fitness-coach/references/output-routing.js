@@ -92,17 +92,17 @@ function explicitOverrideForClause(clause) {
 }
 
 function explicitOverride(instruction) {
+  const matches = new Set();
   for (const clause of splitClauses(instruction)) {
     const override = explicitOverrideForClause(clause);
-    if (override) {
-      return {
-        mode: override === 'enter_tracking' ? 'conversation' : 'markdown',
-        reason: 'explicit_command',
-        override
-      };
-    }
+    if (override) matches.add(override);
   }
-  return null;
+  const override = ['direct_report', 'enter_tracking', 'save_prior_content'].find((candidate) => matches.has(candidate));
+  return override ? {
+    mode: override === 'enter_tracking' ? 'conversation' : 'markdown',
+    reason: 'explicit_command',
+    override
+  } : null;
 }
 
 function routeOutput({ taskType, userInstruction } = {}) {

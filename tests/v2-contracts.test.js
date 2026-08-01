@@ -182,6 +182,20 @@ test('allows a later independent affirmative command after a negated command', (
   }), { mode: 'markdown', reason: 'explicit_command', override: 'direct_report' });
 });
 
+test('uses fixed output-command priority instead of mixed-command text order', () => {
+  const cases = [
+    {
+      input: { taskType: 'today_workout', userInstruction: '保存刚才内容；进入跟练；直接出报告。' },
+      expected: { mode: 'markdown', reason: 'explicit_command', override: 'direct_report' }
+    },
+    {
+      input: { taskType: 'today_workout', userInstruction: 'Save prior content, then enter tracking, but direct report.' },
+      expected: { mode: 'markdown', reason: 'explicit_command', override: 'direct_report' }
+    }
+  ];
+  for (const { input, expected } of cases) assert.deepEqual(routeOutput(input), expected);
+});
+
 test('ships the V2 routing, Xunji, analysis, research, and report guidance', () => {
   const requiredFiles = [
     'references/output-routing.md',

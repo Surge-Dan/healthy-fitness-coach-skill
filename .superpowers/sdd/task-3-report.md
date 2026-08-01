@@ -54,3 +54,7 @@ GREEN now normalizes Unicode apostrophes/dashes and whitespace, splits on strong
 ## Allowlist review follow-up
 
 Read-only review found two RED gaps: unpunctuated `Can you direct report` / `Could you please enter tracking` were interpreted as commands, and `不要直接出报告，然后直接出报告` did not preserve the later Chinese affirmative. The fixes reject English interrogative openings (`can/could/do/does/did/would/will/are/is you`) before prefix stripping and extend the explicit Chinese sequence connectors to `然后/之后/接着/随后`. The review also added a Unicode full-width-space/em-dash positive command regression. Focused contracts returned GREEN at 18 pass / 0 fail; final connector, validator, credential-scan, and diff checks are recorded below the follow-up commit.
+
+## Final P1: fixed mixed-command priority
+
+Added RED reverse-order mixed affirmative cases in Chinese and English: saving then tracking then reporting must select `direct_report`, not the first textual command. The old implementation returned `save_prior_content` for the Chinese case. GREEN now collects every complete allowlisted affirmative override across clauses and selects by the documented fixed order: `direct_report`, then `enter_tracking`, then `save_prior_content`. The focused suite is GREEN at 19 pass / 0 fail before this commit.
