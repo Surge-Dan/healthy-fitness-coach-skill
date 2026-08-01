@@ -21,7 +21,7 @@ Command:
 node --test tests/v2-contracts.test.js
 ```
 
-Observed result: 12 tests ran; 1 passed (the unchanged V1 safety-case representation check) and 11 failed as intended. The three routing tests fail with `ENOENT` for the future `healthy-fitness-coach/references/output-routing.md`; connector tests fail with `MODULE_NOT_FOUND` for the future `healthy-fitness-coach-plugin/mcp/xunji/src/{server,xunji-client,parser}.js` modules. These are the intended missing-V2-behavior failures, not test setup failures.
+Observed result: 12 tests ran; 1 passed (the V1 safety intent/expectation manifest check) and 11 failed as intended. The three routing tests fail with Node `MODULE_NOT_FOUND` for the absent future `healthy-fitness-coach/references/output-routing.js`; connector tests fail with `MODULE_NOT_FOUND` for the future `healthy-fitness-coach-plugin/mcp/xunji/src/{server,xunji-client,parser}.js` modules. These are the intended missing-V2-behavior failures, not test setup failures.
 
 The contracts cover Markdown/conversation routing and overrides; cache-hit, 90-second refresh, and range-fetch behavior; gzip `res`; verbatim `id:`/`train_time:`; `raw_only`; credential redaction; Garmin filtering; and all six V1 safety cases.
 
