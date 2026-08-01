@@ -3,15 +3,9 @@
 ## Files read
 
 - `comparator-prompt.md`
-- `../../eval-four-week-xunji-markdown-analysis/with_skill/run-1/outputs/four-week-analysis.md`
-- `../../eval-four-week-xunji-markdown-analysis/with_skill/run-1/outputs/metrics.json`
-- `../../eval-four-week-xunji-markdown-analysis/with_skill/run-1/outputs/output.md`
-- `../../eval-four-week-xunji-markdown-analysis/with_skill/run-1/outputs/user_notes.md`
-- `../../eval-four-week-xunji-markdown-analysis/without_skill/run-1/outputs/four-week-review.md`
-- `../../eval-four-week-xunji-markdown-analysis/without_skill/run-1/outputs/metrics.json`
-- `../../eval-four-week-xunji-markdown-analysis/without_skill/run-1/outputs/output.md`
-- `../../eval-four-week-xunji-markdown-analysis/without_skill/run-1/outputs/user_notes.md`
+- `candidate-a/submission.md`
+- `candidate-b/submission.md`
 
 ## Quality reasoning
 
-Output A provides the fuller requested analysis: all eight dimensions, clearly separated facts, inferences, and uncertainty/confidence, explicit source/freshness and partial-record limits, Garmin exclusion, two bounded changes, and measurable follow-up checks. Output B is cautious and concise but omits the eight-dimension structure and is less systematic on confidence and freshness disclosure.
+Candidate A provides more complete dimension-by-dimension coverage, clearer evidence boundaries, and a better specified verification loop while remaining conservative about what the synthetic record can support. Candidate B is practical and appropriately restrained, but leaves several requested dimensions and disclosures less explicit.

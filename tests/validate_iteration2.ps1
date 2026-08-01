@@ -160,20 +160,39 @@ if (Test-Path -LiteralPath $mappingPath -PathType Leaf) {
         $comparisonDirectory = Split-Path -Parent $comparisonPath
         $promptPath = Join-Path $comparisonDirectory 'comparator-prompt.md'
         $auditPath = Join-Path $comparisonDirectory 'audit.md'
+        $candidateAPath = Join-Path $comparisonDirectory 'candidate-a\submission.md'
+        $candidateBPath = Join-Path $comparisonDirectory 'candidate-b\submission.md'
         Assert-True (Test-Path -LiteralPath $promptPath -PathType Leaf) "Missing blind comparator prompt: $($entry.eval_id)"
         Assert-True (Test-Path -LiteralPath $auditPath -PathType Leaf) "Missing blind comparator audit: $($entry.eval_id)"
+        foreach ($candidate in @(@{ Label = 'A'; Path = $candidateAPath; Mapping = $entry.candidate_a }, @{ Label = 'B'; Path = $candidateBPath; Mapping = $entry.candidate_b })) {
+            Assert-True ($null -ne $candidate.Mapping) "Missing neutral candidate mapping: eval $($entry.eval_id) $($candidate.Label)"
+            Assert-True (Test-Path -LiteralPath $candidate.Path -PathType Leaf) "Missing neutral candidate input: eval $($entry.eval_id) $($candidate.Label)"
+            if ($null -ne $candidate.Mapping -and (Test-Path -LiteralPath $candidate.Path -PathType Leaf)) {
+                $sourcePath = Join-Path $WorkspaceRoot ([string]$candidate.Mapping.source_artifact)
+                Assert-True (Test-Path -LiteralPath $sourcePath -PathType Leaf) "Mapped source artifact is missing: eval $($entry.eval_id) $($candidate.Label)"
+                $candidateHash = (Get-FileHash -LiteralPath $candidate.Path -Algorithm SHA256).Hash
+                Assert-True ($candidateHash -eq $candidate.Mapping.sha256) "Neutral candidate hash disagrees with mapping: eval $($entry.eval_id) $($candidate.Label)"
+                if (Test-Path -LiteralPath $sourcePath -PathType Leaf) {
+                    $sourceHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash
+                    Assert-True ($candidateHash -eq $sourceHash) "Neutral candidate differs from mapped source: eval $($entry.eval_id) $($candidate.Label)"
+                }
+                $candidateText = Get-Content -LiteralPath $candidate.Path -Raw -Encoding UTF8
+                Assert-True ($candidateText -notmatch '(?i)healthy-fitness-coach|with_skill|without_skill') "Neutral candidate contains source identity metadata: eval $($entry.eval_id) $($candidate.Label)"
+            }
+        }
         foreach ($blindFile in @($promptPath, $auditPath)) {
             if (Test-Path -LiteralPath $blindFile -PathType Leaf) {
                 $blindText = Get-Content -LiteralPath $blindFile -Raw -Encoding UTF8
-                Assert-True ($blindText -notmatch '(?i)\bmapping\b|\bV[12]\b|healthy-fitness-coach') "Blind artifact reveals hidden identity: $blindFile"
+                Assert-True ($blindText -notmatch '(?i)\bmapping\b|\bV[12]\b|healthy-fitness-coach|with_skill|without_skill|eval-[a-z0-9-]+') "Blind artifact reveals hidden identity: $blindFile"
+                Assert-True ($blindText -notmatch '(?i)(?:\.\./)?(?:healthy-fitness-coach-workspace|eval-[a-z0-9-]+)/(?:with_skill|without_skill)') "Blind artifact names a source output path: $blindFile"
             }
         }
         if (Test-Path -LiteralPath $comparisonPath -PathType Leaf) {
             $comparison = Get-Content -LiteralPath $comparisonPath -Raw -Encoding UTF8 | ConvertFrom-Json
             Assert-True (@('A', 'B', 'TIE') -contains $comparison.winner) "Invalid blind winner: $($entry.comparison_file)"
             if ($comparison.winner -in @('A', 'B')) {
-                $winningConfiguration = [string]$entry.($comparison.winner)
-                Assert-True ($winningConfiguration -eq 'with_skill') "Unblinded blind winner is not the candidate: eval $($entry.eval_id)"
+                $winningVersion = [string]$entry.("candidate_$($comparison.winner.ToLowerInvariant())").version
+                Assert-True ($winningVersion -eq 'V2') "Unblinded blind winner is not the candidate: eval $($entry.eval_id)"
             }
         }
     }

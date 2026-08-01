@@ -1,7 +1,7 @@
 # Blind comparison prompt
 
-Compare output A at `../../eval-partial-unknown-source-confidence-boundary/with_skill/run-1/outputs` with output B at `../../eval-partial-unknown-source-confidence-boundary/without_skill/run-1/outputs`.
+Compare candidate A at `candidate-a/submission.md` with candidate B at `candidate-b/submission.md`.
 
-Task: produce a Markdown analysis from synthetic partial data with a 58-hour cache, unknown source warning, filtered Garmin count, and one comparable lift. Assess confidence boundary, fact/inference/uncertainty separation, Garmin exclusion, bounded adjustments, and a verification step. Judge output quality only. Do not inspect anything outside the named output folders.
+Task: assess two analyses from synthetic partial data with a 58-hour cache, an unknown-source warning, a filtered Garmin count, and one comparable lift. Consider confidence boundaries, fact/inference/uncertainty separation, Garmin exclusion, bounded adjustments, and a verification step. Judge output quality only. Read no files other than the two named candidate submissions and this prompt.
 
-Write `comparison.json` in this directory and `audit.md` listing only files read plus concise quality reasoning. Do not infer or name any hidden identity.
+Write `comparison.json` and `audit.md` in this directory. The audit must list only the neutral candidate files read and concise quality reasoning. Do not infer or name a hidden identity.

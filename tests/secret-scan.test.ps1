@@ -6,9 +6,30 @@ foreach ($name in @('xunji-token.txt', 'bearer-token.txt', 'quoted-api-key.txt',
     & $scanner -Roots (Join-Path $fixtures $name) -Quiet
     if ($LASTEXITCODE -ne 1) { throw "Expected detector failure for $name" }
 }
-foreach ($name in @('unknown-host-url.txt', 'known-host-query-token.txt', 'known-host-query-signature.txt', 'asset-nontemplate-path.txt', 'asset-traversal-path.txt', 'asset-query-token.txt', 'asset-absolute-path.txt')) {
+
+function Assert-ScannerCategory {
+    param([string]$FixtureName, [string]$ExpectedCategory)
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $output = @(powershell -NoProfile -ExecutionPolicy Bypass -File $scanner -Roots (Join-Path $fixtures $FixtureName) 2>&1 | Out-String)
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    if ($LASTEXITCODE -ne 1) { throw "Expected detector failure for $FixtureName" }
+    if ($output -notmatch "\[$([regex]::Escape($ExpectedCategory))\]") { throw "Expected [$ExpectedCategory] for $FixtureName, got: $output" }
+    $categories = @([regex]::Matches($output, '\[([a-z_]+)\]') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+    if (($categories -join ',') -ne $ExpectedCategory) { throw "Expected only [$ExpectedCategory] for $FixtureName, got: $($categories -join ',')" }
+}
+
+Assert-ScannerCategory 'unknown-host-url.txt' 'unknown_url'
+Assert-ScannerCategory 'known-host-query-token.txt' 'query_secret'
+Assert-ScannerCategory 'known-host-query-signature.txt' 'query_secret'
+Assert-ScannerCategory 'known-host-query-high-entropy.txt' 'query_secret'
+
+foreach ($name in @('asset-nontemplate-path.txt', 'asset-traversal-path.txt', 'asset-query-token.txt', 'asset-absolute-path.txt')) {
     & $scanner -Roots (Join-Path $fixtures $name) -Quiet
-    if ($LASTEXITCODE -ne 1) { throw "Expected URL detector failure for $name" }
+    if ($LASTEXITCODE -ne 1) { throw "Expected detector failure for $name" }
 }
 
 & $scanner -Roots (Join-Path $fixtures 'documented-hashes.txt') -Quiet

@@ -72,6 +72,55 @@ function Get-ShannonEntropy {
     return $entropy
 }
 
+function Test-HighEntropyValue {
+    param([string]$Value, [int]$MinimumLength = 32)
+    if ($Value.Length -lt $MinimumLength -or $Value -notmatch '^[A-Za-z0-9_-]+$') { return $false }
+    $classes = 0
+    if ($Value -cmatch '[a-z]') { $classes++ }
+    if ($Value -cmatch '[A-Z]') { $classes++ }
+    if ($Value -match '\d') { $classes++ }
+    if ($Value -match '[_-]') { $classes++ }
+    return $classes -ge 3 -and (Get-ShannonEntropy $Value) -ge 3.5
+}
+
+function Test-KnownPublicSourceUrl {
+    param([System.Text.RegularExpressions.Match]$Url)
+    $sourceHost = $Url.Groups['host'].Value.ToLowerInvariant()
+    return $publicSourceHosts -contains $sourceHost -and -not $Url.Value.Contains('@') -and -not $Url.Value.Contains('?')
+}
+
+function Test-IsInsideHttpUrl {
+    param([string]$Text, [int]$Index, [int]$Length)
+    foreach ($url in [regex]::Matches($Text, 'https?://[^\s\)\]]+')) {
+        if ($Index -ge $url.Index -and ($Index + $Length) -le ($url.Index + $url.Length)) { return $true }
+    }
+    return $false
+}
+
+function Test-UrlText {
+    param([string]$Text, [string]$Location)
+    foreach ($url in [regex]::Matches($Text, 'https?://(?<host>[A-Za-z0-9.-]+)(?<path>/[^\s\)\]]*)?')) {
+        $raw = $url.Value
+        $queryOffset = $raw.IndexOf('?')
+        $pathOnly = if ($queryOffset -ge 0) { $raw.Substring(0, $queryOffset) } else { $raw }
+        if (-not (Test-KnownPublicSourceUrl $url)) {
+            $pathSegments = @($pathOnly -split '/' | Where-Object { $_ })
+            if (@($pathSegments | Where-Object { Test-HighEntropyValue $_ 32 }).Count -gt 0) { Add-Finding $Location 'unknown_url' }
+        }
+        if ($queryOffset -lt 0) { continue }
+        $query = $raw.Substring($queryOffset + 1)
+        foreach ($pair in $query -split '[&;]') {
+            $separator = $pair.IndexOf('=')
+            if ($separator -lt 0) { continue }
+            $key = $pair.Substring(0, $separator)
+            $value = $pair.Substring($separator + 1)
+            if ([string]::IsNullOrWhiteSpace($value)) { continue }
+            if ($key -match '(?i)(?:token|key|api_key|auth|signature|sig)') { Add-Finding $Location 'query_secret'; continue }
+            if (Test-HighEntropyValue $value 20) { Add-Finding $Location 'query_secret' }
+        }
+    }
+}
+
 function Test-AllowedPublicPathIdentifier {
     param([string]$Text, [int]$Index, [string]$Token)
     $lineStart = $Text.LastIndexOf("`n", $Index)
@@ -80,9 +129,7 @@ function Test-AllowedPublicPathIdentifier {
     if ($lineEnd -lt 0) { $lineEnd = $Text.Length }
     $line = $Text.Substring($lineStart, $lineEnd - $lineStart)
     foreach ($url in [regex]::Matches($line, 'https?://(?<host>[A-Za-z0-9.-]+)(?<path>/[^\s\)\]]*)?')) {
-        $sourceHost = $url.Groups['host'].Value.ToLowerInvariant()
-        if ($publicSourceHosts -notcontains $sourceHost) { continue }
-        if ($url.Value.Contains('@')) { continue }
+        if (-not (Test-KnownPublicSourceUrl $url)) { continue }
         $absoluteStart = $lineStart + $url.Index
         $absoluteEnd = $absoluteStart + $url.Length
         if ($Index -lt $absoluteStart -or ($Index + $Token.Length) -gt $absoluteEnd) { continue }
@@ -123,11 +170,12 @@ function Test-SecretText {
     $patterns = @(
         @{ Kind = 'xunji_token'; Pattern = '(?i)\bxjllm_[A-Za-z0-9_-]{16,}\b' },
         @{ Kind = 'bearer_token'; Pattern = '(?i)\bBearer\s+[A-Za-z0-9._~-]{20,}\b' },
-        @{ Kind = 'labelled_secret'; Pattern = '(?i)\b(?:api[-_ ]?key|token|secret)\b\s*[:=]\s*["'']?[A-Za-z0-9._~-]{16,}' }
+        @{ Kind = 'labelled_secret'; Pattern = '(?i)(?<![?&])\b(?:api[-_ ]?key|token|secret)\b\s*[:=]\s*["'']?[A-Za-z0-9._~-]{16,}' }
     )
     foreach ($item in $patterns) {
         if ([regex]::IsMatch($Text, $item.Pattern)) { Add-Finding $Location $item.Kind }
     }
+    Test-UrlText $Text $Location
 
     foreach ($match in [regex]::Matches($Text, '\b[A-Za-z0-9_-]{32,}\b')) {
         $token = $match.Value
@@ -135,12 +183,8 @@ function Test-SecretText {
         if (Test-StructuredEvalRunIdentifier $token) { continue }
         if (Test-AllowedPublicPathIdentifier $Text $match.Index $token) { continue }
         if (Test-ExistingMarkdownReference $Text $match.Index $token $Location $ArchiveEntries) { continue }
-        $classes = 0
-        if ($token -cmatch '[a-z]') { $classes++ }
-        if ($token -cmatch '[A-Z]') { $classes++ }
-        if ($token -match '\d') { $classes++ }
-        if ($token -match '[_-]') { $classes++ }
-        if ($classes -ge 3 -and (Get-ShannonEntropy $token) -ge 3.5) { Add-Finding $Location 'bare_high_entropy' }
+        if (Test-IsInsideHttpUrl $Text $match.Index $token.Length) { continue }
+        if (Test-HighEntropyValue $token 32) { Add-Finding $Location 'bare_high_entropy' }
     }
 }
 
