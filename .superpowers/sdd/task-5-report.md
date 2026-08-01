@@ -4,6 +4,8 @@
 
 **Release candidate approved.** V2 improves the new behavior gates while preserving the selected fresh safety regressions. The evaluation uses one run per configuration, so it demonstrates functional coverage only and does not estimate variance or statistical stability.
 
+The release checks below are the historical Task 5 record. Task 6 final remediation supersedes them; see `.superpowers/sdd/task-6-report.md` for the current 21/21 V2-contract and 34/34 connector verification.
+
 ## Fresh run inventory
 
 | Scope | Runs | Evidence |
@@ -49,8 +51,8 @@ The release check exposed a protocol defect in the test handshake, not the conne
 
 | Artifact | Size | SHA-256 / inventory |
 | --- | ---: | --- |
-| `dist/healthy-fitness-coach.skill` | 39,889 bytes | `AC65A28B7077093E8122CC0D3500B76874DBEA9B33813CCD46B11806469D8A25` |
-| `dist/healthy-fitness-coach-plugin/` | 45 files / 170,161 bytes | source/dist parity validated |
+| `dist/healthy-fitness-coach.skill` | 39,926 bytes | `BD931E118AC364774134441D5403D7CFFBBB385E67D832E9BB858CA31EFC51A4` |
+| `dist/healthy-fitness-coach-plugin/` | 45 files / 170,286 bytes | source/dist parity validated |
 
 ## Limitations
 

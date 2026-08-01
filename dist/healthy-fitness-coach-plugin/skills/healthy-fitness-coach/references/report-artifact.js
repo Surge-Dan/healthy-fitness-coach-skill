@@ -1,5 +1,6 @@
 'use strict';
 
+const { existsSync: filesystemExistsSync } = require('node:fs');
 const { join } = require('node:path');
 
 const REPORT_NAMES = {
@@ -9,13 +10,13 @@ const REPORT_NAMES = {
   training_plan: 'fitness-training-plan'
 };
 
-function recommendReportArtifactPath({ workspaceRoot, reportType = 'report', existingPaths = new Set() } = {}) {
+function recommendReportArtifactPath({ workspaceRoot, reportType = 'report', existingPaths = new Set(), existsSync = filesystemExistsSync } = {}) {
   if (!workspaceRoot) throw new TypeError('workspaceRoot is required');
   const base = REPORT_NAMES[reportType] || 'fitness-report';
   const directory = join(workspaceRoot, 'fitness-reports');
   let suffix = 1;
   let candidate = join(directory, `${base}.md`);
-  while (existingPaths.has(candidate)) {
+  while (existingPaths.has(candidate) || existsSync(candidate)) {
     suffix += 1;
     candidate = join(directory, `${base}-${suffix}.md`);
   }

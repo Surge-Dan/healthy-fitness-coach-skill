@@ -11,6 +11,7 @@ Implemented release-blocker remediation without using a live endpoint, real cred
 3. `powershell -NoProfile -ExecutionPolicy Bypass -File tests/secret-scan.test.ps1` failed as expected because manifest-hashed explicit Xunji-shaped text was skipped.
 4. `node --test test/server.test.js` then failed as expected for two concurrent same-account cache factories; this closed the creation-race gap.
 5. `powershell -NoProfile -ExecutionPolicy Bypass -File tests/validate_iteration2.ps1` failed as expected for missing comparison provenance before it was added.
+6. `node --test tests/v2-contracts.test.js` failed as expected for a real temporary-directory collision: with an existing `fitness-reports/fitness-weekly-review.md`, the helper still recommended that occupied path.
 
 ## GREEN implementation
 
@@ -22,15 +23,27 @@ Implemented release-blocker remediation without using a live endpoint, real cred
 
 ## GREEN verification
 
-- Connector `npm test`: 34/34 pass.
-- V2 contracts: 20/20 pass.
+Exact successful commands:
+
+```powershell
+node --test tests/v2-contracts.test.js
+Push-Location healthy-fitness-coach-plugin/mcp/xunji; npm test; Pop-Location
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/verify_v1_snapshot.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/validate_iteration2.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/validate_plugin.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/secret-scan.test.ps1
+.\tests\secret-scan.ps1 -Roots $roots -ImmutableManifest $manifests
+git diff --check
+```
+
+- The focused real-directory collision test passes: it preserves the pre-existing synthetic file, creates nothing, and recommends `fitness-weekly-review-2.md`.
+- Connector `npm test`: 34/34 pass; V2 contracts: 21/21 pass.
 - Frozen V1 snapshot, iteration-2 consistency/provenance validator, Plugin validator and stdio handshake: pass.
-- Focused secret scanner and full canonical/Plugin/dist/V1/iteration/archive scan: pass.
-- Archive parity: 21/21 non-eval canonical files; `git diff --check`: pass.
+- Focused and full canonical/Plugin/dist/V1/iteration/archive secret scans pass; archive parity is 21/21 non-eval canonical files.
 
 ## Current artifacts and limits
 
-- `dist/healthy-fitness-coach.skill`: 39,889 bytes; SHA-256 `AC65A28B7077093E8122CC0D3500B76874DBEA9B33813CCD46B11806469D8A25`.
-- `dist/healthy-fitness-coach-plugin`: 45 files / 170,161 bytes; source/dist parity pass.
+- `dist/healthy-fitness-coach.skill`: 39,926 bytes; SHA-256 `BD931E118AC364774134441D5403D7CFFBBB385E67D832E9BB858CA31EFC51A4`.
+- `dist/healthy-fitness-coach-plugin`: 45 files / 170,286 bytes; source/dist parity pass.
 - Local production MCP remains Plugin `.mcp.json` stdio. `agents/openai.yaml` was intentionally not given unsupported streamable-HTTP dependency metadata.
 - One execution per comparison/configuration is functional evidence, not variance estimation; no live Xunji smoke was run.

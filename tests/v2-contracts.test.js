@@ -2,6 +2,8 @@
 
 const assert = require('node:assert/strict');
 const { existsSync, readFileSync } = require('node:fs');
+const { mkdtemp, rm, writeFile } = require('node:fs/promises');
+const { tmpdir } = require('node:os');
 const { basename, join } = require('node:path');
 const test = require('node:test');
 const {
@@ -289,6 +291,23 @@ test('recommends a non-PII Markdown path inside the workspace report directory',
   assert.match(first, /fitness-reports[\\/]fitness-weekly-review\.md$/);
   assert.match(second, /fitness-reports[\\/]fitness-weekly-review-2\.md$/);
   assert.doesNotMatch(basename(first), /(?:Daniel|@|\d{11}|[A-Z][a-z]+\s[A-Z][a-z]+)/);
+});
+
+test('report path helper avoids an existing filesystem artifact without creating or overwriting it', async () => {
+  const { recommendReportArtifactPath } = require(join(skillRoot, 'references', 'report-artifact.js'));
+  const workspace = await mkdtemp(join(tmpdir(), 'fitness-report-path-'));
+  const reportDirectory = join(workspace, 'fitness-reports');
+  const occupied = join(reportDirectory, 'fitness-weekly-review.md');
+  try {
+    await require('node:fs/promises').mkdir(reportDirectory);
+    await writeFile(occupied, 'synthetic existing report', 'utf8');
+    const recommendation = recommendReportArtifactPath({ workspaceRoot: workspace, reportType: 'weekly_review' });
+    assert.equal(recommendation, join(reportDirectory, 'fitness-weekly-review-2.md'));
+    assert.equal(readFileSync(occupied, 'utf8'), 'synthetic existing report');
+    assert.equal(existsSync(recommendation), false);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
 });
 
 test('reads records from the res array of a gzip response', () => {
