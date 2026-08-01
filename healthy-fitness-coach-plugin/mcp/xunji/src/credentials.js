@@ -22,7 +22,7 @@ function readWindowsCredential({ localAppData = process.env.LOCALAPPDATA, spawnP
     child.stdout.on('data', (chunk) => { output += chunk; });
     child.on('error', () => reject(connectorError('missing_credentials')));
     child.on('close', (code) => {
-      const value = output.trim();
+      const value = output.endsWith('\r\n') ? output.slice(0, -2) : (output.endsWith('\n') ? output.slice(0, -1) : output);
       if (code !== 0 || !isCredentialValue(value)) return reject(connectorError('missing_credentials'));
       resolve(value);
     });

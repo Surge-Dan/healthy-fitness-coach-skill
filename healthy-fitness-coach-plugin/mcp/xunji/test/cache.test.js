@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { mkdtemp, readFile, rm } = require('node:fs/promises');
+const { mkdtemp, readFile, rm, writeFile } = require('node:fs/promises');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const test = require('node:test');
@@ -32,6 +32,29 @@ test('cache rejects invalid dates and malformed entries before writes', async ()
     const cache = new FileCache({ root, fingerprint: 'abc' });
     await assert.rejects(cache.set('2026-02-30', { fetched_at: 1, records: [] }), { code: 'invalid_date' });
     await assert.rejects(cache.set('2026-08-01', { records: 'not-array' }), { code: 'cache_error' });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('corrupt cache reads are cache_error rather than a network-miss signal', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'xunji-cache-test-'));
+  try {
+    const cache = new FileCache({ root, fingerprint: 'abc' });
+    await cache.set('2026-08-01', { fetched_at: 1, records: [], warnings: [] });
+    await writeFile(cache.pathFor('2026-08-01'), '{corrupt', 'utf8');
+    await assert.rejects(cache.get('2026-08-01'), { code: 'cache_error' });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('concurrent writes use collision-safe temporary names', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'xunji-cache-test-'));
+  try {
+    const cache = new FileCache({ root, fingerprint: 'abc' });
+    await Promise.all(Array.from({ length: 20 }, (_, index) => cache.set('2026-08-01', { fetched_at: index, records: [], warnings: [] })));
+    assert.ok(Number.isInteger((await cache.get('2026-08-01')).fetched_at));
   } finally {
     await rm(root, { recursive: true, force: true });
   }

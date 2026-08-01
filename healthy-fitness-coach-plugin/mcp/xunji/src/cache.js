@@ -1,6 +1,6 @@
 'use strict';
 
-const { createHash } = require('node:crypto');
+const { createHash, randomBytes } = require('node:crypto');
 const { mkdir, readFile, rename, rm, writeFile } = require('node:fs/promises');
 const { dirname, join, resolve, sep } = require('node:path');
 const { connectorError } = require('./errors.js');
@@ -14,6 +14,7 @@ class FileCache {
   constructor({ root, fingerprint }) {
     this.root = resolve(root);
     this.fingerprint = String(fingerprint);
+    this.writeQueues = new Map();
   }
 
   pathFor(date) {
@@ -29,15 +30,26 @@ class FileCache {
     } catch (error) {
       if (error && error.code === 'ENOENT') return null;
       if (error && error.code === 'invalid_date') throw error;
-      return null;
+      throw connectorError('cache_error');
     }
   }
 
   async set(date, entry) {
     const validated = assertCacheEntry(entry);
     const destination = this.pathFor(date);
+    const previous = this.writeQueues.get(destination) || Promise.resolve();
+    const operation = previous.catch(() => {}).then(() => this.writeAtomically(destination, validated));
+    this.writeQueues.set(destination, operation);
+    try {
+      await operation;
+    } finally {
+      if (this.writeQueues.get(destination) === operation) this.writeQueues.delete(destination);
+    }
+  }
+
+  async writeAtomically(destination, validated) {
     const directory = dirname(destination);
-    const temporary = `${destination}.${process.pid}.${Date.now()}.tmp`;
+    const temporary = `${destination}.${process.pid}.${Date.now()}.${randomBytes(12).toString('hex')}.tmp`;
     try {
       await mkdir(directory, { recursive: true });
       await writeFile(temporary, JSON.stringify(validated), { encoding: 'utf8', mode: 0o600 });

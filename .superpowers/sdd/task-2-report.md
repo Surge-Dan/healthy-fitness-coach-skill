@@ -16,11 +16,15 @@ Implemented `healthy-fitness-coach-plugin/mcp/xunji/` as a Node 18 CommonJS pack
 
 The pre-existing V2 contract baseline was 1 pass / 11 fail: the V1 safety check passed while Task 2 connector and Task 3 routing modules were absent. Focused connector tests were added first and observed module-missing RED. Subsequent RED/GREEN slices covered parser behavior, DPAPI script shape, cache atomicity, localhost HTTP/gzip/auth/rate/non-JSON/timeout/success-false cases, same-date promise merging, refresh fallback, and MCP tool registration.
 
-Final connector package suite: 17 pass / 0 fail. The V2 contract suite is 9 pass / 3 fail; all eight connector contracts are GREEN, while the three intentional Task 3 `output-routing.js` contracts remain RED.
+## Review-fix RED/GREEN evidence
+
+The Task 2 review added targeted RED cases for raw-string Garmin/source markers, cache-hit re-filtering, Shanghai `refresh_today` semantics, corrupted cache reads, concurrent cache writes, comma-note preservation, exact credential whitespace, missing `%LOCALAPPDATA%`, and a real stdio child-process initialize/tools-list exchange. The parser slice first failed 3 assertions, the service slice failed 3 assertions, the cache slice failed 2 assertions, and the credential slice failed 1 assertion. Each was then fixed minimally and re-run GREEN. The committed stdio test proves exactly two tool names and does not invoke a tool or network request.
+
+Final connector package suite: 29 pass / 0 fail. The V2 contract suite is 9 pass / 3 fail; all eight connector contracts are GREEN, while the three intentional Task 3 `output-routing.js` contracts remain RED.
 
 ## Verification
 
-- `npm test` in the connector package: 17/17 passed.
+- `npm test` in the connector package: 29/29 passed.
 - MCP stdio initialize then `tools/list`: passed; listed exactly the two read-only tool names and made no tool/network call.
 - `tests/verify_v1_snapshot.ps1` and `tests/validate_skill.ps1`: passed.
 - Credential-shape scan and `git diff --check`: clean.

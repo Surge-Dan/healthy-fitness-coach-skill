@@ -14,6 +14,23 @@ test('parser retains raw text, tokens, and comma-containing notes', () => {
   assert.equal(record.train_time, '2026-08-01 18:30');
   assert.equal(record.parse_status, 'complete');
   assert.match(record.raw_text, /slow, controlled descent/);
+  assert.ok(record.notes.some((note) => note.includes('slow, controlled descent')));
+});
+
+test('parser identifies raw Garmin source markers case-insensitively', () => {
+  const records = parseTrainingRecords([
+    'id: raw-1 train_time: 2026-08-01 08:00, source: Garmin, note: imported',
+    'id: raw-2 train_time: 2026-08-01 09:00 | data_source=GARMIN'
+  ]);
+  assert.equal(records[0].data_source, 'Garmin');
+  assert.equal(records[1].data_source, 'GARMIN');
+  assert.deepEqual(filterModelFacingRecords(records).map((record) => record.id), []);
+});
+
+test('parser preserves unrecognized comma fragments in notes', () => {
+  const [record] = parseTrainingRecords(['id: note-1 train_time: 2026-08-01 08:00, mystery_fragment: keep this, another unknown detail']);
+  assert.ok(record.notes.some((note) => note.includes('mystery_fragment: keep this')));
+  assert.ok(record.notes.some((note) => note.includes('another unknown detail')));
 });
 
 test('parser preserves unknown fragments and flags extreme weights', () => {

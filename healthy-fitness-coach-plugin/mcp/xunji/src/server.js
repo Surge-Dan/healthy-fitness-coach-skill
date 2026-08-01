@@ -4,13 +4,20 @@ const { join } = require('node:path');
 const { z } = require('zod');
 const { FileCache, credentialFingerprint } = require('./cache.js');
 const { readWindowsCredential } = require('./credentials.js');
-const { toPublicError } = require('./errors.js');
+const { connectorError, toPublicError } = require('./errors.js');
 const { filterModelFacingRecords, parseTrainingRecords } = require('./parser.js');
 const { assertDate } = require('./schemas.js');
 const { decodeXunjiResponse, XunjiClient } = require('./xunji-client.js');
 
 const REFRESH_WINDOW_MS = 90_000;
 const MAX_RANGE_DAYS = 90;
+
+function currentShanghaiDate(time = Date.now()) {
+  const values = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date(time)).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+  return `${values.year}-${values.month}-${values.day}`;
+}
 
 function dateRange(startDate, endDate) {
   assertDate(startDate);
@@ -24,25 +31,29 @@ function dateRange(startDate, endDate) {
   return dates;
 }
 
-function createTrainingService({ cache = null, cacheFactory, client = new XunjiClient(), credentialProvider = readWindowsCredential, logger = null, now = Date.now } = {}) {
+function createTrainingService({ cache = null, cacheFactory, client = new XunjiClient(), credentialProvider = readWindowsCredential, logger = null, now = Date.now, today = null, localAppData = process.env.LOCALAPPDATA } = {}) {
   const pending = new Map();
   let activeCache = cache;
   const getCache = async (credential) => {
     if (activeCache) return activeCache;
-    const root = join(process.env.LOCALAPPDATA || '', 'HealthyFitnessCoach', 'xunji-cache');
+    if (!localAppData) throw connectorError('cache_error');
+    const root = join(localAppData, 'HealthyFitnessCoach', 'xunji-cache');
     activeCache = cacheFactory ? await cacheFactory(credential) : new FileCache({ root, fingerprint: credentialFingerprint(credential) });
     return activeCache;
   };
 
-  const resultFromEntry = (date, entry, cacheHit, networkFetches) => ({
-    cache_hit: cacheHit,
-    cache_hits: cacheHit ? 1 : 0,
-    network_fetches: networkFetches,
-    dates: [date],
-    records: entry.records,
-    warnings: entry.warnings || [],
-    data_freshness: cacheHit ? 'cached' : 'network'
-  });
+  const resultFromEntry = (date, entry, cacheHit, networkFetches) => {
+    const filtered = filterModelFacingRecords(entry.records || []);
+    return {
+      cache_hit: cacheHit,
+      cache_hits: cacheHit ? 1 : 0,
+      network_fetches: networkFetches,
+      dates: [date],
+      records: filtered,
+      warnings: [...(entry.warnings || []), ...filtered.warnings],
+      data_freshness: cacheHit ? 'cached' : 'network'
+    };
+  };
 
   async function fetchMissing(date) {
     if (pending.has(date)) return pending.get(date);
@@ -102,8 +113,9 @@ function createTrainingService({ cache = null, cacheFactory, client = new XunjiC
     let dates;
     try { dates = dateRange(start_date, end_date); } catch (error) { return { error: toPublicError(error) }; }
     const aggregate = { cache_hits: 0, network_fetches: 0, dates, records: [], warnings: [], data_freshness: 'mixed' };
+    const todayDate = today ? today() : currentShanghaiDate(now());
     for (const date of dates) {
-      const day = await getTrainingDay({ date, refresh: refresh_today && date === dates[dates.length - 1] });
+      const day = await getTrainingDay({ date, refresh: refresh_today && date === todayDate });
       if (day.error) return { error: day.error };
       aggregate.cache_hits += day.cache_hits;
       aggregate.network_fetches += day.network_fetches;
@@ -151,4 +163,4 @@ if (require.main === module) {
   startStdioServer().catch(() => { process.exitCode = 1; });
 }
 
-module.exports = { createMcpServer, createTrainingService, dateRange, startStdioServer };
+module.exports = { createMcpServer, createTrainingService, currentShanghaiDate, dateRange, startStdioServer };
