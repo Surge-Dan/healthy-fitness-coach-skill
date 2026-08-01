@@ -1,7 +1,8 @@
 ﻿param(
     [string]$SkillRoot = (Join-Path $PSScriptRoot '..\healthy-fitness-coach'),
     [string]$WorkspaceRoot = (Join-Path $PSScriptRoot '..\healthy-fitness-coach-workspace\iteration-1'),
-    [string]$PackagePath = (Join-Path $PSScriptRoot '..\dist\healthy-fitness-coach.skill')
+    [string]$PackagePath = (Join-Path $PSScriptRoot '..\dist\healthy-fitness-coach.skill'),
+    [string]$V1SnapshotRoot = (Join-Path $PSScriptRoot '..\healthy-fitness-coach-workspace\skill-v1-snapshot')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -220,8 +221,12 @@ if (Test-Path -LiteralPath $PackagePath) {
                     $stream.Dispose()
                     $memory.Dispose()
                 }
-                $source = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes((Join-Path $SkillRoot $relativePath)))
-                Assert-True ($packed -eq $source) "Package content differs from source: $relativePath"
+                $snapshotFile = Join-Path $V1SnapshotRoot $relativePath
+                Assert-True (Test-Path -LiteralPath $snapshotFile -PathType Leaf) "V1 snapshot is missing package source: $relativePath"
+                if (Test-Path -LiteralPath $snapshotFile -PathType Leaf) {
+                    $source = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($snapshotFile))
+                    Assert-True ($packed -eq $source) "Legacy V1 package differs from its snapshot: $relativePath"
+                }
             }
         }
         Assert-True (-not ($zip.Entries | Where-Object { $_.FullName -like '*/evals/*' })) 'Package must exclude evals'

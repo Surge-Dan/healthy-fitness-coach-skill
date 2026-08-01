@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
+const { existsSync, readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const test = require('node:test');
 const {
@@ -65,6 +65,73 @@ test('explicit output commands override the default routing with auditable metad
   for (const { input, expected } of cases) {
     assert.deepEqual(routeOutput(input), expected);
   }
+});
+
+test('normalizes command spacing and punctuation without matching unrelated wording', () => {
+  const cases = [
+    {
+      input: { taskType: 'today_workout', userInstruction: '请 直接 出 报告！' },
+      expected: { mode: 'markdown', reason: 'explicit_command', override: 'direct_report' }
+    },
+    {
+      input: { taskType: 'weekly_review', userInstruction: 'Enter tracking, please.' },
+      expected: { mode: 'conversation', reason: 'explicit_command', override: 'enter_tracking' }
+    },
+    {
+      input: { taskType: 'today_workout', userInstruction: 'save the prior content.' },
+      expected: { mode: 'markdown', reason: 'explicit_command', override: 'save_prior_content' }
+    }
+  ];
+
+  for (const { input, expected } of cases) assert.deepEqual(routeOutput(input), expected);
+  assert.deepEqual(routeOutput({ taskType: 'today_workout', userInstruction: '报告的直接性很重要' }), {
+    mode: 'conversation', reason: 'default_task_type', override: null
+  });
+  for (const input of [
+    { taskType: 'today_workout', userInstruction: 'An indirect report is not a command.' },
+    { taskType: 'weekly_review', userInstruction: 'Please reenter tracking numbers.' },
+    { taskType: 'today_workout', userInstruction: 'Autosave prior content is enabled.' }
+  ]) {
+    const expectedMode = input.taskType === 'weekly_review' ? 'markdown' : 'conversation';
+    assert.deepEqual(routeOutput(input), { mode: expectedMode, reason: 'default_task_type', override: null });
+  }
+});
+
+test('ships the V2 routing, Xunji, analysis, research, and report guidance', () => {
+  const requiredFiles = [
+    'references/output-routing.md',
+    'references/xunji-integration.md',
+    'references/multidimensional-analysis.md',
+    'references/web-research.md',
+    'assets/fitness-analysis-report-template.md'
+  ];
+  for (const relativePath of requiredFiles) {
+    assert.ok(existsSync(join(skillRoot, relativePath)), `missing ${relativePath}`);
+  }
+
+  const skill = readFileSync(join(skillRoot, 'SKILL.md'), 'utf8');
+  for (const relativePath of requiredFiles) {
+    assert.ok(skill.includes(relativePath), `SKILL.md does not route to ${relativePath}`);
+  }
+  assert.match(skill, /\.md/);
+  assert.match(skill, /不.*覆盖|避免.*覆盖/);
+  assert.match(skill, /不.*弹窗|不要.*弹窗/);
+});
+
+test('analysis matrix and template preserve evidence, safety, and bounded-adjustment rules', () => {
+  const analysis = readFileSync(join(skillRoot, 'references', 'multidimensional-analysis.md'), 'utf8');
+  const template = readFileSync(join(skillRoot, 'assets', 'fitness-analysis-report-template.md'), 'utf8');
+  for (const dimension of [
+    '依从性与频率', '训练量与有效组', '强度', '渐进超负荷',
+    '动作与肌群', '恢复', '疼痛', '营养'
+  ]) assert.match(analysis, new RegExp(dimension));
+  for (const rule of ['同一动作', '2～3 周', '4 周', '8 周', '1～2 个变量', '安全']) {
+    assert.match(analysis, new RegExp(rule));
+  }
+  for (const section of [
+    '核心结论', '数据范围', '数据质量', '八维分析', '保留', '调整', '验证指标', '安全', '隐私', '事实', '推断', '不确定性', '外部证据'
+  ]) assert.match(template, new RegExp(section));
+  assert.match(template, /最多.{0,8}两项调整/);
 });
 
 test('uses a cache hit without fetching the network', async () => {

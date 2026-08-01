@@ -1,7 +1,8 @@
 param(
     [string]$SourceRoot = (Join-Path $PSScriptRoot '..\healthy-fitness-coach'),
     [string]$SnapshotRoot = (Join-Path $PSScriptRoot '..\healthy-fitness-coach-workspace\skill-v1-snapshot'),
-    [string]$MetadataPath = (Join-Path $PSScriptRoot '..\healthy-fitness-coach-workspace\skill-v1-snapshot.metadata.json')
+    [string]$MetadataPath = (Join-Path $PSScriptRoot '..\healthy-fitness-coach-workspace\skill-v1-snapshot.metadata.json'),
+    [switch]$RequireSourceMatch
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,6 +32,10 @@ function Assert-Inventory([hashtable]$Actual, [string]$Label) {
     }
 }
 
-Assert-Inventory (Get-Inventory $SourceRoot) 'V1 source'
 Assert-Inventory (Get-Inventory $SnapshotRoot) 'V1 snapshot'
-Write-Output 'PASS: V1 source and snapshot both match the recorded byte manifest'
+if ($RequireSourceMatch) {
+    Assert-Inventory (Get-Inventory $SourceRoot) 'V1 source'
+    Write-Output 'PASS: V1 source and snapshot both match the recorded byte manifest'
+} else {
+    Write-Output 'PASS: frozen V1 snapshot matches the recorded byte manifest'
+}
