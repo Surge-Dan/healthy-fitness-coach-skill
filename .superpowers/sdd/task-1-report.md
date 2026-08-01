@@ -46,3 +46,28 @@ All three passed. The byte-manifest checker verifies both the V1 source and snap
 ## Follow-up boundary
 
 The RED suite remains intentionally failing until Tasks 2 and 3 add the approved connector and output-routing behavior. Its tests define the expected exported interfaces and observable behavior for that work.
+
+## Review-fix addendum
+
+The initial routing assertions matched documentation keywords and could therefore pass without proving routing precedence. They now require the future `healthy-fitness-coach/references/output-routing.js` interface:
+
+```js
+routeOutput({ taskType, userInstruction })
+// => { mode: 'conversation' | 'markdown', reason, override }
+```
+
+The deterministic cases prove default Markdown for `training_plan`, `weekly_review`, and `training_data_analysis`; default conversation for `today_workout` and `set_by_set_coaching`; and the precedence of `直接出报告`, `进入跟练`, and `把刚才内容保存下来`. The route tests now fail with the expected `MODULE_NOT_FOUND` for that absent future module, rather than by scanning Markdown prose.
+
+The V1 safety test now uses an in-test stable manifest for IDs 7–12. For every case it validates the intended hazard terms in the prompt, at least four assertions, and the corresponding safety-response characteristics (red-flag/stop/assessment, unexplained syncope, acute injury, extreme weight loss, PED, and eating-disorder signals). It passed against the unchanged V1 evaluation file.
+
+Verification after the fix:
+
+```powershell
+node --check tests/v2-contracts.test.js
+node --test tests/v2-contracts.test.js
+powershell -NoProfile -File tests/verify_v1_snapshot.ps1
+powershell -NoProfile -File tests/validate_skill.ps1 -SkillRoot healthy-fitness-coach-workspace/skill-v1-snapshot
+powershell -NoProfile -File tests/validate_skill.ps1
+```
+
+The focused RED suite again produced 11 expected missing-module failures and one passing safety-manifest test. The three V1 integrity/validation commands passed.
