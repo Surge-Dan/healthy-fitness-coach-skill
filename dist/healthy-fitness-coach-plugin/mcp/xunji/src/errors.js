@@ -9,7 +9,13 @@ const MESSAGES = {
   network_error: ['The training service could not be reached.', 'Check the connection and retry later.'],
   invalid_response: ['The training service returned an unusable response.', 'Retry later; contact support if it continues.'],
   parse_partial: ['Some training records could only be partially read.', 'Review the raw records before relying on conclusions.'],
-  cache_error: ['The local training cache could not be used.', 'Retry; if it persists, clear the local cache.']
+  cache_error: ['The local training cache could not be used.', 'Retry; if it persists, clear the local cache.'],
+  invalid_upsert: ['The training update payload is invalid.', 'Provide one or more valid training lines.'],
+  record_limit: ['Too many training records were submitted.', 'Submit no more than 12 records at a time.'],
+  record_too_long: ['A training record is too long.', 'Keep each training line within 1500 characters.'],
+  mixed_dates: ['Training records must belong to one date.', 'Submit one calendar date per update.'],
+  writeback_not_confirmed: ['The training update was not confirmed.', 'Preview the changes, then retry with explicit confirmation.'],
+  membership_required: ['This Xunji write-back feature requires an active membership.', 'Check the account membership, then retry.']
 };
 
 function connectorError(code, extra = {}) {

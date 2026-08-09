@@ -205,7 +205,12 @@ if (Test-Path -LiteralPath $PackagePath) {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $PackagePath))
     try {
-        $runtimeFiles = @($requiredFiles | Where-Object { $_ -ne 'evals/evals.json' })
+        $skillRootFull = (Resolve-Path -LiteralPath $SkillRoot).Path.TrimEnd('\', '/')
+        $runtimeFiles = @(Get-ChildItem -LiteralPath $skillRootFull -Recurse -File | Where-Object {
+            $_.FullName -notmatch '[\\/]evals[\\/]'
+        } | ForEach-Object {
+            $_.FullName.Substring($skillRootFull.Length).TrimStart('\', '/').Replace('\', '/')
+        })
         Assert-True ($zip.Entries.Count -eq $runtimeFiles.Count) 'Package contains missing or extra runtime files'
         foreach ($relativePath in $runtimeFiles) {
             $entryName = "healthy-fitness-coach/$($relativePath.Replace('\', '/'))"
@@ -221,11 +226,11 @@ if (Test-Path -LiteralPath $PackagePath) {
                     $stream.Dispose()
                     $memory.Dispose()
                 }
-                $snapshotFile = Join-Path $V1SnapshotRoot $relativePath
-                Assert-True (Test-Path -LiteralPath $snapshotFile -PathType Leaf) "V1 snapshot is missing package source: $relativePath"
-                if (Test-Path -LiteralPath $snapshotFile -PathType Leaf) {
-                    $source = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($snapshotFile))
-                    Assert-True ($packed -eq $source) "Legacy V1 package differs from its snapshot: $relativePath"
+                $sourceFile = Join-Path $SkillRoot $relativePath
+                Assert-True (Test-Path -LiteralPath $sourceFile -PathType Leaf) "Skill source is missing package file: $relativePath"
+                if (Test-Path -LiteralPath $sourceFile -PathType Leaf) {
+                    $source = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($sourceFile))
+                    Assert-True ($packed -eq $source) "Packaged skill differs from current source: $relativePath"
                 }
             }
         }

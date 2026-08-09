@@ -5,7 +5,7 @@ const { spawn } = require('node:child_process');
 const { join } = require('node:path');
 const test = require('node:test');
 
-test('stdio initializes and lists exactly two tools without invoking a tool', async () => {
+test('stdio initializes and lists all Xunji tools without invoking a tool', async () => {
   await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ['src/server.js'], { cwd: join(__dirname, '..'), stdio: ['pipe', 'pipe', 'pipe'] });
     let buffer = '';
@@ -29,7 +29,10 @@ test('stdio initializes and lists exactly two tools without invoking a tool', as
           child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }) + '\n');
         }
         if (message.id === 2) {
-          assert.deepEqual(message.result.tools.map((tool) => tool.name).sort(), ['xunji_get_training_day', 'xunji_get_training_range']);
+          assert.deepEqual(message.result.tools.map((tool) => tool.name).sort(), [
+            'xunji_get_training_day', 'xunji_get_training_range', 'xunji_get_training_trends',
+            'xunji_preview_training_upsert', 'xunji_upsert_training_records'
+          ]);
           listed = true;
           finish();
           return;

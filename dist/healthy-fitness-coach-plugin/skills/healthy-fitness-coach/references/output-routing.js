@@ -81,12 +81,14 @@ function explicitOverrideForClause(clause) {
     const value = stripChineseAffirmativeDecorations(clause);
     if (value === '直接出报告' || value === '直接输出报告') return 'direct_report';
     if (value === '进入跟练' || value === '开始跟练') return 'enter_tracking';
+    if (value === '生成趋势面板' || value === '查看训练趋势' || value === '趋势面板') return 'dashboard';
     if (value === '保存刚才内容' || value === '把刚才内容保存下来') return 'save_prior_content';
     return null;
   }
   const value = stripEnglishAffirmativeDecorations(clause);
   if (value === 'direct report' || value === 'directly report' || value === 'a direct report') return 'direct_report';
   if (value === 'enter tracking') return 'enter_tracking';
+  if (value === 'dashboard' || value === 'training dashboard' || value === 'trend dashboard') return 'dashboard';
   if (value === 'save prior content' || value === 'save the prior content') return 'save_prior_content';
   return null;
 }
@@ -97,9 +99,9 @@ function explicitOverride(instruction) {
     const override = explicitOverrideForClause(clause);
     if (override) matches.add(override);
   }
-  const override = ['direct_report', 'enter_tracking', 'save_prior_content'].find((candidate) => matches.has(candidate));
+  const override = ['direct_report', 'enter_tracking', 'dashboard', 'save_prior_content'].find((candidate) => matches.has(candidate));
   return override ? {
-    mode: override === 'enter_tracking' ? 'conversation' : 'markdown',
+    mode: override === 'enter_tracking' ? 'conversation' : (override === 'dashboard' ? 'dashboard' : 'markdown'),
     reason: 'explicit_command',
     override
   } : null;

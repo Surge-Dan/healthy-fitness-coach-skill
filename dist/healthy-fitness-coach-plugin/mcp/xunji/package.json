@@ -2,7 +2,7 @@
   "name": "healthy-fitness-coach-xunji-mcp",
   "version": "1.0.0",
   "private": true,
-  "description": "Read-only Xunji training data MCP connector",
+  "description": "Xunji training data MCP connector with cached reads, trends, previews, and confirmed ID-based upserts",
   "main": "src/server.js",
   "scripts": {
     "test": "node --test test"

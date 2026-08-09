@@ -147,10 +147,19 @@ test('failed refresh preserves and returns the existing valid cache entry', asyn
   assert.ok(result.warnings.includes('refresh_failed_using_cache'));
 });
 
-test('MCP server registers exactly the two read-only training tools', () => {
+test('MCP server registers read, preview, write, and trend training tools', () => {
   const { createMcpServer } = require('../src/server.js');
-  const { server } = createMcpServer({ service: { getTrainingDay: async () => ({}), getTrainingRange: async () => ({}) } });
-  assert.deepEqual(Object.keys(server._registeredTools).sort(), ['xunji_get_training_day', 'xunji_get_training_range']);
+  const { server } = createMcpServer({ service: {
+    getTrainingDay: async () => ({}),
+    getTrainingRange: async () => ({}),
+    getTrainingTrends: async () => ({}),
+    previewTrainingUpsert: async () => ({}),
+    upsertTrainingRecords: async () => ({})
+  } });
+  assert.deepEqual(Object.keys(server._registeredTools).sort(), [
+    'xunji_get_training_day', 'xunji_get_training_range', 'xunji_get_training_trends',
+    'xunji_preview_training_upsert', 'xunji_upsert_training_records'
+  ]);
 });
 
 test('service uses a lazily fingerprinted production cache before fetching', async () => {
@@ -244,4 +253,65 @@ test('cache read errors return cache_error without a network overwrite', async (
   const result = await service.getTrainingDay({ date: '2026-08-01' });
   assert.equal(result.error.code, 'cache_error');
   assert.equal(fetches, 0);
+});
+
+test('service previews a same-day upsert without contacting the network', async () => {
+  let calls = 0;
+  const service = createTrainingService({
+    cache: memoryCache(),
+    credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
+    client: { async upsertRecords() { calls += 1; return { records: [] }; } }
+  });
+  const result = await service.previewTrainingUpsert({ records: ['2026-08-01,id:1,胸部训练'] });
+  assert.equal(result.date, '2026-08-01');
+  assert.equal(result.existing_ids, 1);
+  assert.equal(calls, 0);
+});
+
+test('service refuses an unconfirmed write-back', async () => {
+  let calls = 0;
+  const service = createTrainingService({
+    cache: memoryCache(),
+    credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
+    client: { async upsertRecords() { calls += 1; return { records: [] }; } }
+  });
+  const result = await service.upsertTrainingRecords({ records: ['2026-08-01,胸部训练'], confirm: false });
+  assert.equal(result.error.code, 'writeback_not_confirmed');
+  assert.equal(calls, 0);
+});
+
+test('service caches the server-normalized upsert response as the final result', async () => {
+  let cached;
+  const service = createTrainingService({
+    cache: {
+      async get() { return null; },
+      async set(date, entry) { cached = { date, entry }; }
+    },
+    credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
+    client: { async upsertRecords(records) {
+      assert.deepEqual(records, ['2026-08-01,id:1,胸部训练']);
+      return { records: ['2026-08-01,id:1,胸部训练,标准化'] };
+    } },
+    now: () => 456789
+  });
+  const result = await service.upsertTrainingRecords({ records: ['2026-08-01,id:1,胸部训练'], confirm: true });
+  assert.equal(result.date, '2026-08-01');
+  assert.equal(result.records[0].raw_text, '2026-08-01,id:1,胸部训练,标准化');
+  assert.equal(cached.date, '2026-08-01');
+  assert.equal(cached.entry.fetched_at, 456789);
+  assert.equal(cached.entry.records[0].raw_text, '2026-08-01,id:1,胸部训练,标准化');
+});
+
+test('service returns trend metrics alongside the cached training range', async () => {
+  const service = createTrainingService({
+    cache: memoryCache(),
+    credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
+    client: { async fetchDay(date) { return { records: [`${date},id:1,胸部训练,1组,60kg,10次`] }; } },
+    now: () => 123456
+  });
+  const result = await service.getTrainingTrends({ start_date: '2026-08-01', end_date: '2026-08-02' });
+  assert.equal(result.trends.training_days, 2);
+  assert.equal(result.trends.record_count, 2);
+  assert.equal(result.range.records[0].title, '胸部训练');
+  assert.match(result.dashboard_html, /<!doctype html>/i);
 });

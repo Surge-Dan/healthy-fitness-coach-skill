@@ -7,6 +7,9 @@ const { readWindowsCredential } = require('./credentials.js');
 const { connectorError, toPublicError } = require('./errors.js');
 const { filterModelFacingRecords, parseTrainingRecords } = require('./parser.js');
 const { assertDate } = require('./schemas.js');
+const { renderTrainingDashboardHtml } = require('./dashboard.js');
+const { analyzeTrainingRange } = require('./trends.js');
+const { validateUpsertRecords } = require('./upsert.js');
 const { decodeXunjiResponse, XunjiClient } = require('./xunji-client.js');
 
 const REFRESH_WINDOW_MS = 90_000;
@@ -143,7 +146,56 @@ function createTrainingService({ cache = null, cacheFactory, client = new XunjiC
     return aggregate;
   }
 
-  return { getTrainingDay, getTrainingRange };
+  async function previewTrainingUpsert({ records } = {}) {
+    try {
+      const validated = validateUpsertRecords(records);
+      return {
+        date: validated.date,
+        record_count: validated.records.length,
+        existing_ids: validated.existing_ids,
+        new_records: validated.new_records,
+        records: validated.records,
+        parsed: validated.parsed,
+        requires_confirmation: true
+      };
+    } catch (error) {
+      return { error: toPublicError(error) };
+    }
+  }
+
+  async function upsertTrainingRecords({ records, confirm = false } = {}) {
+    if (confirm !== true) return { error: toPublicError(connectorError('writeback_not_confirmed')) };
+    let validated;
+    try {
+      validated = validateUpsertRecords(records);
+      const credential = await credentialProvider();
+      const store = await getCache(credential);
+      const response = await client.upsertRecords(validated.records, credential);
+      const decoded = response && Array.isArray(response.records) ? response : decodeXunjiResponse(response);
+      const parsed = parseTrainingRecords(decoded.records);
+      const filtered = filterModelFacingRecords(parsed);
+      const warnings = [...filtered.warnings, ...parsed.flatMap((record) => record.warnings || [])];
+      const entry = { fetched_at: now(), records: filtered, warnings, last_operation: 'upsert' };
+      await store.set(validated.date, entry);
+      return {
+        ...resultFromEntry(validated.date, entry, false, 1),
+        writeback: true,
+        upserted_records: validated.records.length,
+        server_records: decoded.records
+      };
+    } catch (error) {
+      return { error: toPublicError(error) };
+    }
+  }
+
+  async function getTrainingTrends({ start_date, end_date, refresh_today = false } = {}) {
+    const range = await getTrainingRange({ start_date, end_date, refresh_today });
+    if (range.error) return range;
+    const trends = analyzeTrainingRange(range);
+    return { range, trends, dashboard_html: renderTrainingDashboardHtml({ range, trends }) };
+  }
+
+  return { getTrainingDay, getTrainingRange, getTrainingTrends, previewTrainingUpsert, upsertTrainingRecords };
 }
 
 function createMcpServer(options = {}) {
@@ -166,6 +218,21 @@ function createMcpServer(options = {}) {
     inputSchema: { start_date: z.string(), end_date: z.string(), refresh_today: z.boolean().optional() },
     annotations: { readOnlyHint: true }
   }, ({ start_date, end_date, refresh_today }) => result(service.getTrainingRange({ start_date, end_date, refresh_today })));
+  server.registerTool('xunji_preview_training_upsert', {
+    description: 'Validate and preview same-day Xunji training updates without writing.',
+    inputSchema: { records: z.array(z.string()) },
+    annotations: { readOnlyHint: true }
+  }, ({ records }) => result(service.previewTrainingUpsert({ records })));
+  server.registerTool('xunji_upsert_training_records', {
+    description: 'Write confirmed same-day Xunji training records by ID and cache the server result.',
+    inputSchema: { records: z.array(z.string()), confirm: z.boolean() },
+    annotations: { readOnlyHint: false }
+  }, ({ records, confirm }) => result(service.upsertTrainingRecords({ records, confirm })));
+  server.registerTool('xunji_get_training_trends', {
+    description: 'Analyze cached Xunji training range trends.',
+    inputSchema: { start_date: z.string(), end_date: z.string(), refresh_today: z.boolean().optional() },
+    annotations: { readOnlyHint: true }
+  }, ({ start_date, end_date, refresh_today }) => result(service.getTrainingTrends({ start_date, end_date, refresh_today })));
   return { server, service };
 }
 

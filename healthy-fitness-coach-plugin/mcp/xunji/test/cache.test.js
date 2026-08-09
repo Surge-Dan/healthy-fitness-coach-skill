@@ -59,3 +59,14 @@ test('concurrent writes use collision-safe temporary names', async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('cache retains safe operation metadata without credentials', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'xunji-cache-test-'));
+  try {
+    const cache = new FileCache({ root, fingerprint: 'abc' });
+    await cache.set('2026-08-01', { fetched_at: 1, records: [], warnings: [], last_operation: 'upsert' });
+    assert.equal((await cache.get('2026-08-01')).last_operation, 'upsert');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

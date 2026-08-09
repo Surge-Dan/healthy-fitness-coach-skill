@@ -60,3 +60,17 @@ test('model-facing filter removes Garmin records and warns on unknown sources', 
   assert.deepEqual(result.map((item) => item.id), ['allowed', 'unknown']);
   assert.equal(result.warnings.length, 1);
 });
+
+test('parser understands official Xunji dated training rows and preserves write-back tokens', () => {
+  const [record] = parseTrainingRecords([
+    '2026-08-01,id:123456,胸部训练,train_time:1744010000000-1744013600000,状态不错,1.卧推,1组,60kg,10次,2组,60kg,8次'
+  ]);
+  assert.equal(record.record_date, '2026-08-01');
+  assert.equal(record.id, '123456');
+  assert.equal(record.title, '胸部训练');
+  assert.equal(record.train_time, '1744010000000-1744013600000');
+  assert.equal(record.sets, 3);
+  assert.equal(record.total_reps, 26);
+  assert.equal(record.volume, 1560);
+  assert.equal(record.parse_status, 'complete');
+});

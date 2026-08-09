@@ -7,7 +7,8 @@ const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const cacheEntrySchema = z.object({
   fetched_at: z.number().finite(),
   records: z.array(z.object({}).passthrough()),
-  warnings: z.array(z.string()).default([])
+  warnings: z.array(z.string()).default([]),
+  last_operation: z.string().optional()
 });
 
 function assertDate(date) {

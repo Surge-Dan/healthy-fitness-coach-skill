@@ -4,7 +4,7 @@
 
 This package declares its production Xunji connector as local stdio in `.mcp.json`. Codex skill MCP dependency metadata is documented for `streamable_http` URL servers; this local stdio connector does not add unsupported dependency fields to `agents/openai.yaml`.
 
-本地 Codex Plugin：提供健康边界优先的训练、营养、恢复指导，并可通过只读 MCP 查询训记训练数据。
+本地 Codex Plugin：提供健康边界优先的训练、营养、恢复指导，并可通过 MCP 查询、分析和按 ID 安全写回训记训练数据。
 
 ## 环境与安装
 
@@ -27,7 +27,10 @@ npm --prefix .\mcp\xunji ci --omit=dev --ignore-scripts
 ## 数据与隐私边界
 
 - 凭据和缓存仅保存在 `%LOCALAPPDATA%\HealthyFitnessCoach\`；缓存按日期存储。
-- MCP 仅提供两项**只读**训练查询，不包含写回能力。
+- MCP 提供按日/按范围读取、趋势分析、写回预览和显式确认写回；读取工具仍为**只读**，写回不是整天覆盖删除。
+- 写回前先调用预览工具，确认所有记录属于同一天、最多 12 条且每条不超过 1500 字符；更新已有记录时保留 `id:`，有 `train_time:` 时原样带回。
+- 成功写回后，以训记返回的最新 `res` 作为最终结果并更新当天缓存。
+- 趋势工具返回本地自包含 HTML，可保存到工作区 `fitness-reports/`；不加载外部 CDN，也不上传用户数据。
 - 标记为 Garmin 的记录会在面向模型的输出前被过滤；不会新增云数据库。
 - 插件不会随源码或 `dist` 打包 `node_modules`、凭据、缓存、个人报告或真实训练数据。
 

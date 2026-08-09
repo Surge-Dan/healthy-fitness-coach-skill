@@ -67,3 +67,35 @@ test('client rejects a localhost success-false response as invalid_response', as
     await assert.rejects(client.fetchDay('2026-08-01', 'FAKE_TEST_CREDENTIAL'), { code: 'invalid_response' });
   });
 });
+
+test('client upserts records to the dedicated endpoint and returns server records', async () => {
+  await withServer((request, response) => {
+    let body = '';
+    request.on('data', (chunk) => { body += chunk; });
+    request.on('end', () => {
+      assert.equal(request.url, '/api_upsert_trains_for_llm');
+      assert.equal(request.headers.authorization.startsWith('Bearer '), true);
+      assert.equal(request.headers.authorization.endsWith('FAKE_TEST_CREDENTIAL'), true);
+      assert.deepEqual(JSON.parse(body), { res: ['2026-08-01,id:1,胸部训练'] });
+      response.end(JSON.stringify({ success: true, res: ['2026-08-01,id:1,胸部训练'] }));
+    });
+  }, async (baseUrl) => {
+    const client = new XunjiClient({ baseUrl, timeoutMs: 500 });
+    const result = await client.upsertRecords(['2026-08-01,id:1,胸部训练'], 'FAKE_TEST_CREDENTIAL');
+    assert.deepEqual(result.records, ['2026-08-01,id:1,胸部训练']);
+  });
+});
+
+test('client maps documented Xunji business errors without leaking credentials', async () => {
+  await withServer((request, response) => {
+    response.setHeader('content-type', 'application/json');
+    response.end(JSON.stringify({ success: false, error: '仅VIP可用' }));
+  }, async (baseUrl) => {
+    const client = new XunjiClient({ baseUrl, timeoutMs: 500 });
+    await assert.rejects(client.upsertRecords(['2026-08-01,休息日'], 'FAKE_TEST_CREDENTIAL'), (error) => {
+      assert.equal(error.code, 'membership_required');
+      assert.equal(JSON.stringify(error).includes('FAKE_TEST_CREDENTIAL'), false);
+      return true;
+    });
+  });
+});

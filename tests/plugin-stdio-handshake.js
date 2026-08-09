@@ -48,7 +48,10 @@ child.stdout.on('data', (chunk) => {
     }
     if (message.id === 2) {
       const names = Array.isArray(message.result?.tools) ? message.result.tools.map((tool) => tool.name).sort() : [];
-      const expected = ['xunji_get_training_day', 'xunji_get_training_range'];
+      const expected = [
+        'xunji_get_training_day', 'xunji_get_training_range', 'xunji_get_training_trends',
+        'xunji_preview_training_upsert', 'xunji_upsert_training_records'
+      ];
       if (JSON.stringify(names) !== JSON.stringify(expected)) {
         finish(new Error(`Expected exactly ${expected.join(', ')}, received ${names.join(', ')}`));
         return;
