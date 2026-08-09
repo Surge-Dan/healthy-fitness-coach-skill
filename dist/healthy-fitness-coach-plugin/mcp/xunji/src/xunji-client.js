@@ -31,7 +31,7 @@ function decodeXunjiResponse(input) {
     throw connectorError('invalid_response');
   }
   if (!payload || payload.success !== true || !Array.isArray(payload.res)) {
-    const message = String(payload && (payload.error || payload.message || payload.code) || '').toLowerCase();
+    const message = String(payload && (payload.error || payload.message || payload.code || payload.res) || '').toLowerCase();
     if (/vip|会员/.test(message)) throw connectorError('membership_required');
     if (/too\s*frequent|频繁|90\s*s/.test(message)) throw connectorError('rate_limited');
     if (/apikey|api\s*key|授权/.test(message)) throw connectorError('invalid_credentials');

@@ -68,6 +68,20 @@ test('client rejects a localhost success-false response as invalid_response', as
   });
 });
 
+test('client maps documented business errors returned in res', async () => {
+  await withServer((request, response) => {
+    response.setHeader('content-type', 'application/json');
+    response.end(JSON.stringify({ success: false, res: 'too frequent, retry after 13s' }));
+  }, async (baseUrl) => {
+    const client = new XunjiClient({ baseUrl, timeoutMs: 500 });
+    await assert.rejects(client.fetchDay('2026-08-01', 'FAKE_TEST_CREDENTIAL'), (error) => {
+      assert.equal(error.code, 'rate_limited');
+      assert.equal(JSON.stringify(error).includes('FAKE_TEST_CREDENTIAL'), false);
+      return true;
+    });
+  });
+});
+
 test('client upserts records to the dedicated endpoint and returns server records', async () => {
   await withServer((request, response) => {
     let body = '';
