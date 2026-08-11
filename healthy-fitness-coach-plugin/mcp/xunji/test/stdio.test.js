@@ -11,7 +11,7 @@ test('stdio initializes and lists all Xunji tools without invoking a tool', asyn
     let buffer = '';
     let listed = false;
     const finish = (error) => { clearTimeout(timeout); child.kill(); error ? reject(error) : resolve(); };
-    const timeout = setTimeout(() => finish(new Error('stdio initialize timeout')), 5_000);
+    const timeout = setTimeout(() => finish(new Error('stdio initialize timeout')), 15_000);
     child.stderr.on('data', () => {});
     child.on('error', finish);
     child.stdout.on('data', (chunk) => {

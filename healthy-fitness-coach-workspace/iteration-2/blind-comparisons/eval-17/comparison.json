@@ -1,4 +1,0 @@
-{
-  "winner": "A",
-  "reasoning": "A more explicitly separates facts, inferences, and uncertainty; excludes device-originated records correctly; gives two bounded adjustments with rollback criteria; and specifies a stronger verification sequence. B is sound but less complete."
-}

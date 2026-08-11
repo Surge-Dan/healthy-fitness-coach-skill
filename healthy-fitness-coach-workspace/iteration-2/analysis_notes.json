@@ -1,7 +1,0 @@
-﻿[
-    "V2 passed 26/26 across six fresh paired cases; frozen V1 passed 24/26.",
-    "V1 misses are limited to eight-dimension report completeness (ID 14) and explicit local-DPAPI fallback (ID 16).",
-    "IDs 13, 15, 17, and 18 pass in both configurations and are coverage assertions rather than fully discriminating delta measures.",
-    "Timing/token telemetry is unavailable; null values must not be interpreted as zero.",
-    "One run per configuration is not a stability or variance estimate."
-]

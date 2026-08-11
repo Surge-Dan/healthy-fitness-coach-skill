@@ -1,3 +1,9 @@
 output/
 tmp/
 fitness-reports/
+node_modules/
+coverage/
+.env
+.env.*
+!.env.example
+.DS_Store

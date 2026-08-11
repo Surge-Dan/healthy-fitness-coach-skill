@@ -4,7 +4,7 @@
 
 This package declares its production Xunji connector as local stdio in `.mcp.json`. Codex skill MCP dependency metadata is documented for `streamable_http` URL servers; this local stdio connector does not add unsupported dependency fields to `agents/openai.yaml`.
 
-本地 Codex Plugin：提供健康边界优先的训练、营养、恢复指导，并可通过 MCP 查询、分析和按 ID 安全写回训记训练数据。
+本地 Codex Plugin：提供健康边界优先的训练、营养、恢复指导，并可通过 MCP 读取、分析、生成趋势面板、预览和按 ID 安全写回训记训练数据。
 
 ## 环境与安装
 
