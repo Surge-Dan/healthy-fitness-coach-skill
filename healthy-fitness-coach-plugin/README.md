@@ -9,20 +9,20 @@ This package declares its production Xunji connector as local stdio in `.mcp.jso
 ## 环境与安装
 
 - 支持 **Windows** 和 **Node.js 18.14.1+**。在 Node 18 上，依赖树使用已锁定的 `@hono/node-server` **1.19.17 override**。
-- 从本 Plugin 根目录安装 MCP 运行时依赖：
+- 从本Plugin根目录运行一键初始化脚本：
+
+```powershell
+.\scripts\setup-xunji.ps1
+```
+
+脚本会检查Node.js/npm版本、安装MCP运行时依赖，并调用凭据脚本。也可以手动执行：
 
 ```powershell
 npm --prefix .\mcp\xunji ci --omit=dev --ignore-scripts
-```
-
-- 本任务未在此机器上验证 Codex 的本地 Plugin 添加命令，因此具体的本地市场/命令步骤属于**产品版本相关**行为。请使用当前 Codex 的本地 Plugin UI 或命令选择本目录 `healthy-fitness-coach-plugin`；不要创建或修改全局 marketplace。
-- 配置凭据时，使用当前 Windows 用户的 **DPAPI** 在本机交互执行：
-
-```powershell
 .\mcp\xunji\scripts\set-credential.ps1
 ```
 
-  **不要把密钥粘贴到聊天中。**完成后刷新或重启 Codex，并测试：`分析训记最近四周训练`。
+只安装Skill不会自动注册本地Plugin。完成初始化后，在Codex的Plugins界面选择“添加本地插件”，目录选择当前`healthy-fitness-coach-plugin`目录；添加后刷新或重启Codex，并新建任务测试：`分析训记最近四周训练`。
 
 ## 数据与隐私边界
 
