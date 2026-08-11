@@ -41,4 +41,4 @@ npm --prefix .\mcp\xunji ci --omit=dev --ignore-scripts
 
 ## 发布前检查
 
-当前仓库还没有选定开源许可证；在将 GitHub 仓库改为 Public 前，请明确选择 MIT、Apache-2.0 或其他许可证，并补充根目录 `LICENSE` 文件。
+本项目采用 [MIT License](LICENSE)。GitHub 仓库是否设为 Public 由维护者自行决定。
