@@ -30,7 +30,8 @@ function decodeXunjiResponse(input) {
   } catch {
     throw connectorError('invalid_response');
   }
-  if (!payload || payload.success !== true || !Array.isArray(payload.res)) {
+  const successOmitted = payload && !Object.prototype.hasOwnProperty.call(payload, 'success');
+  if (!payload || !Array.isArray(payload.res) || (payload.success !== true && !successOmitted)) {
     const message = String(payload && (payload.error || payload.message || payload.code || payload.res) || '').toLowerCase();
     if (/vip|会员/.test(message)) throw connectorError('membership_required');
     if (/too\s*frequent|频繁|90\s*s/.test(message)) throw connectorError('rate_limited');

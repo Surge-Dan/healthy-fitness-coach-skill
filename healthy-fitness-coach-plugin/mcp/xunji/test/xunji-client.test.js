@@ -40,6 +40,10 @@ test('decoder accepts deterministic gzipped buffers', () => {
   assert.deepEqual(decodeXunjiResponse(response).records, ['id: local-only']);
 });
 
+test('decoder accepts the official response shape when success is omitted', () => {
+  assert.deepEqual(decodeXunjiResponse(JSON.stringify({ res: [] })).records, []);
+});
+
 test('client maps auth, rate-limit, invalid JSON, and timeout without exposing credentials', async () => {
   await withServer((request, response) => {
     if (request.url === '/auth') { response.statusCode = 401; response.end('no'); return; }
