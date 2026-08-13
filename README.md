@@ -53,49 +53,37 @@ Healthy Fitness Coach适用于健身新手与普通进阶者，支持每周训�
 - **持续对话**：边训练边询问，实时调整当天安排。
 - **Markdown交付**：一次性生成训练计划、周期复盘或可保存的分析报告。
 
-### 方式二：CodexPlugin+训记
+### 方式二：连接训记（推荐的普通用户路径）
 
-如果希望使用真实训练记录，需要额外启用[`healthy-fitness-coach-plugin/`](healthy-fitness-coach-plugin/)。插件提供本地XunjiMCP连接器，支持按日/按范围读取训记、生成趋势面板，以及在确认后按训练ID写回。
-
-#### 先说明一个容易混淆的地方
-
-通过GitHubSkill安装器安装本仓库时，默认只会安装`healthy-fitness-coach`这个Skill，不会自动注册本地MCP插件。因此，训记接入还需要把仓库下载到本机、安装Node依赖、保存凭据，并在Codex中添加本地插件目录。之前只执行凭据脚本但调用不成功，通常就是因为插件没有被Codex加载。
-
-#### 从GitHub安装Skill后启用训记
-
-如果你已经把仓库下载到本机，直接进入仓库目录；如果只通过Skill安装器安装，则先执行：
-
-```powershell
-$repo="$env:USERPROFILE\healthy-fitness-coach-skill"
-git clone https://github.com/Surge-Dan/healthy-fitness-coach-skill.git $repo
-Set-Location $repo
-```
-
-然后运行一键初始化脚本：
-
-```powershell
-& .\healthy-fitness-coach-plugin\scripts\setup-xunji.ps1
-```
-
-脚本会自动安装训记MCP依赖，并以WindowsDPAPI加密保存你在本机输入的Key。Key不会写入项目、日志或聊天记录。
-
-最后在Codex的Plugins界面选择“添加本地插件”，目录选择：
+不需要安装Node、不需要运行命令，也不需要添加Plugin。安装Skill后，直接对我说：
 
 ```text
-<你的本地路径>\healthy-fitness-coach-skill\healthy-fitness-coach-plugin
+我想连接训记。
 ```
 
-添加后刷新或重启Codex，并新建任务测试：
+我会先询问你是否确认连接。确认后，你可以任选一种方式提供训记官方说明：
+
+- 直接复制训记的导入/导出调用说明；
+- 发送官方说明截图；
+- 同时提供训记Open API Key。
+
+我会从说明或截图中识别Base URL、接口路径、鉴权方式、请求参数和返回格式，然后按官方规则读取训记数据。Key只用于本次连接，不会在回复中展示，不会写入GitHub、Markdown、报告或项目文件。
+
+连接成功后，你只需要继续说：
 
 ```text
-分析训记最近四周训练
+分析我最近4周的训记数据，生成趋势面板。
 ```
 
-如果能调用训记工具并返回训练记录，说明接入成功。`set-credential.ps1`只负责保存凭据，不负责注册插件；只安装Skill也不会自动获得训记工具。
+读取会优先使用本地缓存，避免同一天重复请求；如果要修改训练记录，我会先展示预览，得到你的明确确认后再按训练ID写回。
+
+### 高级方式：CodexPlugin自动同步
+
+如果你希望长期在本机自动读取训记，可选安装[`healthy-fitness-coach-plugin/`](healthy-fitness-coach-plugin/)。这条路径适合熟悉Node和CodexPlugin的用户，普通用户不需要使用。
 
 ## 训记数据闭环
 
-插件将训记接入分为四步，数据始终以用户确认和服务端返回结果为准：
+训记接入分为四步，数据始终以用户确认和服务端返回结果为准：
 
 1. **读取**：调用训记导出接口，按日期或日期范围获取训练记录，并缓存到本地，避免重复请求。
 2. **分析**：解析训练ID、训练时间、动作、组次、重量、次数和有氧指标，形成训练趋势与问题清单。
