@@ -66,6 +66,7 @@ function analyzeTrainingRange(input = {}) {
     date_start: dates[0],
     date_end: dates[dates.length - 1],
     training_days: trainingDates.size,
+    training_dates: [...trainingDates].sort(),
     record_count: records.length,
     total_sets: totalSets,
     total_reps: totalReps,

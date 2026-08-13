@@ -17,6 +17,7 @@ test('trend analysis aggregates sessions, volume, weekly frequency, and exercise
     ]
   });
   assert.equal(result.training_days, 2);
+  assert.deepEqual(result.training_dates, ['2026-07-27', '2026-07-28']);
   assert.equal(result.record_count, 3);
   assert.equal(result.total_sets, 9);
   assert.equal(result.total_reps, 78);

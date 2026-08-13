@@ -19,5 +19,6 @@ test('render-visual-assets CLI writes report SVGs and one selected share ratio',
   assert.equal(result.status, 0, result.stderr);
   assert.match(readFileSync(join(output, 'weekly-frequency.svg'), 'utf8'), /<svg/);
   assert.match(readFileSync(join(output, 'share-card-1-1.svg'), 'utf8'), /width="2048"/);
+  assert.match(readFileSync(join(output, 'main-performance.svg'), 'utf8'), /暂无足够的同动作数据/);
   rmSync(root, { recursive: true, force: true });
 });

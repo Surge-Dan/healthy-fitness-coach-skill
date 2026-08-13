@@ -1,3 +1,3 @@
 'use strict';
 
-module.exports = require('../../../../healthy-fitness-coach/references/visual-report.js');
+module.exports = require('../../../mcp/xunji/src/visual-report.js');

@@ -27,6 +27,7 @@ def main():
         from PIL import Image
     except ImportError as error:
         raise SystemExit("Pillow is required for local image style extraction; use the preset fallback when unavailable") from error
+    Image.MAX_IMAGE_PIXELS = 25_000_000
 
     with Image.open(sys.argv[1]) as source:
         image = source.convert("RGB")

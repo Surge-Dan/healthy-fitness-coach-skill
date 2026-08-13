@@ -9,6 +9,8 @@ const {
   overrideStyleToken,
   renderShareCardSvg,
   renderCategoryChartSvg,
+  renderPerformanceChartSvg,
+  renderTrainingHeatmapSvg,
   renderTrendChartSvg,
   resolveCanvas
 } = require('../references/visuals.js');
@@ -46,6 +48,13 @@ test('style overrides change only requested fields and preserve safety defaults'
   assert.equal(next.source, 'adaptive');
 });
 
+test('style overrides preserve an adaptive palette object', () => {
+  const base = createStyleToken({ palette: ['#F5E8D0', '#12233F', '#ED5A4A'] });
+  const next = overrideStyleToken(base, { texture: 'none' });
+  assert.equal(next.palette.bg, '#F5E8D0');
+  assert.equal(next.palette.accent, '#ED5A4A');
+});
+
 test('trend chart escapes labels and exposes accessible SVG metadata', () => {
   const svg = renderTrendChartSvg({
     points: [{ label: '07月', value: 10 }, { label: '<x>', value: 20 }],
@@ -70,6 +79,25 @@ test('category chart renders comparable horizontal bars with labels', () => {
   assert.match(svg, /role="img"/);
 });
 
+test('training heatmap renders a compact calendar with training days highlighted', () => {
+  const svg = renderTrainingHeatmapSvg({
+    dates: ['2026-07-01', '2026-07-03'],
+    startDate: '2026-07-01',
+    endDate: '2026-07-07',
+    title: '训练日历'
+  });
+  assert.match(svg, /训练日历/);
+  assert.match(svg, /fill="#D7FF4B"/);
+  assert.match(svg, /role="img"/);
+});
+
+test('performance chart renders a no-data state without inventing progression', () => {
+  const svg = renderPerformanceChartSvg({ title: '主动作表现', points: [] });
+  assert.match(svg, /主动作表现/);
+  assert.match(svg, /暂无足够的同动作数据/);
+  assert.match(svg, /role="img"/);
+});
+
 test('share card renderer produces a self-contained exportable SVG', () => {
   const svg = renderShareCardSvg({
     ratio: '9:16',
@@ -84,6 +112,7 @@ test('share card renderer produces a self-contained exportable SVG', () => {
   assert.match(svg, /把训练变成证据/);
   assert.match(svg, /10\.4h/);
   assert.doesNotMatch(svg, /<script/i);
+  assert.doesNotMatch(svg, /data:image/);
 });
 
 test('visual report builder returns reusable chart assets from trend data', () => {
@@ -93,6 +122,6 @@ test('visual report builder returns reusable chart assets from trend data', () =
       exercise_frequency: [{ name: '肩', count: 4, last_date: '2026-07-28' }]
     }
   });
-  assert.deepEqual(assets.map((asset) => asset.name), ['weekly-frequency.svg', 'weekly-volume.svg', 'subject-distribution.svg']);
+  assert.deepEqual(assets.map((asset) => asset.name), ['weekly-frequency.svg', 'weekly-volume.svg', 'subject-distribution.svg', 'training-heatmap.svg', 'main-performance.svg']);
   assert.ok(assets.every((asset) => asset.svg.startsWith('<svg')));
 });

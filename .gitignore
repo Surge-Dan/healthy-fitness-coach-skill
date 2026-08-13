@@ -2,6 +2,7 @@ output/
 tmp/
 fitness-reports/
 node_modules/
+__pycache__/
 coverage/
 .env
 .env.*
