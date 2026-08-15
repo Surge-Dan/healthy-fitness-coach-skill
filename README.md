@@ -9,7 +9,7 @@
 [![Xunji Integration](https://img.shields.io/badge/Xunji-Optional-16a34a.svg)](healthy-fitness-coach-plugin/)
 [![Local-first](https://img.shields.io/badge/Data-Local--first-f97316.svg)](#数据与安全)
 
-**把训练计划、动作执行、饮食恢复和数据复盘，串成一个可持续的健康闭环。**
+**把训练计划、动作执行、饮食恢复和数据复盘，串成一个可持续的健康闭环**
 
 </div>
 
