@@ -23,7 +23,7 @@ PNG渲染依赖Pillow（`python -m pip install Pillow`）。支持Windows微软�
 
 没有照片时使用**数据图谱**模式，直接组合趋势线、热力图、部位分布和年度数字；同时提供五套配色主题，不固定使用单一荧光绿。可用 `--palette acid-night|cobalt-coral|ultraviolet|paper-ink|ember-steel` 指定主题。
 
-数据图谱有两种布局：`rich` 信息图强化中文字体、标题/正文间距、趋势、训练热力、部位/动作雷达分布和记录页脚，适合月报、年报与复盘；`minimal` 极简分享图保留留白，只突出一句结论与少量关键数字，适合社交媒体发布。CLI可用 `--layout rich|minimal` 指定；未指定时，年度/月度复盘默认使用 `rich`，训练战绩卡默认使用 `minimal`。
+数据图谱有两种完全不同的布局：`rich` 信息图使用中文衬线标题、纸张底色、细边框与编辑部网格，强化标题/正文间距、趋势、训练热力、部位/动作雷达分布和记录页脚，适合月报、年报与复盘；`minimal` 极简分享图切换为深色艺术海报，使用超大衬线数字、非对称几何色块、细线趋势轨迹和稀疏信息，不复用信息图卡片结构，适合社交媒体发布。CLI可用 `--layout rich|minimal` 指定；未指定时，年度/月度复盘默认使用 `rich`，训练战绩卡默认使用 `minimal`。
 
 CLI可用 `--mode abstract-collage|training-editorial|material-poster|data-atlas` 指定模式，也可用 `node scripts/render-visual-assets.js --list-modes --has-photo` 查看模式描述，用 `node scripts/render-visual-assets.js --list-palettes` 查看配色。
 

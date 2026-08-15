@@ -28,13 +28,13 @@ def color(value, fallback):
     return fallback
 
 
-def font(size, bold=False):
+def font(size, bold=False, serif=False):
     candidates = [
-        os.environ.get("HEALTHY_FITNESS_FONT_BOLD" if bold else "HEALTHY_FITNESS_FONT"),
-        r"C:\Windows\Fonts\msyhbd.ttc" if bold else r"C:\Windows\Fonts\msyh.ttc",
-        r"C:\Windows\Fonts\arialbd.ttf" if bold else r"C:\Windows\Fonts\arial.ttf",
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc" if bold else "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/System/Library/Fonts/PingFang.ttc",
+        os.environ.get("HEALTHY_FITNESS_FONT_SERIF_BOLD" if serif and bold else "HEALTHY_FITNESS_FONT_SERIF" if serif else "HEALTHY_FITNESS_FONT_BOLD" if bold else "HEALTHY_FITNESS_FONT"),
+        (r"C:\Windows\Fonts\simsunb.ttf" if bold else r"C:\Windows\Fonts\simsun.ttc") if serif else (r"C:\Windows\Fonts\msyhbd.ttc" if bold else r"C:\Windows\Fonts\msyh.ttc"),
+        (r"C:\Windows\Fonts\stsong.ttf" if serif else r"C:\Windows\Fonts\arialbd.ttf" if bold else r"C:\Windows\Fonts\arial.ttf"),
+        ("/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc" if bold else "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc") if serif else ("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc" if bold else "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
+        "/System/Library/Fonts/Songti.ttc" if serif else "/System/Library/Fonts/PingFang.ttc",
     ]
     for path in candidates:
         if path and os.path.exists(path):
@@ -201,35 +201,50 @@ def render_material_poster(image, share, palette, photo_path, fonts, ratio):
 def render_data_atlas(image, share, palette, fonts, training_dates):
     draw = ImageDraw.Draw(image, "RGBA")
     width, height = image.size
-    bg, accent, secondary, text, muted = palette
+    _, accent, secondary, _, _ = palette
+    bg, text, muted = "#0E1117", "#F4F1EA", "#8E98A8"
     pad = int(width * 0.08)
-    draw.text((pad, int(height * 0.10)), share.get("eyebrow", "DATA ATLAS"), font=fonts[0], fill=accent)
-    draw_lines(draw, share.get("title", "训练图谱"), (pad, int(height * 0.22)), fonts[1], text, width - pad * 2)
-    draw_lines(draw, share.get("subtitle", "训练数据复盘"), (pad, int(height * 0.30)), fonts[2], muted, width - pad * 2)
-    grid_y = int(height * 0.63)
-    draw.line((pad, int(height * 0.58), width - pad, int(height * 0.58)), fill=text + "26", width=2)
-    cells = list(training_dates or [])[:84]
-    for index in range(max(14 * 6, len(cells))):
-        x = pad + (index % 14) * 26
-        y = grid_y + (index // 14) * 26
-        active = index < len(cells)
-        draw.rounded_rectangle((x, y, x + 18, y + 18), radius=4, fill=(accent + f"{50 + (index % 4) * 35:02X}") if active else text + "16")
+    serif_title = font(max(58, int(width * 0.062)), bold=False, serif=True)
+    serif_number = font(max(100, int(width * 0.11)), bold=False, serif=True)
+    sans_label = font(max(17, int(width * 0.014)), bold=False)
+    sans_value = font(max(30, int(width * 0.028)), bold=True)
+    draw.polygon([(int(width * 0.58), 0), (width, 0), (width, int(height * 0.26))], fill=accent + "26")
+    draw.polygon([(0, int(height * 0.82)), (int(width * 0.42), height), (0, height)], fill=secondary + "1C")
+    draw.rectangle((pad, pad, width - pad, height - pad), outline="#FFFFFF26", width=2)
+    draw.text((pad * 1.35, int(height * 0.08)), share.get("eyebrow", "TRAINING LOG"), font=sans_label, fill=accent)
+    draw.text((width - pad * 1.35, int(height * 0.08)), "01 / YEAR IN REVIEW", font=sans_label, fill=muted, anchor="ra")
+    draw_lines(draw, share.get("title", "训练图谱"), (pad * 1.35, int(height * 0.18)), serif_title, text, width - pad * 2.7, 1.05)
+    draw_lines(draw, share.get("subtitle", "把训练变成可见的时间线"), (pad * 1.35, int(height * 0.34)), fonts[2], muted, width - pad * 2.7)
+    draw.line((pad * 1.35, int(height * 0.42), width - pad * 1.35, int(height * 0.42)), fill="#FFFFFF38", width=2)
+    metrics = share.get("metrics", [])[:3]
+    first = metrics[0] if metrics else {"label": "训练日", "value": "0"}
+    draw.text((pad * 1.35, int(height * 0.47)), str(first.get("label", "训练日")).upper(), font=sans_label, fill=muted)
+    draw.text((pad * 1.35, int(height * 0.53)), str(first.get("value", "0")), font=serif_number, fill=accent)
     points = share.get("trendPoints", [])
     values = [float(point.get("value", 0) or 0) for point in points]
     max_value = max([1.0, *values])
     coords = []
     for index, value in enumerate(values):
         x = pad + (width - pad * 2) * index / max(1, len(values) - 1)
-        y = int(height * 0.50) - int(height * 0.08 * value / max_value)
+        y = int(height * 0.68) - int(height * 0.12 * value / max_value)
         coords.append((int(x), y))
     if len(coords) >= 2:
-        draw.line(coords, fill=secondary, width=7, joint="curve")
-    for index, metric in enumerate(share.get("metrics", [])[:4]):
-        x = pad + (index % 2) * int(width * 0.46)
-        y = int(height * 0.76) + (index // 2) * 110
-        draw.text((x, y), str(metric.get("label", "")), font=fonts[2], fill=muted)
-        draw.text((x, y + 30), str(metric.get("value", "")), font=fonts[3], fill=text)
-    draw.text((pad, height - int(pad * 0.8)), share.get("footer", "HEALTHY FITNESS COACH"), font=fonts[2], fill=muted)
+        draw.line(coords, fill=accent, width=5, joint="curve")
+        for x, y in coords:
+            draw.ellipse((x - 5, y - 5, x + 5, y + 5), fill=bg, outline=accent, width=3)
+    draw.text((pad * 1.35, int(height * 0.73)), "CONSISTENCY MAP", font=sans_label, fill=muted)
+    cells = list(training_dates or [])[:84]
+    for index in range(max(14 * 6, len(cells))):
+        x = pad * 1.35 + (index % 14) * 25
+        y = int(height * 0.77) + (index // 14) * 25
+        active = index < len(cells)
+        draw.rounded_rectangle((x, y, x + 17, y + 17), radius=2, fill=(accent + f"{50 + (index % 4) * 35:02X}") if active else text + "14")
+    for index, metric in enumerate(metrics[1:]):
+        x = pad * 1.35 + index * int(width * 0.30)
+        draw.text((x, int(height * 0.875)), str(metric.get("label", "")), font=sans_label, fill=muted)
+        draw.text((x, int(height * 0.91)), str(metric.get("value", "")), font=sans_value, fill=text)
+    draw.line((pad * 1.35, int(height * 0.94), width - pad * 1.35, int(height * 0.94)), fill=accent + "99", width=2)
+    draw.text((pad * 1.35, height - pad * 0.82), share.get("footer", "HEALTHY FITNESS COACH"), font=sans_label, fill=muted)
 
 
 def render_rich_infographic(image, share, palette, fonts, training_dates, body_distribution):
@@ -248,7 +263,7 @@ def render_rich_infographic(image, share, palette, fonts, training_dates, body_d
         draw.text((x, y + 30), str(metric.get("value", "")), font=fonts[3], fill=text)
     panel_top = int(height * 0.39)
     panel_bottom = int(height * 0.57)
-    draw.rounded_rectangle((pad, panel_top, width - pad, panel_bottom), radius=24, fill=text + "08")
+    draw.rounded_rectangle((pad, panel_top, width - pad, panel_bottom), radius=24, fill=text + "08", outline=text + "28", width=2)
     draw.text((pad + 28, panel_top + 24), "训练频率趋势", font=fonts[2], fill=muted)
     points = share.get("trendPoints", [])
     values = [float(point.get("value", 0) or 0) for point in points]
@@ -269,16 +284,17 @@ def render_rich_infographic(image, share, palette, fonts, training_dates, body_d
             draw.ellipse((x - 6, y - 6, x + 6, y + 6), fill=accent)
     lower_top = int(height * 0.61)
     lower_bottom = int(height * 0.87)
-    draw.rounded_rectangle((pad, lower_top, int(width * 0.48), lower_bottom), radius=24, fill=text + "08")
-    draw.rounded_rectangle((int(width * 0.53), lower_top, width - pad, lower_bottom), radius=24, fill=text + "08")
+    draw.rounded_rectangle((pad, lower_top, int(width * 0.48), lower_bottom), radius=24, fill=text + "08", outline=text + "28", width=2)
+    draw.rounded_rectangle((int(width * 0.53), lower_top, width - pad, lower_bottom), radius=24, fill=text + "08", outline=text + "28", width=2)
     draw.text((pad + 28, lower_top + 26), "部位 / 动作分布", font=fonts[2], fill=muted)
     items = list(body_distribution or [])[:6] or [{"label": "暂无数据", "value": 0}]
     cx, cy = int(width * 0.265), lower_top + int((lower_bottom - lower_top) * 0.58)
     radius = int(width * 0.14)
     count = len(items)
-    import math
-    def points_for(scale):
-        return [(cx + int(math.cos(-math.pi / 2 + math.tau * index / count) * radius * scale), cy + int(math.sin(-math.pi / 2 + math.tau * index / count) * radius * scale)) for index in range(count)]
+    points_for = lambda scale: [(
+        cx + int(__import__("math").cos(-__import__("math").pi / 2 + __import__("math").tau * index / count) * radius * scale),
+        cy + int(__import__("math").sin(-__import__("math").pi / 2 + __import__("math").tau * index / count) * radius * scale)
+    ) for index in range(count)]
     for scale in (0.33, 0.66, 1):
         draw.polygon(points_for(scale), outline=text + "28")
     for index in range(count):
@@ -411,16 +427,16 @@ def main():
         color(palette.get("text"), "#F6F7F2"),
         color(palette.get("muted"), "#A9B0AA"),
     )
+    layout = share.get("layout") or args.layout
     width_scale = width / 2048
     fonts = (
         font(max(22, int(width * 0.014)), bold=False),
-        font(max(54, int(width * 0.053)), bold=True),
-        font(max(24, int(width * 0.018)), bold=False),
+        font(max(54, int(width * 0.053)), bold=True, serif=(layout == "rich")),
+        font(max(24, int(width * 0.018)), bold=False, serif=(layout == "rich")),
         font(max(34, int(width * 0.029)), bold=True),
     )
     photo_path = args.photo or share.get("photo")
     mode = args.mode or share.get("mode") or ("abstract-collage" if photo_path else "data-atlas")
-    layout = share.get("layout") or args.layout
     image = Image.new("RGB", (width, height), colors[0])
     body_distribution = [{"label": item.get("name", ""), "value": item.get("count", 0)} for item in payload.get("trends", {}).get("exercise_frequency", [])]
     if layout == "rich" and not photo_path and mode == "data-atlas":

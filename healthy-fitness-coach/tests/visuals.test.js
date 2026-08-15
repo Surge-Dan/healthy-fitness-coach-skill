@@ -135,6 +135,23 @@ test('rich infographic layout adds Chinese-first radar and heatmap sections', ()
   assert.doesNotMatch(svg, /<image /);
 });
 
+test('minimal data atlas uses a distinct poster composition and serif typography', () => {
+  const svg = renderShareCardSvg({
+    layout: 'minimal',
+    mode: 'data-atlas',
+    ratio: '3:4',
+    title: '年度训练图谱',
+    subtitle: '持续出现',
+    metrics: [{ label: '训练天数', value: '74天' }],
+    trendPoints: [{ label: '1月', value: 3 }, { label: '2月', value: 5 }],
+    trainingDates: ['2026-01-01']
+  });
+  assert.match(svg, /data-layout="minimal"/);
+  assert.match(svg, /Noto Serif CJK SC/);
+  assert.match(svg, /M1044 0/);
+  assert.doesNotMatch(svg, /部位\/动作分布/);
+});
+
 test('trend chart escapes labels and exposes accessible SVG metadata', () => {
   const svg = renderTrendChartSvg({
     points: [{ label: '07月', value: 10 }, { label: '<x>', value: 20 }],
