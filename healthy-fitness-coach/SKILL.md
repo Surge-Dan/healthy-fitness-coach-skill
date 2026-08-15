@@ -39,7 +39,7 @@ description: 面向 18～55 岁、无重大疾病的健身新手与普通进阶�
 - 睡眠、疲劳、疼痛或恢复：读取 `references/recovery-pain.md`。
 - 分析训练日志或调整下一周：读取 `references/review-adjustment.md`。
 - 解释依据、处理专家观点冲突或更新知识：读取 `references/evidence-rules.md`。
-- 用户询问博主观点或需要追溯 15 个来源：读取 `references/creator-cards.md`。
+- 用户询问博主观点或需要追溯 25 个来源：读取 `references/creator-cards.md`；涉及有氧、无氧/阻力、功率、间歇或混合训练编排时，同时读取 `references/training-domains.md`。
 
 所有 reference 都从本入口直接加载，不通过多层引用寻找关键规则。
 
