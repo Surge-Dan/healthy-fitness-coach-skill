@@ -314,4 +314,6 @@ test('service returns trend metrics alongside the cached training range', async 
   assert.equal(result.trends.record_count, 2);
   assert.equal(result.range.records[0].title, '胸部训练');
   assert.match(result.dashboard_html, /<!doctype html>/i);
+  assert.ok(Array.isArray(result.visual_assets));
+  assert.ok(result.visual_assets.some((asset) => asset.name === 'training-heatmap.svg'));
 });

@@ -32,6 +32,24 @@ test('trend analysis aggregates sessions, volume, weekly frequency, and exercise
   ]);
   assert.equal(result.exercise_frequency[0].name, '背部训练');
   assert.equal(result.parse_warnings, 1);
+  assert.equal(result.exercise_performance_exercise, '背部训练');
+  assert.deepEqual(result.exercise_performance, [{ label: '2026-07-28', value: 1800, exercise: '背部训练', value_type: 'volume' }]);
+});
+
+test('trend analysis exposes dated main-exercise performance without inventing values', () => {
+  const result = analyzeTrainingRange({
+    dates: ['2026-08-01', '2026-08-02'],
+    records: [
+      { record_date: '2026-08-01', title: '卧推', sets: 3, reps: 8, weight: '60kg', volume: 1440 },
+      { record_date: '2026-08-02', title: '卧推', sets: 3, reps: 8, weight: '62.5kg', volume: 1500 },
+      { record_date: '2026-08-02', title: '拉力器', sets: 2, reps: 12 }
+    ]
+  });
+  assert.equal(result.exercise_performance_exercise, '卧推');
+  assert.deepEqual(result.exercise_performance.map(({ label, value, value_type }) => ({ label, value, value_type })), [
+    { label: '2026-08-01', value: 60, value_type: 'weight' },
+    { label: '2026-08-02', value: 62.5, value_type: 'weight' }
+  ]);
 });
 
 test('trend analysis reports an empty range without inventing metrics', () => {

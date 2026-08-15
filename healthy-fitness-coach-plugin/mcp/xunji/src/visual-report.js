@@ -39,6 +39,7 @@ function buildVisualReportAssets({ trends = {} } = {}) {
       svg: renderTrainingHeatmapSvg({
         title: '训练日历',
         dates: trends.training_dates || [],
+        dailyStats: trends.daily || [],
         startDate: trends.date_start,
         endDate: trends.date_end
       })

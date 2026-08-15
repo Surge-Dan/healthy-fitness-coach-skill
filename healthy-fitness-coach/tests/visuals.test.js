@@ -242,6 +242,28 @@ test('training heatmap renders a compact calendar with training days highlighted
   assert.match(svg, /role="img"/);
 });
 
+test('training heatmap switches to a bounded year layout for annual ranges', () => {
+  const svg = renderTrainingHeatmapSvg({
+    dates: ['2026-01-01', '2026-12-31'],
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    title: '年度训练日历'
+  });
+  assert.match(svg, /data-heatmap="year"/);
+  const rects = [...svg.matchAll(/<rect x="([0-9.]+)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)"/g)];
+  assert.ok(rects.length >= 365);
+  assert.ok(Math.max(...rects.map((match) => Number(match[2]) + Number(match[4]))) <= 260);
+});
+
+test('empty heatmaps expose no-data state without inventing dates', () => {
+  const svg = renderTrainingHeatmapSvg({ title: '训练日历' });
+  assert.match(svg, /data-no-data="true"/);
+  assert.doesNotMatch(svg, /2026-01-01/);
+  const rich = renderShareCardSvg({ layout: 'rich', mode: 'data-atlas', ratio: '3:4', title: '空数据' });
+  assert.match(rich, /data-no-data="true"/);
+  assert.doesNotMatch(rich, /2026-01-01/);
+});
+
 test('performance chart renders a no-data state without inventing progression', () => {
   const svg = renderPerformanceChartSvg({ title: '主动作表现', points: [] });
   assert.match(svg, /主动作表现/);
@@ -270,9 +292,14 @@ test('visual report builder returns reusable chart assets from trend data', () =
   const assets = buildVisualReportAssets({
     trends: {
       weekly: [{ week_start: '2026-07-06', training_days: 2, estimated_volume: 1000 }],
+      training_dates: ['2026-01-01', '2026-12-31'],
+      daily: [{ date: '2026-01-01', volume: 100 }, { date: '2026-12-31', volume: 800 }],
+      date_start: '2026-01-01',
+      date_end: '2026-12-31',
       exercise_frequency: [{ name: '肩', count: 4, last_date: '2026-07-28' }]
     }
   });
   assert.deepEqual(assets.map((asset) => asset.name), ['weekly-frequency.svg', 'weekly-volume.svg', 'subject-distribution.svg', 'training-heatmap.svg', 'main-performance.svg']);
   assert.ok(assets.every((asset) => asset.svg.startsWith('<svg')));
+  assert.match(assets.find((asset) => asset.name === 'training-heatmap.svg').svg, /data-heatmap="year"/);
 });

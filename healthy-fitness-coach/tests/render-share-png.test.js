@@ -41,3 +41,18 @@ test('render-share-card supports independent poster modes', () => {
   assert.notDeepEqual(readFileSync(abstractOutput), readFileSync(materialOutput));
   rmSync(root, { recursive: true, force: true });
 });
+
+test('render-share-card keeps rich empty reports valid and accepts UTF-8 BOM input', () => {
+  const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-rich-empty-'));
+  const input = join(root, 'input.json');
+  const output = join(root, 'rich.png');
+  const payload = {
+    trends: { date_start: '2026-01-01', date_end: '2026-12-31', training_dates: [], daily: [], exercise_frequency: [] },
+    share: { layout: 'rich', mode: 'data-atlas', title: '空数据年度报告', metrics: [{ label: '训练天数', value: '0' }] }
+  };
+  writeFileSync(input, Buffer.concat([Buffer.from([0xEF, 0xBB, 0xBF]), Buffer.from(JSON.stringify(payload))]));
+  const result = spawnSync('python', ['scripts/render-share-card.py', '--input', input, '--output', output, '--ratio', '3:4', '--layout', 'rich'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual([...readFileSync(output).slice(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  rmSync(root, { recursive: true, force: true });
+});

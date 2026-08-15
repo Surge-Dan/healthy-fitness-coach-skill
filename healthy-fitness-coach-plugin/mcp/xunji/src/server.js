@@ -8,6 +8,7 @@ const { connectorError, toPublicError } = require('./errors.js');
 const { filterModelFacingRecords, parseTrainingRecords } = require('./parser.js');
 const { assertDate } = require('./schemas.js');
 const { renderTrainingDashboardHtml } = require('./dashboard.js');
+const { buildVisualReportAssets } = require('./visual-report.js');
 const { analyzeTrainingRange } = require('./trends.js');
 const { validateUpsertRecords } = require('./upsert.js');
 const { decodeXunjiResponse, XunjiClient } = require('./xunji-client.js');
@@ -192,7 +193,7 @@ function createTrainingService({ cache = null, cacheFactory, client = new XunjiC
     const range = await getTrainingRange({ start_date, end_date, refresh_today });
     if (range.error) return range;
     const trends = analyzeTrainingRange(range);
-    return { range, trends, dashboard_html: renderTrainingDashboardHtml({ range, trends }) };
+    return { range, trends, dashboard_html: renderTrainingDashboardHtml({ range, trends }), visual_assets: buildVisualReportAssets({ trends }) };
   }
 
   return { getTrainingDay, getTrainingRange, getTrainingTrends, previewTrainingUpsert, upsertTrainingRecords };

@@ -48,3 +48,30 @@ test('render-visual-assets CLI accepts a design mode and exposes mode discovery'
   assert.ok((richSvg.match(/<rect /g) || []).length >= 360);
   rmSync(root, { recursive: true, force: true });
 });
+
+test('render-visual-assets CLI lets an explicit palette override an input style token', () => {
+  const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-palette-'));
+  const input = join(root, 'input.json');
+  const output = join(root, 'assets');
+  const payload = JSON.stringify({
+    share: { styleToken: { palette: { bg: '#242629', accent: '#D7FF4B', secondary: '#7A8BFF', text: '#F6F7F2', muted: '#A9B0AA' } }, title: '配色覆盖' }
+  });
+  writeFileSync(input, Buffer.concat([Buffer.from([0xEF, 0xBB, 0xBF]), Buffer.from(payload)]));
+  const result = spawnSync(process.execPath, ['scripts/render-visual-assets.js', '--input', input, '--output', output, '--palette', 'paper-ink'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(readFileSync(join(output, 'share-card-3-4.svg'), 'utf8'), /#F4EFE6/);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('plugin visual CLI is independently runnable and can explicitly embed a photo', () => {
+  const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-plugin-cli-'));
+  const input = join(root, 'input.json');
+  const photo = join(root, 'photo.png');
+  const output = join(root, 'assets');
+  writeFileSync(photo, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'));
+  writeFileSync(input, JSON.stringify({ share: { mode: 'abstract-collage', title: '照片测试', photo } }));
+  const result = spawnSync(process.execPath, ['scripts/render-visual-assets.js', '--input', input, '--output', output, '--photo', photo, '--embed-photo'], { cwd: join(__dirname, '..', '..', 'healthy-fitness-coach-plugin'), encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(readFileSync(join(output, 'share-card-3-4.svg'), 'utf8'), /data:image\/png;base64/);
+  rmSync(root, { recursive: true, force: true });
+});

@@ -200,8 +200,10 @@ function heatmapCellsSvg({ trainingDates = [], dailyStats = [], startDate, endDa
 function yearHeatmapSvg({ trainingDates = [], dailyStats = [], startDate, x = 0, y = 0, width = 620, height = 250, accent = '#D7FF4B', text = '#F6F7F2' } = {}) {
   const active = new Set(trainingDates.map((date) => String(date).slice(0, 10)));
   const stats = new Map((Array.isArray(dailyStats) ? dailyStats : []).map((item) => [String(item.date || '').slice(0, 10), item]));
+  const firstDate = startDate || [...active][0] || [...stats.keys()].find((value) => /^\d{4}-\d{2}-\d{2}$/.test(value));
+  if (!firstDate) return `<text x="${x + width / 2}" y="${y + height / 2}" text-anchor="middle" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="16" fill="${text}" fill-opacity=".68" data-no-data="true">暂无训练日数据</text>`;
   const max = Math.max(1, ...[...stats.values()].map((item) => Number(item.volume) || Number(item.sets) || Number(item.record_count) || 0));
-  const year = Number(String(startDate || [...active][0] || '2026').slice(0, 4)) || 2026;
+  const year = Number(String(firstDate).slice(0, 4)) || 2026;
   const monthW = width / 4;
   const monthH = height / 3;
   const inset = 4;
@@ -282,14 +284,19 @@ function renderCategoryChartSvg({ items = [], title = '分类分布', color = '#
 }
 
 function renderTrainingHeatmapSvg({ dates = [], startDate, endDate, title = '训练日历', width = 420, height = 260 } = {}) {
-  const active = new Set(dates.map((date) => String(date).slice(0, 10)));
+  const active = new Set(dates.map((date) => String(date).slice(0, 10)).filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)));
   const sorted = [...active].sort();
-  const start = new Date(`${(startDate || sorted[0] || '2026-01-01')}T00:00:00Z`);
-  const end = new Date(`${(endDate || sorted.at(-1) || startDate || '2026-01-07')}T00:00:00Z`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" rx="28" fill="#17191D"/>${textBlock({ text: title, x: 24, y: 32, size: 18, fill: '#F6F7F2', weight: 700 })}</svg>`;
+  const startValue = startDate || sorted[0];
+  const endValue = endDate || sorted.at(-1) || startValue;
+  const shell = (body, attributes = '') => `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeXml(title)}" ${attributes}><title>${escapeXml(title)}</title><rect width="100%" height="100%" rx="28" fill="#17191D"/>${textBlock({ text: title, x: 24, y: 32, size: 20, fill: '#F6F7F2', weight: 700, limit: 48 })}${body}</svg>`;
+  if (!startValue && !endValue) return shell(`${textBlock({ text: '暂无训练日数据', x: width / 2, y: height / 2 + 8, size: 18, fill: '#A9B0AA', anchor: 'middle' })}`, 'data-no-data="true"');
+  const start = new Date(`${startValue}T00:00:00Z`);
+  const end = new Date(`${endValue}T00:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return shell(`${textBlock({ text: '暂无有效日期', x: width / 2, y: height / 2 + 8, size: 18, fill: '#A9B0AA', anchor: 'middle' })}`, 'data-no-data="true"');
+  const totalDays = Math.floor((end - start) / 86400000) + 1;
+  if (totalDays > 90) return shell(yearHeatmapSvg({ trainingDates: [...active], dailyStats: arguments[0]?.dailyStats || [], startDate: startValue, x: 24, y: 54, width: width - 48, height: height - 70, accent: '#D7FF4B', text: '#F6F7F2' }), 'data-heatmap="year"');
   const day = (value) => value === 0 ? 6 : value - 1;
   const firstDay = day(start.getUTCDay());
-  const totalDays = Math.floor((end - start) / 86400000) + 1;
   const rows = Math.ceil((firstDay + totalDays) / 7);
   const cell = 30;
   const left = 52;
@@ -305,7 +312,7 @@ function renderTrainingHeatmapSvg({ dates = [], startDate, endDate, title = '训
     const isActive = active.has(dateKey);
     cells.push(`<rect x="${x}" y="${y}" width="20" height="20" rx="6" fill="${isActive ? '#D7FF4B' : '#FFFFFF'}" fill-opacity="${isActive ? '1' : '.10'}"><title>${dateKey}${isActive ? ' · 训练' : ' · 无记录'}</title></rect>`);
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" rx="28" fill="#17191D"/>${textBlock({ text: title, x: 24, y: 34, size: 20, fill: '#F6F7F2', weight: 700, limit: 48 })}${labels}${cells.join('')}</svg>`;
+  return shell(`${labels}${cells.join('')}`);
 }
 
 function renderPerformanceChartSvg({ points = [], title = '主动作表现', color = '#FF8066', width = 900, height = 300 } = {}) {
@@ -378,9 +385,8 @@ function renderMaterialPosterSvg({ canvas, token, eyebrow, title, subtitle, metr
 }
 
 function renderDataAtlasSvg({ canvas, token, eyebrow, title, subtitle, metrics, footer, trendPoints = [], trainingDates = [], dailyStats = [], dateStart, dateEnd }) {
-  const { accent, secondary, text, muted } = token.palette;
-  const bg = '#0E1117';
-  const paper = '#F4F1EA';
+  const { bg, accent, secondary, text, muted } = token.palette;
+  const paper = text;
   const pad = Math.round(canvas.width * 0.09);
   const serif = 'Noto Serif CJK SC, Source Han Serif SC, SimSun, STSong, serif';
   const sans = 'Inter, Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif';

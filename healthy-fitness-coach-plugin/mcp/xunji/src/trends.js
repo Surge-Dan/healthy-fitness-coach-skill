@@ -17,6 +17,11 @@ function numeric(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
+function numericWeight(value) {
+  const match = String(value ?? '').match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : 0;
+}
+
 function analyzeTrainingRange(input = {}) {
   const records = Array.isArray(input.records) ? input.records : [];
   const dates = Array.isArray(input.dates) ? input.dates : [];
@@ -24,6 +29,7 @@ function analyzeTrainingRange(input = {}) {
   const weeklyMap = new Map();
   const dailyMap = new Map();
   const exercises = new Map();
+  const performance = new Map();
   let totalSets = 0;
   let totalReps = 0;
   let estimatedVolume = 0;
@@ -57,6 +63,14 @@ function analyzeTrainingRange(input = {}) {
       current.count += 1;
       if (recordDate && recordDate > current.last_date) current.last_date = recordDate;
       exercises.set(name, current);
+      const weight = numericWeight(record.weight);
+      const volume = numeric(record.volume);
+      const value = weight > 0 ? weight : volume > 0 ? volume : 0;
+      if (recordDate && value > 0) {
+        const series = performance.get(name) || { name, values: [] };
+        series.values.push({ label: recordDate, value, exercise: name, value_type: weight > 0 ? 'weight' : 'volume' });
+        performance.set(name, series);
+      }
     }
   }
 
@@ -70,6 +84,11 @@ function analyzeTrainingRange(input = {}) {
     }));
   const exercise_frequency = [...exercises.values()].sort((a, b) => b.count - a.count || b.last_date.localeCompare(a.last_date) || a.name.localeCompare(b.name));
   const daily = [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const mainPerformance = [...performance.values()]
+    .sort((a, b) => (exercises.get(b.name)?.count || 0) - (exercises.get(a.name)?.count || 0) || a.name.localeCompare(b.name))[0];
+  const exercise_performance = mainPerformance
+    ? mainPerformance.values.sort((a, b) => a.label.localeCompare(b.label))
+    : [];
 
   return {
     date_start: dates[0],
@@ -83,6 +102,8 @@ function analyzeTrainingRange(input = {}) {
     weekly,
     daily,
     exercise_frequency,
+    exercise_performance_exercise: mainPerformance?.name,
+    exercise_performance,
     missing_dates: Array.isArray(input.missing_dates) ? input.missing_dates.slice() : [],
     parse_warnings: parseWarnings,
     data_freshness: input.data_freshness || 'unknown'

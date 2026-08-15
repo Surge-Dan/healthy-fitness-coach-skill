@@ -117,6 +117,10 @@ def draw_year_heatmap(draw, training_dates, daily_stats, box, accent, text, star
     values = [float(item.get("volume", 0) or item.get("sets", 0) or item.get("record_count", 0) or 0) for item in stats.values()]
     maximum = max([1.0, *values])
     x0, y0, width, height = box
+    first_value = str(start_value or (sorted(active)[0] if active else next(iter(stats), "")))[:10]
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", first_value):
+        draw.text((x0 + width / 2, y0 + height / 2), "暂无训练日数据", font=font(max(14, int(width * 0.04))), fill=text + "A8", anchor="mm")
+        return
     month_w, month_h = width / 4, height / 3
     inset = 4
     gap = max(2, min(4, int((month_w - inset * 2) / 44)))
@@ -356,6 +360,8 @@ def render_rich_infographic(image, share, palette, fonts, training_dates, body_d
     items = list(body_distribution or [])[:6] or [{"label": "暂无数据", "value": 0}]
     cx, cy = int(width * 0.265), lower_top + int((lower_bottom - lower_top) * 0.58)
     radius = int(width * 0.14)
+    if len(items) < 3:
+        items = (items * 3)[:3]
     count = len(items)
     points_for = lambda scale: [(
         cx + int(__import__("math").cos(-__import__("math").pi / 2 + __import__("math").tau * index / count) * radius * scale),
@@ -393,7 +399,7 @@ def _legacy_main():
     parser.add_argument("--ratio", choices=CANVAS, default="3:4")
     parser.add_argument("--photo")
     args = parser.parse_args()
-    with open(args.input, encoding="utf-8") as source:
+    with open(args.input, encoding="utf-8-sig") as source:
         payload = json.load(source)
     width, height = CANVAS[args.ratio]
     share = dict(payload.get("share", payload))
@@ -474,7 +480,7 @@ def main():
     parser.add_argument("--layout", choices=["minimal", "rich"], default="minimal")
     parser.add_argument("--palette", choices=sorted(PALETTE_THEMES))
     args = parser.parse_args()
-    with open(args.input, encoding="utf-8") as source:
+    with open(args.input, encoding="utf-8-sig") as source:
         payload = json.load(source)
     width, height = CANVAS[args.ratio]
     share = dict(payload.get("share", payload))
