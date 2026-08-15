@@ -4,6 +4,8 @@
 
 Healthy Fitness Coach适用于健身新手与普通进阶者，支持每周训练规划、今日训练辅助、训练日志分析、趋势面板和渐进式调整。它强调长期健康、可解释的建议与真实数据，不鼓励药物增强、极端减脂或以伤病为代价的训练。
 
+当前版本重点支持：训记训练数据闭环、全年训练热力图、趋势报告、两种报告布局、五套配色主题，以及1:1、9:16、3:4三种分享比例。所有个人训练数据、缓存和API凭据均只保留在本地，不进入仓库或发布包。
+
 ## 它能解决什么问题？
 
 很多健身建议只回答“今天练什么”，却没有回答：是否适合你、如何记录、怎样判断有效、什么时候该调整。这个Skill以**ABCDE闭环**组织建议：
@@ -45,6 +47,21 @@ Healthy Fitness Coach适用于健身新手与普通进阶者，支持每周训�
 
 用户未指定时，年度/月度复盘默认使用丰富信息图，战绩卡和社交分享默认使用极简布局；也可以直接说“做丰富一点的信息图”或“做一张简洁分享图”来切换。
 
+你也可以直接选择风格和配色：
+
+| 选择项 | 可选值 | 适用场景 |
+| --- | --- | --- |
+| 报告布局 | `rich`丰富信息图、`minimal`极简分享图 | 年报/月报复盘，或社交媒体分享 |
+| 配色主题 | 酸性夜场、钴蓝珊瑚、紫外荧光、纸张黑墨、熔岩钢板 | 根据个人审美或照片氛围切换 |
+| 输出比例 | `1:1`、`9:16`、`3:4` | 方形卡片、手机长图、小红书/社交分享 |
+
+例如：
+
+```text
+用丰富信息图布局、纸张黑墨配色，生成今年的3:4训练报告。
+用极简分享图布局、钴蓝珊瑚配色，生成最近30天的9:16训练战绩卡。
+```
+
 ### 🥗饮食与恢复建议
 
 围绕蛋白质、总能量、体重变化、睡眠、压力和日常活动给出可执行建议；优先采用可持续的小步调整，不追求极端热量缺口。
@@ -60,6 +77,8 @@ Healthy Fitness Coach适用于健身新手与普通进阶者，支持每周训�
 适合不需要连接健身App的场景。安装[`healthy-fitness-coach/SKILL.md`](healthy-fitness-coach/SKILL.md)对应的Skill，直接通过对话提供个人情况、训练目标或日志即可使用。
 
 可安装的打包文件：[`dist/healthy-fitness-coach.skill`](dist/healthy-fitness-coach.skill)
+
+如果通过GitHubSkill安装器安装，安装完成后无需进入仓库、无需安装依赖，直接在对话中说“分析我的训练情况”即可。
 
 独立模式支持两种输出：
 
@@ -102,6 +121,8 @@ Healthy Fitness Coach适用于健身新手与普通进阶者，支持每周训�
 
 如果你希望长期在本机自动读取训记，可选安装[`healthy-fitness-coach-plugin/`](healthy-fitness-coach-plugin/)。这条路径适合熟悉Node和CodexPlugin的用户，普通用户不需要使用。
 
+插件提供本地训记MCP连接器、加密凭据存储、日期范围读取、趋势分析和确认后写回。它是可选增强，不影响独立Skill的使用。
+
 ## 训记数据闭环
 
 训记接入分为四步，数据始终以用户确认和服务端返回结果为准：
@@ -134,6 +155,28 @@ healthy-fitness-coach-plugin/   # 可选 Codex Plugin 与训记连接器
 dist/healthy-fitness-coach.skill # 可直接分发的 Skill 包
 LICENSE                         # MIT License
 ```
+
+## 本地开发与验证
+
+仓库维护者可以运行以下检查：
+
+```powershell
+cd healthy-fitness-coach
+node --test tests
+
+cd ..\healthy-fitness-coach-plugin\mcp\xunji
+node --test test
+```
+
+重新打包独立Skill：
+
+```powershell
+python -m scripts.package_skill `
+  C:\path\to\healthy-fitness-coach `
+  C:\path\to\dist
+```
+
+可视化渲染器会生成自包含SVG；需要PNG分享图时使用`render-share-card.py`，依赖Pillow。仓库不提交个人训练数据、APIKey、本地缓存、报告预览和运行时日志。
 
 ## License
 
