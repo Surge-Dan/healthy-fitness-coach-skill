@@ -20,3 +20,24 @@ test('render-share-card creates a PNG at the requested social ratio', () => {
   assert.equal(png.readUInt32BE(20), 2048);
   rmSync(root, { recursive: true, force: true });
 });
+
+test('render-share-card supports independent poster modes', () => {
+  const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-poster-modes-'));
+  const input = join(root, 'input.json');
+  const abstractOutput = join(root, 'abstract.png');
+  const materialOutput = join(root, 'material.png');
+  writeFileSync(input, JSON.stringify({
+    share: {
+      title: '训练档案',
+      subtitle: '2026 YTD',
+      metrics: [{ label: '训练天数', value: '74天' }, { label: '训练组数', value: '3301组' }],
+      styleToken: { palette: { bg: '#22252A', accent: '#D7FF4B', secondary: '#7A8BFF', text: '#F6F7F2', muted: '#A9B0AA' } }
+    }
+  }));
+  const first = spawnSync('python', ['scripts/render-share-card.py', '--input', input, '--output', abstractOutput, '--ratio', '3:4', '--mode', 'abstract-collage'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
+  const second = spawnSync('python', ['scripts/render-share-card.py', '--input', input, '--output', materialOutput, '--ratio', '3:4', '--mode', 'material-poster'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
+  assert.equal(first.status, 0, first.stderr);
+  assert.equal(second.status, 0, second.stderr);
+  assert.notDeepEqual(readFileSync(abstractOutput), readFileSync(materialOutput));
+  rmSync(root, { recursive: true, force: true });
+});

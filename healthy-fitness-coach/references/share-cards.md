@@ -13,11 +13,23 @@ python .\healthy-fitness-coach\scripts\render-share-card.py `
 
 PNG渲染依赖Pillow（`python -m pip install Pillow`）。支持Windows微软雅黑、Linux Noto Sans CJK和`HEALTHY_FITNESS_FONT`自定义字体路径。
 
-## 风格
+## 设计模式
 
-- 预设：Night Performance、Editorial Training Journal、Raw Gym Contact Sheet、Clean Athletic。
-- 自适应：用户上传照片后运行 `scripts/extract-style.py`，将输出传给 `references/visuals.js` 的 `createStyleToken`，生成 My Visual DNA。
-- 适配：可用自然语言覆盖色彩、纹理、留白或文字安全区；低置信度字段回退预设值。
+用户上传照片时，先展示以下模式，不要直接套用旧模板：
+
+1. **抽象拼贴档案**：保留主体照片，从横线、圆形、明暗块和主色重构抽象面板。
+2. **训练战报杂志**：将照片拆成2～4个裁切片段，加入趋势线、日期标记和注释排版。
+3. **材质化数据海报**：提取照片中的颗粒、反光、镜面或木地板关系，让数据成为主视觉。
+
+没有照片时使用**数据图谱**模式，直接组合趋势线、热力图、部位分布和年度数字。
+
+CLI可用 `--mode abstract-collage|training-editorial|material-poster|data-atlas` 指定模式，也可用 `node scripts/render-visual-assets.js --list-modes --has-photo` 查看模式描述。
+
+照片模式至少使用两种派生操作（裁切、拼贴、抽象面板、纹理复刻、图表叠加或非对称排版）。用户说“直接生成”时默认选择抽象拼贴档案；未明确时先让用户选择。
+
+## Visual DNA
+
+用户上传照片后运行 `scripts/extract-style.py`，输出包括色彩、明暗、纹理、构图、边缘节奏、留白位置和可解释的 `visual_facts`；将结果传给 `references/visuals.js` 的 `createStyleToken`，再应用到所选模式。每种模式应有独立构图，不能只是改变颜色。
 
 ## 照片
 

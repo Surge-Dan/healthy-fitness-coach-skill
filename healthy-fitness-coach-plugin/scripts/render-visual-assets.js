@@ -2,8 +2,9 @@
 
 const { mkdir, readFile, writeFile } = require('node:fs/promises');
 const { join, resolve } = require('node:path');
-const { buildVisualReportAssets } = require('../skills/healthy-fitness-coach/references/visual-report.js');
-const { createStyleToken, renderShareCardSvg } = require('../skills/healthy-fitness-coach/references/visuals.js');
+const skillReferences = '../skills/healthy-fitness-coach/references';
+const { buildVisualReportAssets } = require(`${skillReferences}/visual-report.js`);
+const { createStyleToken, getDesignModeOptions, renderShareCardSvg } = require(`${skillReferences}/visuals.js`);
 
 function argument(name, fallback) {
   const index = process.argv.indexOf(name);
@@ -11,9 +12,15 @@ function argument(name, fallback) {
 }
 
 async function main() {
+  if (process.argv.includes('--list-modes')) {
+    const hasPhoto = process.argv.includes('--has-photo');
+    process.stdout.write(JSON.stringify(getDesignModeOptions({ hasPhoto })));
+    return;
+  }
   const inputPath = argument('--input');
   const outputDir = resolve(argument('--output', 'fitness-reports/assets'));
   const ratio = argument('--ratio', '3:4');
+  const mode = argument('--mode');
   if (!inputPath) throw new Error('--input JSON path is required');
   const payload = JSON.parse(await readFile(resolve(inputPath), 'utf8'));
   await mkdir(outputDir, { recursive: true });
@@ -23,7 +30,10 @@ async function main() {
     const svg = renderShareCardSvg({
       ...payload.share,
       ratio,
-      styleToken: createStyleToken(payload.share.styleSignals || payload.styleSignals || {})
+      mode: mode || payload.share.mode,
+      styleToken: payload.share.styleToken || createStyleToken(payload.share.styleSignals || payload.styleSignals || {}),
+      trendPoints: payload.share.trendPoints || (payload.trends?.weekly || []).map((item) => ({ label: item.week_start, value: item.training_days })),
+      trainingDates: payload.trends?.training_dates || []
     });
     await writeFile(join(outputDir, `share-card-${ratio.replace(':', '-')}.svg`), svg, 'utf8');
   }

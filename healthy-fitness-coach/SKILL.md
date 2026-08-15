@@ -92,7 +92,7 @@ description: 面向 18～55 岁、无重大疾病的健身新手与普通进阶�
 
 ## V2：输出、训练数据与研究路由
 
-先完成安全筛查；红旗和症状升级永远优先于报告、训练优化或工具调用。之后按任务类型和用户的明确命令加载 `references/output-routing.md`；需要确定性判定时使用其中的 `references/output-routing.js`。默认不弹窗或追问模式：今日训练、逐组跟练、动作/姿势调整和即时症状分流使用对话；周期计划、周/月复盘、训练数据分析和可复用档案使用 Markdown；用户要求趋势时使用 dashboard 模式生成本地 HTML 面板。多个产物都合理且需要选择时，才提一个最小对话选择。用户明确要求模式或无法安全推断产物时才提一个最小问题。
+先完成安全筛查；红旗和症状升级永远优先于报告、训练优化或工具调用。之后按任务类型和用户的明确命令加载 `references/output-routing.md`；需要确定性判定时使用其中的 `references/output-routing.js`。默认不弹窗或追问模式：今日训练、逐组跟练、动作/姿势调整和即时症状分流使用对话；周期计划、周/月复盘、训练数据分析和可复用档案使用 Markdown；用户要求趋势时使用 dashboard 模式生成本地 HTML 面板。用户上传照片并要求分享图时，先展示三种设计模式（抽象拼贴档案、训练战报杂志、材质化数据海报）让用户选择；用户明确说“直接生成”时才自动采用推荐模式。没有照片时直接进入数据图谱/报告图模式。其他多个产物都合理且需要选择时，才提一个最小对话选择。
 
 Markdown 模式且具备写入工具时，默认在当前工作区的 `fitness-reports/` 创建完整 `.md` 文件；使用简短、非 PII 的文件名并在冲突时追加数字后缀，绝不覆盖无关已有文件。用户明确给出安全目标位置时才覆盖默认目录。文件名决策可使用 `references/report-artifact.js`；无写入工具时，直接返回完整 Markdown，并说明未创建文件。训练记录分析、结构化报告或需保留结论时，读取 `assets/fitness-analysis-report-template.md`。
 
@@ -106,4 +106,4 @@ Markdown 模式且具备写入工具时，默认在当前工作区的 `fitness-r
 
 用户要求趋势、月报、年报、训练战绩卡、海报、分享图、发小红书或上传健身照片时，读取 `references/visual-report.md` 与 `references/share-cards.md`。分析报告至少生成趋势、频率/热力、部位分布和主动作表现中的可视化图表；具备写入工具时把 SVG 资源和 HTML 面板放入报告目录，并在 Markdown 中使用相对路径。分享图支持 1:1、9:16、3:4：用户明确指定比例时只生成该比例，未指定且任务无法安全推断时询问。
 
-优先使用 `scripts/render-visual-assets.js` 生成确定性的 SVG 图表和分享卡片；需要PNG时使用 `scripts/render-share-card.py`（依赖Pillow）。用户上传照片时，可先运行 `scripts/extract-style.py` 提取抽象色彩、明暗、纹理和构图信号，再用 `references/visuals.js` 的 `createStyleToken` 生成 My Visual DNA。数据、日期、重量、次数等文字必须由本地渲染器叠加，不能让图像模型直接生成；有图像生成工具时只将其用于照片氛围、材质或艺术化增强，失败时回退为本地照片排版。分析报告默认不嵌入原图，只有用户明确要求照片分享图时才保留照片像素。不得复制 Logo、水印、品牌字体或具体作品构图，不得把 API Key、训练 ID写入报告或仓库。
+优先使用 `scripts/render-visual-assets.js` 生成确定性的 SVG 图表和分享卡片；需要PNG时使用 `scripts/render-share-card.py`（依赖Pillow）。用户上传照片时，先运行 `scripts/extract-style.py` 提取色彩、明暗、纹理、构图、边缘节奏和留白位置，再用 `references/visuals.js` 的 `getDesignModeOptions` 返回设计模式，并用 `createStyleToken` 生成 My Visual DNA。照片模式必须至少使用两种派生操作（裁切、拼贴、抽象面板、纹理复刻、图表叠加或非对称排版），不得退回“照片外框+圆角指标卡”单一模板。可用 `--mode abstract-collage|training-editorial|material-poster|data-atlas` 指定模式；无照片时使用 `data-atlas`。数据、日期、重量、次数等文字必须由本地渲染器叠加，不能让图像模型直接生成；有图像生成工具时只将其用于照片氛围、材质或艺术化增强，失败时回退为本地照片排版。分析报告默认不嵌入原图，只有用户明确要求照片分享图时才保留照片像素。不得复制 Logo、水印、品牌字体或具体作品构图，不得把 API Key、训练 ID写入报告或仓库。

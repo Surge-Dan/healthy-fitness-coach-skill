@@ -6,6 +6,7 @@ const test = require('node:test');
 const {
   CANVAS_PRESETS,
   createStyleToken,
+  getDesignModeOptions,
   overrideStyleToken,
   renderShareCardSvg,
   renderCategoryChartSvg,
@@ -53,6 +54,64 @@ test('style overrides preserve an adaptive palette object', () => {
   const next = overrideStyleToken(base, { texture: 'none' });
   assert.equal(next.palette.bg, '#F5E8D0');
   assert.equal(next.palette.accent, '#ED5A4A');
+});
+
+test('design mode options explain photo-first presets and recommend a mode', () => {
+  const modes = getDesignModeOptions({ hasPhoto: true, signals: { composition: 'subject_center_text_top' } });
+  assert.deepEqual(modes.map((mode) => mode.id), ['abstract-collage', 'training-editorial', 'material-poster']);
+  assert.equal(modes.filter((mode) => mode.recommended).length, 1);
+  assert.ok(modes.every((mode) => mode.operations.length >= 2));
+  assert.equal(getDesignModeOptions({ hasPhoto: true, signals: { texture: 'fine_grain' } }).find((mode) => mode.recommended).id, 'material-poster');
+});
+
+test('abstract collage mode renders a derived panel instead of a card grid', () => {
+  const svg = renderShareCardSvg({
+    mode: 'abstract-collage',
+    ratio: '3:4',
+    title: '这一年，持续在场',
+    subtitle: '截至8月13日',
+    metrics: [{ label: '训练天数', value: '74天' }]
+  });
+  assert.match(svg, /data-mode="abstract-collage"/);
+  assert.match(svg, /abstract-panel/);
+  assert.match(svg, /derived-mark/);
+  assert.doesNotMatch(svg, /metric-card/);
+});
+
+test('training editorial mode renders a contact sheet and data annotation layer', () => {
+  const svg = renderShareCardSvg({
+    mode: 'training-editorial',
+    ratio: '3:4',
+    title: 'YEAR IN MOTION',
+    subtitle: '2026 YTD',
+    metrics: [{ label: '训练天数', value: '74天' }, { label: '周均频率', value: '2.3次' }],
+    trendPoints: [{ label: '01', value: 2 }, { label: '05', value: 4 }, { label: '08', value: 3 }]
+  });
+  assert.match(svg, /data-mode="training-editorial"/);
+  assert.match(svg, /contact-strip/);
+  assert.match(svg, /data-line/);
+});
+
+test('material poster mode renders texture layers and keeps data text local', () => {
+  const svg = renderShareCardSvg({
+    mode: 'material-poster',
+    ratio: '1:1',
+    title: 'TRAINING ARCHIVE',
+    subtitle: '2026',
+    metrics: [{ label: '训练天数', value: '74' }]
+  });
+  assert.match(svg, /data-mode="material-poster"/);
+  assert.match(svg, /material-texture/);
+  assert.match(svg, /TRAINING ARCHIVE/);
+});
+
+test('data atlas mode is available when no photo is supplied', () => {
+  const modes = getDesignModeOptions({ hasPhoto: false });
+  assert.deepEqual(modes.map((mode) => mode.id), ['data-atlas']);
+  const svg = renderShareCardSvg({ mode: 'data-atlas', ratio: '3:4', title: '2026训练图谱', metrics: [{ label: '训练天数', value: '74天' }] });
+  assert.match(svg, /data-mode="data-atlas"/);
+  assert.match(svg, /atlas-grid/);
+  assert.doesNotMatch(svg, /<image/);
 });
 
 test('trend chart escapes labels and exposes accessible SVG metadata', () => {

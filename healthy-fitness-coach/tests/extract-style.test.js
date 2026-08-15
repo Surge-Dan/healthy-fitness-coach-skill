@@ -18,5 +18,8 @@ test('extract-style returns adaptive palette and visual signals from an image', 
   assert.ok(Array.isArray(token.palette) && token.palette.length >= 3);
   assert.ok(token.luminance);
   assert.ok(token.contrast);
+  assert.ok(token.visual_facts && Array.isArray(token.visual_facts));
+  assert.ok(token.edge_rhythm);
+  assert.ok(token.negative_space);
   rmSync(root, { recursive: true, force: true });
 });
