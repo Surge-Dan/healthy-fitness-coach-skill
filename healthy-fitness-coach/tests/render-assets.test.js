@@ -37,5 +37,8 @@ test('render-visual-assets CLI accepts a design mode and exposes mode discovery'
   const modes = spawnSync(process.execPath, ['scripts/render-visual-assets.js', '--list-modes', '--has-photo'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
   assert.equal(modes.status, 0, modes.stderr);
   assert.deepEqual(JSON.parse(modes.stdout).map((mode) => mode.id), ['abstract-collage', 'training-editorial', 'material-poster']);
+  const palettes = spawnSync(process.execPath, ['scripts/render-visual-assets.js', '--list-palettes'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
+  assert.equal(palettes.status, 0, palettes.stderr);
+  assert.equal(JSON.parse(palettes.stdout).length, 5);
   rmSync(root, { recursive: true, force: true });
 });

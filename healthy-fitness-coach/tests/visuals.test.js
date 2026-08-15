@@ -6,6 +6,7 @@ const test = require('node:test');
 const {
   CANVAS_PRESETS,
   createStyleToken,
+  getColorOptions,
   getDesignModeOptions,
   overrideStyleToken,
   renderShareCardSvg,
@@ -62,6 +63,8 @@ test('design mode options explain photo-first presets and recommend a mode', () 
   assert.equal(modes.filter((mode) => mode.recommended).length, 1);
   assert.ok(modes.every((mode) => mode.operations.length >= 2));
   assert.equal(getDesignModeOptions({ hasPhoto: true, signals: { texture: 'fine_grain' } }).find((mode) => mode.recommended).id, 'material-poster');
+  assert.equal(getColorOptions().length, 5);
+  assert.notEqual(createStyleToken({ theme: 'ultraviolet' }).palette.accent, createStyleToken({ theme: 'paper-ink' }).palette.accent);
 });
 
 test('abstract collage mode renders a derived panel instead of a card grid', () => {

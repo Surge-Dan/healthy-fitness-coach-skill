@@ -22,6 +22,14 @@ const DEFAULT_TOKEN = Object.freeze({
   source: 'preset'
 });
 
+const COLOR_THEMES = Object.freeze({
+  'acid-night': Object.freeze({ id: 'acid-night', label: '酸性夜场', palette: Object.freeze({ bg: '#17191D', accent: '#D7FF4B', secondary: '#7A8BFF', text: '#F6F7F2', muted: '#A9B0AA' }) }),
+  'cobalt-coral': Object.freeze({ id: 'cobalt-coral', label: '钴蓝珊瑚', palette: Object.freeze({ bg: '#101A2E', accent: '#5BE7C4', secondary: '#FF8066', text: '#F4F7FF', muted: '#A6B2C8' }) }),
+  ultraviolet: Object.freeze({ id: 'ultraviolet', label: '紫外荧光', palette: Object.freeze({ bg: '#1B1636', accent: '#FF6BD6', secondary: '#7EE7FF', text: '#FAF7FF', muted: '#BDB5D8' }) }),
+  'paper-ink': Object.freeze({ id: 'paper-ink', label: '纸张黑墨', palette: Object.freeze({ bg: '#F4EFE6', accent: '#E85D4A', secondary: '#2E62D2', text: '#14171A', muted: '#667078' }) }),
+  'ember-steel': Object.freeze({ id: 'ember-steel', label: '熔岩钢板', palette: Object.freeze({ bg: '#242424', accent: '#FF8A4C', secondary: '#D5D0C7', text: '#F7F4ED', muted: '#AAA49B' }) })
+});
+
 const DESIGN_MODES = Object.freeze([
   Object.freeze({ id: 'abstract-collage', label: '抽象拼贴档案', description: '保留主体照片，并从横线、圆形、留白和主色重构抽象档案面板。', operations: ['photo-crop', 'abstract-panel', 'derived-marks'], recommended: true }),
   Object.freeze({ id: 'training-editorial', label: '训练战报杂志', description: '用多裁切照片、趋势线和注释排版组成运动杂志式战报。', operations: ['contact-sheet', 'data-line', 'annotation-type'] }),
@@ -65,6 +73,8 @@ function readableText(background) {
 }
 
 function paletteFromSignals(signals = {}) {
+  const theme = COLOR_THEMES[signals.theme || signals.palette_name];
+  if (theme) return { ...theme.palette };
   const fallback = DEFAULT_TOKEN.palette;
   if (signals.palette && !Array.isArray(signals.palette) && typeof signals.palette === 'object') {
     const source = signals.palette;
@@ -85,6 +95,10 @@ function paletteFromSignals(signals = {}) {
   const text = hex(signals.text, readableText(bg));
   const muted = hex(signals.muted, luminance(bg) > 0.52 ? '#667078' : '#A9B0AA');
   return { bg, accent, secondary, text, muted };
+}
+
+function getColorOptions() {
+  return Object.values(COLOR_THEMES).map((theme, index) => ({ ...theme, recommended: index === 0 }));
 }
 
 function createStyleToken(signals = {}) {
@@ -109,7 +123,7 @@ function createStyleToken(signals = {}) {
 }
 
 function getDesignModeOptions({ hasPhoto = false, signals = {} } = {}) {
-  if (!hasPhoto) return DESIGN_MODES.filter((mode) => mode.id === 'data-atlas').map((mode) => ({ ...mode, recommended: true }));
+  if (!hasPhoto) return DESIGN_MODES.filter((mode) => mode.id === 'data-atlas').map((mode) => ({ ...mode, recommended: true, color_options: getColorOptions() }));
   const preferred = signals.composition === 'subject_left_text_right' ? 'training-editorial' : (['paper', 'grain', 'fine_grain'].includes(signals.texture) ? 'material-poster' : 'abstract-collage');
   return DESIGN_MODES.filter((mode) => mode.id !== 'data-atlas').map((mode) => ({ ...mode, recommended: mode.id === preferred }));
 }
@@ -288,9 +302,9 @@ function renderDataAtlasSvg({ canvas, token, eyebrow, title, subtitle, metrics, 
   const pad = Math.round(canvas.width * 0.08);
   const values = trendPoints.map((point) => Number(point.value) || 0);
   const max = Math.max(1, ...values);
-  const line = trendPoints.map((point, index) => `${index ? 'L' : 'M'}${pad + index * ((canvas.width - pad * 2) / Math.max(1, trendPoints.length - 1))},${Math.round(canvas.height * 0.38 - (canvas.height * 0.16) * ((Number(point.value) || 0) / max))}`).join(' ');
+  const line = trendPoints.map((point, index) => `${index ? 'L' : 'M'}${pad + index * ((canvas.width - pad * 2) / Math.max(1, trendPoints.length - 1))},${Math.round(canvas.height * 0.42 - (canvas.height * 0.08) * ((Number(point.value) || 0) / max))}`).join(' ');
   const cells = trainingDates.slice(0, 84).map((date, index) => `<rect x="${pad + (index % 14) * 26}" y="${Math.round(canvas.height * 0.55) + Math.floor(index / 14) * 26}" width="18" height="18" rx="4" fill="${accent}" fill-opacity="${0.25 + ((index % 4) * 0.18)}"/>`).join('');
-  const rows = metrics.slice(0, 4).map((metric, index) => `<text x="${pad + (index % 2) * (canvas.width * 0.46)}" y="${Math.round(canvas.height * 0.76) + Math.floor(index / 2) * 68}" font-family="Arial, Microsoft YaHei, sans-serif" font-size="18" fill="${muted}">${escapeXml(metric.label)}</text><text x="${pad + (index % 2) * (canvas.width * 0.46)}" y="${Math.round(canvas.height * 0.76) + 32 + Math.floor(index / 2) * 68}" font-family="Arial, Microsoft YaHei, sans-serif" font-size="34" font-weight="800" fill="${text}">${escapeXml(metric.value)}</text>`).join('');
+  const rows = metrics.slice(0, 4).map((metric, index) => `<text x="${pad + (index % 2) * (canvas.width * 0.46)}" y="${Math.round(canvas.height * 0.76) + Math.floor(index / 2) * 110}" font-family="Arial, Microsoft YaHei, sans-serif" font-size="18" fill="${muted}">${escapeXml(metric.label)}</text><text x="${pad + (index % 2) * (canvas.width * 0.46)}" y="${Math.round(canvas.height * 0.76) + 32 + Math.floor(index / 2) * 110}" font-family="Arial, Microsoft YaHei, sans-serif" font-size="34" font-weight="800" fill="${text}">${escapeXml(metric.value)}</text>`).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" data-mode="data-atlas" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" fill="${bg}"/><path class="atlas-grid" d="M${pad} ${canvas.height * 0.44} H${canvas.width - pad} M${pad} ${canvas.height * 0.48} H${canvas.width - pad}" stroke="${text}" stroke-opacity=".14"/><text x="${pad}" y="${Math.round(canvas.height * 0.1)}" font-family="Arial, sans-serif" font-size="18" letter-spacing="3" fill="${accent}">${escapeXml(eyebrow)}</text>${textBlock({ text: title, x: pad, y: Math.round(canvas.height * 0.22), size: canvas.ratio === '1:1' ? 66 : 80, fill: text, weight: 800, limit: 20 })}${textBlock({ text: subtitle, x: pad, y: Math.round(canvas.height * 0.3), size: 24, fill: muted, limit: 38 })}<path class="data-line" d="${line}" fill="none" stroke="${secondary}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>${cells}${rows}<text x="${pad}" y="${canvas.height - pad * 0.8}" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="${muted}">${escapeXml(footer)}</text></svg>`;
 }
 
@@ -309,6 +323,7 @@ module.exports = {
   CANVAS_PRESETS,
   createStyleToken,
   escapeXml,
+  getColorOptions,
   getDesignModeOptions,
   overrideStyleToken,
   renderCategoryChartSvg,

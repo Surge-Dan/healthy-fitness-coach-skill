@@ -21,9 +21,9 @@ PNG渲染依赖Pillow（`python -m pip install Pillow`）。支持Windows微软�
 2. **训练战报杂志**：将照片拆成2～4个裁切片段，加入趋势线、日期标记和注释排版。
 3. **材质化数据海报**：提取照片中的颗粒、反光、镜面或木地板关系，让数据成为主视觉。
 
-没有照片时使用**数据图谱**模式，直接组合趋势线、热力图、部位分布和年度数字。
+没有照片时使用**数据图谱**模式，直接组合趋势线、热力图、部位分布和年度数字；同时提供五套配色主题，不固定使用单一荧光绿。可用 `--palette acid-night|cobalt-coral|ultraviolet|paper-ink|ember-steel` 指定主题。
 
-CLI可用 `--mode abstract-collage|training-editorial|material-poster|data-atlas` 指定模式，也可用 `node scripts/render-visual-assets.js --list-modes --has-photo` 查看模式描述。
+CLI可用 `--mode abstract-collage|training-editorial|material-poster|data-atlas` 指定模式，也可用 `node scripts/render-visual-assets.js --list-modes --has-photo` 查看模式描述，用 `node scripts/render-visual-assets.js --list-palettes` 查看配色。
 
 照片模式至少使用两种派生操作（裁切、拼贴、抽象面板、纹理复刻、图表叠加或非对称排版）。用户说“直接生成”时默认选择抽象拼贴档案；未明确时先让用户选择。
 

@@ -11,6 +11,13 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 
 CANVAS = {"1:1": (2048, 2048), "9:16": (1440, 2560), "3:4": (1800, 2400)}
+PALETTE_THEMES = {
+    "acid-night": {"bg": "#17191D", "accent": "#D7FF4B", "secondary": "#7A8BFF", "text": "#F6F7F2", "muted": "#A9B0AA"},
+    "cobalt-coral": {"bg": "#101A2E", "accent": "#5BE7C4", "secondary": "#FF8066", "text": "#F4F7FF", "muted": "#A6B2C8"},
+    "ultraviolet": {"bg": "#1B1636", "accent": "#FF6BD6", "secondary": "#7EE7FF", "text": "#FAF7FF", "muted": "#BDB5D8"},
+    "paper-ink": {"bg": "#F4EFE6", "accent": "#E85D4A", "secondary": "#2E62D2", "text": "#14171A", "muted": "#667078"},
+    "ember-steel": {"bg": "#242424", "accent": "#FF8A4C", "secondary": "#D5D0C7", "text": "#F7F4ED", "muted": "#AAA49B"},
+}
 Image.MAX_IMAGE_PIXELS = 25_000_000
 
 
@@ -199,8 +206,8 @@ def render_data_atlas(image, share, palette, fonts, training_dates):
     draw.text((pad, int(height * 0.10)), share.get("eyebrow", "DATA ATLAS"), font=fonts[0], fill=accent)
     draw_lines(draw, share.get("title", "训练图谱"), (pad, int(height * 0.22)), fonts[1], text, width - pad * 2)
     draw_lines(draw, share.get("subtitle", "训练数据复盘"), (pad, int(height * 0.30)), fonts[2], muted, width - pad * 2)
-    grid_y = int(height * 0.50)
-    draw.line((pad, int(height * 0.44), width - pad, int(height * 0.44)), fill=text + "26", width=2)
+    grid_y = int(height * 0.63)
+    draw.line((pad, int(height * 0.58), width - pad, int(height * 0.58)), fill=text + "26", width=2)
     cells = list(training_dates or [])[:84]
     for index in range(max(14 * 6, len(cells))):
         x = pad + (index % 14) * 26
@@ -213,13 +220,13 @@ def render_data_atlas(image, share, palette, fonts, training_dates):
     coords = []
     for index, value in enumerate(values):
         x = pad + (width - pad * 2) * index / max(1, len(values) - 1)
-        y = int(height * 0.39) - int(height * 0.10 * value / max_value)
+        y = int(height * 0.50) - int(height * 0.08 * value / max_value)
         coords.append((int(x), y))
     if len(coords) >= 2:
         draw.line(coords, fill=secondary, width=7, joint="curve")
     for index, metric in enumerate(share.get("metrics", [])[:4]):
         x = pad + (index % 2) * int(width * 0.46)
-        y = int(height * 0.76) + (index // 2) * 68
+        y = int(height * 0.76) + (index // 2) * 110
         draw.text((x, y), str(metric.get("label", "")), font=fonts[2], fill=muted)
         draw.text((x, y + 30), str(metric.get("value", "")), font=fonts[3], fill=text)
     draw.text((pad, height - int(pad * 0.8)), share.get("footer", "HEALTHY FITNESS COACH"), font=fonts[2], fill=muted)
@@ -235,7 +242,12 @@ def _legacy_main():
     with open(args.input, encoding="utf-8") as source:
         payload = json.load(source)
     width, height = CANVAS[args.ratio]
-    share = payload.get("share", payload)
+    share = dict(payload.get("share", payload))
+    if not share.get("trendPoints"):
+        share["trendPoints"] = [
+            {"label": item.get("week_start", ""), "value": item.get("training_days", 0)}
+            for item in payload.get("trends", {}).get("weekly", [])
+        ]
     token = share.get("styleToken", payload.get("styleToken", {}))
     palette = token.get("palette", token if isinstance(token, dict) else {})
     bg = color(palette.get("bg"), "#17191D")
@@ -305,13 +317,19 @@ def main():
     parser.add_argument("--ratio", choices=CANVAS, default="3:4")
     parser.add_argument("--photo")
     parser.add_argument("--mode", choices=["abstract-collage", "training-editorial", "material-poster", "data-atlas"])
+    parser.add_argument("--palette", choices=sorted(PALETTE_THEMES))
     args = parser.parse_args()
     with open(args.input, encoding="utf-8") as source:
         payload = json.load(source)
     width, height = CANVAS[args.ratio]
-    share = payload.get("share", payload)
+    share = dict(payload.get("share", payload))
+    if not share.get("trendPoints"):
+        share["trendPoints"] = [
+            {"label": item.get("week_start", ""), "value": item.get("training_days", 0)}
+            for item in payload.get("trends", {}).get("weekly", [])
+        ]
     token = share.get("styleToken", payload.get("styleToken", {}))
-    palette = token.get("palette", token if isinstance(token, dict) else {})
+    palette = PALETTE_THEMES.get(args.palette) or token.get("palette", token if isinstance(token, dict) else {})
     colors = (
         color(palette.get("bg"), "#17191D"),
         color(palette.get("accent"), "#D7FF4B"),

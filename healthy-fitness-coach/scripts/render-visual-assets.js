@@ -3,7 +3,7 @@
 const { mkdir, readFile, writeFile } = require('node:fs/promises');
 const { join, resolve } = require('node:path');
 const { buildVisualReportAssets } = require('../references/visual-report.js');
-const { createStyleToken, getDesignModeOptions, renderShareCardSvg } = require('../references/visuals.js');
+const { createStyleToken, getColorOptions, getDesignModeOptions, renderShareCardSvg } = require('../references/visuals.js');
 
 function argument(name, fallback) {
   const index = process.argv.indexOf(name);
@@ -16,10 +16,15 @@ async function main() {
     process.stdout.write(JSON.stringify(getDesignModeOptions({ hasPhoto })));
     return;
   }
+  if (process.argv.includes('--list-palettes')) {
+    process.stdout.write(JSON.stringify(getColorOptions()));
+    return;
+  }
   const inputPath = argument('--input');
   const outputDir = resolve(argument('--output', 'fitness-reports/assets'));
   const ratio = argument('--ratio', '3:4');
   const mode = argument('--mode');
+  const palette = argument('--palette');
   if (!inputPath) throw new Error('--input JSON path is required');
   const payload = JSON.parse(await readFile(resolve(inputPath), 'utf8'));
   await mkdir(outputDir, { recursive: true });
@@ -30,7 +35,7 @@ async function main() {
       ...payload.share,
       ratio,
       mode: mode || payload.share.mode,
-      styleToken: payload.share.styleToken || createStyleToken(payload.share.styleSignals || payload.styleSignals || {}),
+      styleToken: payload.share.styleToken || createStyleToken({ ...(payload.share.styleSignals || payload.styleSignals || {}), ...(palette ? { theme: palette } : {}) }),
       trendPoints: payload.share.trendPoints || (payload.trends?.weekly || []).map((item) => ({ label: item.week_start, value: item.training_days })),
       trainingDates: payload.trends?.training_dates || []
     });
