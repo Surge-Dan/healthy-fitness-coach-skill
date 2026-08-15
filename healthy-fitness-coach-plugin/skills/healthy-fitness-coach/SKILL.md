@@ -104,6 +104,8 @@ Markdown 模式且具备写入工具时，默认在当前工作区的 `fitness-r
 
 ## V3：可视化报告与分享图
 
+数据图谱提供两种布局：`rich` 信息图默认使用中文字体与更宽松的标题/正文层级，包含核心指标、趋势线、训练热力、部位/动作雷达分布和记录页脚；`minimal` 极简分享图保留更多留白，只突出一句结论和少量数字。用户未指定时，年度/月度复盘默认使用 `rich`，社交分享或战绩卡默认使用 `minimal`。
+
 用户要求趋势、月报、年报、训练战绩卡、海报、分享图、发小红书或上传健身照片时，读取 `references/visual-report.md` 与 `references/share-cards.md`。分析报告至少生成趋势、频率/热力、部位分布和主动作表现中的可视化图表；具备写入工具时把 SVG 资源和 HTML 面板放入报告目录，并在 Markdown 中使用相对路径。分享图支持 1:1、9:16、3:4：用户明确指定比例时只生成该比例，未指定且任务无法安全推断时询问。
 
 优先使用 `scripts/render-visual-assets.js` 生成确定性的 SVG 图表和分享卡片；需要PNG时使用 `scripts/render-share-card.py`（依赖Pillow）。用户上传照片时，先运行 `scripts/extract-style.py` 提取色彩、明暗、纹理、构图、边缘节奏和留白位置，再用 `references/visuals.js` 的 `getDesignModeOptions` 返回设计模式，并用 `createStyleToken` 生成 My Visual DNA。照片模式必须至少使用两种派生操作（裁切、拼贴、抽象面板、纹理复刻、图表叠加或非对称排版），不得退回“照片外框+圆角指标卡”单一模板。可用 `--mode abstract-collage|training-editorial|material-poster|data-atlas` 指定模式；无照片时使用 `data-atlas`，并先提供 `getColorOptions` 的五套配色（酸性夜场、钴蓝珊瑚、紫外荧光、纸张黑墨、熔岩钢板）供用户选择。可用 `--list-palettes` 查看配色，`--palette <id>` 生成指定主题。数据、日期、重量、次数等文字必须由本地渲染器叠加，不能让图像模型直接生成；有图像生成工具时只将其用于照片氛围、材质或艺术化增强，失败时回退为本地照片排版。分析报告默认不嵌入原图，只有用户明确要求照片分享图时才保留照片像素。不得复制 Logo、水印、品牌字体或具体作品构图，不得把 API Key、训练 ID写入报告或仓库。

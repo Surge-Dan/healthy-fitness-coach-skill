@@ -232,6 +232,80 @@ def render_data_atlas(image, share, palette, fonts, training_dates):
     draw.text((pad, height - int(pad * 0.8)), share.get("footer", "HEALTHY FITNESS COACH"), font=fonts[2], fill=muted)
 
 
+def render_rich_infographic(image, share, palette, fonts, training_dates, body_distribution):
+    draw = ImageDraw.Draw(image, "RGBA")
+    width, height = image.size
+    bg, accent, secondary, text, muted = palette
+    pad = int(width * 0.08)
+    draw.text((pad, int(height * 0.07)), share.get("eyebrow", "训练档案 / YTD"), font=fonts[0], fill=accent)
+    draw_lines(draw, share.get("title", "年度训练图谱"), (pad, int(height * 0.13)), fonts[1], text, width - pad * 2, 1.12)
+    draw_lines(draw, share.get("subtitle", "用数据看见持续出现"), (pad, int(height * 0.20)), fonts[2], muted, width - pad * 2)
+    metrics = share.get("metrics", [])[:4]
+    for index, metric in enumerate(metrics):
+        x = pad + (index % 2) * int(width * 0.46)
+        y = int(height * 0.25) + (index // 2) * 94
+        draw.text((x, y), str(metric.get("label", "")), font=fonts[2], fill=muted)
+        draw.text((x, y + 30), str(metric.get("value", "")), font=fonts[3], fill=text)
+    panel_top = int(height * 0.39)
+    panel_bottom = int(height * 0.57)
+    draw.rounded_rectangle((pad, panel_top, width - pad, panel_bottom), radius=24, fill=text + "08")
+    draw.text((pad + 28, panel_top + 24), "训练频率趋势", font=fonts[2], fill=muted)
+    points = share.get("trendPoints", [])
+    values = [float(point.get("value", 0) or 0) for point in points]
+    maximum = max([1.0, *values])
+    left, right = pad + 28, width - pad - 28
+    top, bottom = panel_top + 74, panel_bottom - 28
+    coords = []
+    for index, value in enumerate(values):
+        x = left + (right - left) * index / max(1, len(values) - 1)
+        y = bottom - (bottom - top) * value / maximum
+        coords.append((int(x), int(y)))
+    for ratio in (0.25, 0.5, 0.75, 1):
+        y = bottom - (bottom - top) * ratio
+        draw.line((left, y, right, y), fill=text + "22", width=2)
+    if len(coords) >= 2:
+        draw.line(coords, fill=accent, width=7, joint="curve")
+        for x, y in coords:
+            draw.ellipse((x - 6, y - 6, x + 6, y + 6), fill=accent)
+    lower_top = int(height * 0.61)
+    lower_bottom = int(height * 0.87)
+    draw.rounded_rectangle((pad, lower_top, int(width * 0.48), lower_bottom), radius=24, fill=text + "08")
+    draw.rounded_rectangle((int(width * 0.53), lower_top, width - pad, lower_bottom), radius=24, fill=text + "08")
+    draw.text((pad + 28, lower_top + 26), "部位 / 动作分布", font=fonts[2], fill=muted)
+    items = list(body_distribution or [])[:6] or [{"label": "暂无数据", "value": 0}]
+    cx, cy = int(width * 0.265), lower_top + int((lower_bottom - lower_top) * 0.58)
+    radius = int(width * 0.14)
+    count = len(items)
+    points_for = lambda scale: [(
+        cx + int(__import__("math").cos(-__import__("math").pi / 2 + __import__("math").tau * index / count) * radius * scale),
+        cy + int(__import__("math").sin(-__import__("math").pi / 2 + __import__("math").tau * index / count) * radius * scale)
+    ) for index in range(count)]
+    for scale in (0.33, 0.66, 1):
+        draw.polygon(points_for(scale), outline=text + "28")
+    for index in range(count):
+        point = points_for(1)[index]
+        draw.line((cx, cy, point[0], point[1]), fill=text + "20", width=2)
+    max_value = max([1.0, *[float(item.get("value", 0) or 0) for item in items]])
+    shape = []
+    for index, item in enumerate(items):
+        scale = max(0.08, float(item.get("value", 0) or 0) / max_value)
+        shape.append(points_for(scale)[index])
+    draw.polygon(shape, fill=accent + "44", outline=accent)
+    for index, item in enumerate(items):
+        label_point = points_for(1.18)[index]
+        label = str(item.get("label", ""))[:6]
+        draw.text((label_point[0] - draw.textlength(label, font=fonts[0]) / 2, label_point[1] - 10), label, font=fonts[0], fill=muted)
+    draw.text((int(width * 0.53) + 28, lower_top + 26), "训练热力", font=fonts[2], fill=muted)
+    grid_x, grid_y = int(width * 0.57), lower_top + 86
+    for index in range(max(42, len(training_dates or []))):
+        active = index < len(training_dates or [])
+        x = grid_x + (index % 14) * 25
+        y = grid_y + (index // 14) * 25
+        draw.rounded_rectangle((x, y, x + 17, y + 17), radius=4, fill=(accent + f"{50 + (index % 4) * 35:02X}") if active else text + "16")
+    draw.line((pad, height - int(pad * 1.6), width - pad, height - int(pad * 1.6)), fill=accent + "99", width=3)
+    draw.text((pad, height - int(pad * 0.8)), share.get("footer", "HEALTHY FITNESS COACH"), font=fonts[2], fill=muted)
+
+
 def _legacy_main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True)
@@ -317,6 +391,7 @@ def main():
     parser.add_argument("--ratio", choices=CANVAS, default="3:4")
     parser.add_argument("--photo")
     parser.add_argument("--mode", choices=["abstract-collage", "training-editorial", "material-poster", "data-atlas"])
+    parser.add_argument("--layout", choices=["minimal", "rich"], default="minimal")
     parser.add_argument("--palette", choices=sorted(PALETTE_THEMES))
     args = parser.parse_args()
     with open(args.input, encoding="utf-8") as source:
@@ -346,8 +421,12 @@ def main():
     )
     photo_path = args.photo or share.get("photo")
     mode = args.mode or share.get("mode") or ("abstract-collage" if photo_path else "data-atlas")
+    layout = share.get("layout") or args.layout
     image = Image.new("RGB", (width, height), colors[0])
-    if mode == "training-editorial":
+    body_distribution = [{"label": item.get("name", ""), "value": item.get("count", 0)} for item in payload.get("trends", {}).get("exercise_frequency", [])]
+    if layout == "rich" and not photo_path and mode == "data-atlas":
+        render_rich_infographic(image, share, colors, fonts, payload.get("trends", {}).get("training_dates", []), body_distribution)
+    elif mode == "training-editorial":
         render_training_editorial(image, share, colors, photo_path, fonts, args.ratio)
     elif mode == "material-poster":
         render_material_poster(image, share, colors, photo_path, fonts, args.ratio)

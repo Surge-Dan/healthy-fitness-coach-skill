@@ -117,6 +117,24 @@ test('data atlas mode is available when no photo is supplied', () => {
   assert.doesNotMatch(svg, /<image/);
 });
 
+test('rich infographic layout adds Chinese-first radar and heatmap sections', () => {
+  const svg = renderShareCardSvg({
+    layout: 'rich',
+    mode: 'data-atlas',
+    ratio: '3:4',
+    title: '年度训练图谱',
+    subtitle: '持续出现',
+    metrics: [{ label: '训练天数', value: '74天' }],
+    trendPoints: [{ label: '1月', value: 3 }, { label: '2月', value: 5 }],
+    trainingDates: ['2026-01-01'],
+    bodyDistribution: [{ label: '肩', value: 28 }, { label: '胸', value: 24 }, { label: '背', value: 11 }]
+  });
+  assert.match(svg, /data-layout="rich"/);
+  assert.match(svg, /部位\/动作分布/);
+  assert.match(svg, /训练热力/);
+  assert.doesNotMatch(svg, /<image /);
+});
+
 test('trend chart escapes labels and exposes accessible SVG metadata', () => {
   const svg = renderTrendChartSvg({
     points: [{ label: '07月', value: 10 }, { label: '<x>', value: 20 }],

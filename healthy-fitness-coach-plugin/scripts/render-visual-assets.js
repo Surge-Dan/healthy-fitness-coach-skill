@@ -25,6 +25,7 @@ async function main() {
   const outputDir = resolve(argument('--output', 'fitness-reports/assets'));
   const ratio = argument('--ratio', '3:4');
   const mode = argument('--mode');
+  const layout = argument('--layout', 'minimal');
   const palette = argument('--palette');
   if (!inputPath) throw new Error('--input JSON path is required');
   const payload = JSON.parse(await readFile(resolve(inputPath), 'utf8'));
@@ -35,10 +36,12 @@ async function main() {
     const svg = renderShareCardSvg({
       ...payload.share,
       ratio,
+      layout: payload.share.layout || layout,
       mode: mode || payload.share.mode,
       styleToken: payload.share.styleToken || createStyleToken({ ...(payload.share.styleSignals || payload.styleSignals || {}), ...(palette ? { theme: palette } : {}) }),
       trendPoints: payload.share.trendPoints || (payload.trends?.weekly || []).map((item) => ({ label: item.week_start, value: item.training_days })),
-      trainingDates: payload.trends?.training_dates || []
+      trainingDates: payload.trends?.training_dates || [],
+      bodyDistribution: (payload.trends?.exercise_frequency || []).map((item) => ({ label: item.name, value: item.count }))
     });
     await writeFile(join(outputDir, `share-card-${ratio.replace(':', '-')}.svg`), svg, 'utf8');
   }

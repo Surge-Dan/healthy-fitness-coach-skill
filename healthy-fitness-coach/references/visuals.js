@@ -37,6 +37,11 @@ const DESIGN_MODES = Object.freeze([
   Object.freeze({ id: 'data-atlas', label: '数据图谱', description: '没有照片时使用热力图、趋势线和部位分布生成完整信息图。', operations: ['atlas-grid', 'trend-line', 'metric-hierarchy'] })
 ]);
 
+const LAYOUT_OPTIONS = Object.freeze([
+  Object.freeze({ id: 'rich', label: '信息图', description: '中文优先的丰富训练复盘：趋势、雷达、热力图、部位/动作分布和指标层级。' }),
+  Object.freeze({ id: 'minimal', label: '极简分享图', description: '保留留白和强视觉，只突出一条结论与少量关键数字。' })
+]);
+
 function escapeXml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -101,6 +106,10 @@ function getColorOptions() {
   return Object.values(COLOR_THEMES).map((theme, index) => ({ ...theme, recommended: index === 0 }));
 }
 
+function getLayoutOptions() {
+  return LAYOUT_OPTIONS.map((layout, index) => ({ ...layout, recommended: index === 0 }));
+}
+
 function createStyleToken(signals = {}) {
   const palette = paletteFromSignals(signals);
   const token = {
@@ -123,7 +132,7 @@ function createStyleToken(signals = {}) {
 }
 
 function getDesignModeOptions({ hasPhoto = false, signals = {} } = {}) {
-  if (!hasPhoto) return DESIGN_MODES.filter((mode) => mode.id === 'data-atlas').map((mode) => ({ ...mode, recommended: true, color_options: getColorOptions() }));
+  if (!hasPhoto) return DESIGN_MODES.filter((mode) => mode.id === 'data-atlas').map((mode) => ({ ...mode, recommended: true, color_options: getColorOptions(), layout_options: getLayoutOptions() }));
   const preferred = signals.composition === 'subject_left_text_right' ? 'training-editorial' : (['paper', 'grain', 'fine_grain'].includes(signals.texture) ? 'material-poster' : 'abstract-collage');
   return DESIGN_MODES.filter((mode) => mode.id !== 'data-atlas').map((mode) => ({ ...mode, recommended: mode.id === preferred }));
 }
@@ -158,7 +167,7 @@ function wrapText(text, limit = 18) {
   return lines.slice(0, 3);
 }
 
-function textBlock({ text, x, y, size, fill, weight = 400, limit = 18, lineHeight = 1.2, anchor = 'start', family = 'Arial, Microsoft YaHei, sans-serif' }) {
+function textBlock({ text, x, y, size, fill, weight = 400, limit = 18, lineHeight = 1.2, anchor = 'start', family = 'Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif' }) {
   return wrapText(text, limit).map((line, index) => `<text x="${x}" y="${y + index * size * lineHeight}" font-family="${family}" font-size="${size}" font-weight="${weight}" fill="${fill}" text-anchor="${anchor}">${escapeXml(line)}</text>`).join('');
 }
 
@@ -172,7 +181,7 @@ function renderTrendChartSvg({ points = [], title = '训练趋势', color = '#D7
   const step = clean.length > 1 ? (plotRight - plotLeft) / (clean.length - 1) : 0;
   const grid = [0.25, 0.5, 0.75, 1].map((ratio) => {
     const y = plotBottom - (plotBottom - plotTop) * ratio;
-    return `<line x1="${plotLeft}" y1="${y}" x2="${plotRight}" y2="${y}" stroke="#FFFFFF" stroke-opacity=".11"/><text x="${plotLeft - 10}" y="${y + 5}" font-family="Arial, sans-serif" font-size="14" text-anchor="end" fill="#A9B0AA">${number(max * ratio)}</text>`;
+    return `<line x1="${plotLeft}" y1="${y}" x2="${plotRight}" y2="${y}" stroke="#FFFFFF" stroke-opacity=".11"/><text x="${plotLeft - 10}" y="${y + 5}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="14" text-anchor="end" fill="#A9B0AA">${number(max * ratio)}</text>`;
   }).join('');
   const line = clean.map((point, index) => {
     const x = plotLeft + step * index;
@@ -182,7 +191,7 @@ function renderTrendChartSvg({ points = [], title = '训练趋势', color = '#D7
   const marks = clean.map((point, index) => {
     const x = plotLeft + step * index;
     const y = plotBottom - (plotBottom - plotTop) * (point.value / max);
-    return `<circle cx="${x}" cy="${y}" r="6" fill="${hex(color, '#D7FF4B')}"/><text x="${x}" y="${height - 18}" font-family="Arial, Microsoft YaHei, sans-serif" font-size="14" text-anchor="middle" fill="#A9B0AA">${escapeXml(point.label)}</text>`;
+    return `<circle cx="${x}" cy="${y}" r="6" fill="${hex(color, '#D7FF4B')}"/><text x="${x}" y="${height - 18}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="14" text-anchor="middle" fill="#A9B0AA">${escapeXml(point.label)}</text>`;
   }).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" rx="28" fill="#17191D"/>${textBlock({ text: title, x: 36, y: 34, size: 20, fill: '#F6F7F2', weight: 700, limit: 48 })}${grid}<path d="${line}" fill="none" stroke="${hex(color, '#D7FF4B')}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>${marks}</svg>`;
 }
@@ -196,7 +205,7 @@ function renderCategoryChartSvg({ items = [], title = '分类分布', color = '#
   const bars = clean.map((item, index) => {
     const y = 66 + index * rowHeight;
     const barWidth = Math.max(4, ((barRight - barLeft) * item.value) / max);
-    return `<text x="${barLeft - 16}" y="${y + 20}" font-family="Arial, Microsoft YaHei, sans-serif" font-size="16" text-anchor="end" fill="#F6F7F2">${escapeXml(item.label)}</text><rect x="${barLeft}" y="${y}" width="${barRight - barLeft}" height="18" rx="9" fill="#FFFFFF" fill-opacity=".1"/><rect x="${barLeft}" y="${y}" width="${barWidth}" height="18" rx="9" fill="${hex(color, '#7A8BFF')}"/><text x="${Math.min(barRight + 4, barLeft + barWidth + 12)}" y="${y + 15}" font-family="Arial, sans-serif" font-size="15" fill="#A9B0AA">${number(item.value)}</text>`;
+    return `<text x="${barLeft - 16}" y="${y + 20}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="16" text-anchor="end" fill="#F6F7F2">${escapeXml(item.label)}</text><rect x="${barLeft}" y="${y}" width="${barRight - barLeft}" height="18" rx="9" fill="#FFFFFF" fill-opacity=".1"/><rect x="${barLeft}" y="${y}" width="${barWidth}" height="18" rx="9" fill="${hex(color, '#7A8BFF')}"/><text x="${Math.min(barRight + 4, barLeft + barWidth + 12)}" y="${y + 15}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="15" fill="#A9B0AA">${number(item.value)}</text>`;
   }).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" rx="28" fill="#17191D"/>${textBlock({ text: title, x: 36, y: 36, size: 20, fill: '#F6F7F2', weight: 700, limit: 48 })}${bars}</svg>`;
 }
@@ -214,7 +223,7 @@ function renderTrainingHeatmapSvg({ dates = [], startDate, endDate, title = '训
   const cell = 30;
   const left = 52;
   const top = 66;
-  const labels = ['一', '二', '三', '四', '五', '六', '日'].map((label, index) => `<text x="${left + index * cell + 10}" y="${top - 16}" font-family="Arial, Microsoft YaHei, sans-serif" font-size="13" text-anchor="middle" fill="#A9B0AA">${label}</text>`).join('');
+  const labels = ['一', '二', '三', '四', '五', '六', '日'].map((label, index) => `<text x="${left + index * cell + 10}" y="${top - 16}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="13" text-anchor="middle" fill="#A9B0AA">${label}</text>`).join('');
   const cells = [];
   for (let index = 0; index < totalDays; index += 1) {
     const date = new Date(start.getTime() + index * 86400000);
@@ -253,9 +262,9 @@ function renderAbstractCollageSvg({ canvas, token, eyebrow, title, subtitle, met
   const abstract = `<g id="abstract-panel"><rect x="${pad}" y="${panelTop}" width="${photoWidth}" height="${Math.round(canvas.height * 0.27)}" fill="${text}" fill-opacity=".05"/><path class="derived-mark" d="M${pad} ${panelTop + 48} H${pad + photoWidth * 0.72}" stroke="${accent}" stroke-width="8"/><path class="derived-mark" d="M${pad + photoWidth * 0.12} ${panelTop + 112} H${pad + photoWidth * 0.92}" stroke="${secondary}" stroke-width="3" stroke-opacity=".8"/><circle class="derived-mark" cx="${pad + photoWidth * 0.84}" cy="${panelTop + 150}" r="${Math.round(photoWidth * 0.075)}" fill="${accent}" fill-opacity=".72"/><rect class="derived-mark" x="${pad + photoWidth * 0.22}" y="${panelTop + 180}" width="${Math.round(photoWidth * 0.44)}" height="18" fill="${secondary}" fill-opacity=".72"/></g>`;
   const metricLines = metrics.slice(0, 4).map((metric, index) => {
     const y = panelTop + 260 + index * 58;
-    return `<line x1="${pad}" y1="${y}" x2="${pad + photoWidth}" y2="${y}" stroke="${text}" stroke-opacity=".18"/><text x="${pad}" y="${y + 34}" font-family="Arial, Microsoft YaHei, sans-serif" font-size="18" fill="${muted}">${escapeXml(metric.label)}</text><text x="${pad + photoWidth}" y="${y + 34}" text-anchor="end" font-family="Arial, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="${text}">${escapeXml(metric.value)}</text>`;
+    return `<line x1="${pad}" y1="${y}" x2="${pad + photoWidth}" y2="${y}" stroke="${text}" stroke-opacity=".18"/><text x="${pad}" y="${y + 34}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="18" fill="${muted}">${escapeXml(metric.label)}</text><text x="${pad + photoWidth}" y="${y + 34}" text-anchor="end" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="28" font-weight="800" fill="${text}">${escapeXml(metric.value)}</text>`;
   }).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" data-mode="abstract-collage" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" fill="${bg}"/><circle cx="${canvas.width * 0.92}" cy="${canvas.height * 0.1}" r="${canvas.width * 0.22}" fill="${accent}" fill-opacity=".09"/>${photo}<text x="${pad}" y="${Math.round(canvas.height * 0.065)}" font-family="Arial, sans-serif" font-size="18" letter-spacing="3" fill="${accent}">${escapeXml(eyebrow)}</text>${abstract}${textBlock({ text: title, x: pad, y: Math.round(canvas.height * 0.43), size: canvas.ratio === '1:1' ? 68 : 82, fill: text, weight: 800, limit: canvas.ratio === '9:16' ? 15 : 18, lineHeight: 1.08 })}${textBlock({ text: subtitle, x: pad, y: Math.round(canvas.height * 0.475), size: 24, fill: muted, limit: 34 })}${metricLines}<line x1="${pad}" y1="${canvas.height - pad * 1.8}" x2="${canvas.width - pad}" y2="${canvas.height - pad * 1.8}" stroke="${accent}" stroke-opacity=".7" stroke-width="3"/><text x="${pad}" y="${canvas.height - pad * 0.95}" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="${muted}">${escapeXml(footer)}</text></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" data-mode="abstract-collage" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" fill="${bg}"/><circle cx="${canvas.width * 0.92}" cy="${canvas.height * 0.1}" r="${canvas.width * 0.22}" fill="${accent}" fill-opacity=".09"/>${photo}<text x="${pad}" y="${Math.round(canvas.height * 0.065)}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="18" letter-spacing="3" fill="${accent}">${escapeXml(eyebrow)}</text>${abstract}${textBlock({ text: title, x: pad, y: Math.round(canvas.height * 0.43), size: canvas.ratio === '1:1' ? 68 : 82, fill: text, weight: 800, limit: canvas.ratio === '9:16' ? 15 : 18, lineHeight: 1.08 })}${textBlock({ text: subtitle, x: pad, y: Math.round(canvas.height * 0.475), size: 24, fill: muted, limit: 34 })}${metricLines}<line x1="${pad}" y1="${canvas.height - pad * 1.8}" x2="${canvas.width - pad}" y2="${canvas.height - pad * 1.8}" stroke="${accent}" stroke-opacity=".7" stroke-width="3"/><text x="${pad}" y="${canvas.height - pad * 0.95}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="16" letter-spacing="2" fill="${muted}">${escapeXml(footer)}</text></svg>`;
 }
 
 function renderTrainingEditorialSvg({ canvas, token, eyebrow, title, subtitle, metrics, footer, photoHref, embedPhoto, trendPoints = [] }) {
@@ -279,8 +288,8 @@ function renderTrainingEditorialSvg({ canvas, token, eyebrow, title, subtitle, m
     return `${index ? 'L' : 'M'}${x.toFixed(1)},${y}`;
   }).join(' ');
   const dataLine = trendPoints.length ? `<path class="data-line" d="${line}" fill="none" stroke="${accent}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>` : '';
-  const notes = metrics.slice(0, 4).map((metric, index) => `<text x="${pad + (index % 2) * (canvas.width * 0.47)}" y="${Math.round(canvas.height * 0.79) + Math.floor(index / 2) * 60}" font-family="Arial, Microsoft YaHei, sans-serif" font-size="18" fill="${muted}">${escapeXml(metric.label)} <tspan fill="${text}" font-weight="800">${escapeXml(metric.value)}</tspan></text>`).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" data-mode="training-editorial" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" fill="${bg}"/>${strips}<text x="${pad}" y="${Math.round(canvas.height * 0.57)}" font-family="Arial, sans-serif" font-size="18" letter-spacing="3" fill="${accent}">${escapeXml(eyebrow)}</text>${textBlock({ text: title, x: pad, y: Math.round(canvas.height * 0.63), size: canvas.ratio === '1:1' ? 66 : 78, fill: text, weight: 800, limit: 20 })}${textBlock({ text: subtitle, x: pad, y: Math.round(canvas.height * 0.68), size: 22, fill: muted, limit: 38 })}${dataLine}${notes}<line x1="${pad}" y1="${canvas.height - pad * 1.6}" x2="${canvas.width - pad}" y2="${canvas.height - pad * 1.6}" stroke="${secondary}" stroke-opacity=".7" stroke-width="3"/><text x="${pad}" y="${canvas.height - pad * 0.85}" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="${muted}">${escapeXml(footer)}</text></svg>`;
+  const notes = metrics.slice(0, 4).map((metric, index) => `<text x="${pad + (index % 2) * (canvas.width * 0.47)}" y="${Math.round(canvas.height * 0.79) + Math.floor(index / 2) * 60}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="18" fill="${muted}">${escapeXml(metric.label)} <tspan fill="${text}" font-weight="800">${escapeXml(metric.value)}</tspan></text>`).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" data-mode="training-editorial" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" fill="${bg}"/>${strips}<text x="${pad}" y="${Math.round(canvas.height * 0.57)}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="18" letter-spacing="3" fill="${accent}">${escapeXml(eyebrow)}</text>${textBlock({ text: title, x: pad, y: Math.round(canvas.height * 0.63), size: canvas.ratio === '1:1' ? 66 : 78, fill: text, weight: 800, limit: 20 })}${textBlock({ text: subtitle, x: pad, y: Math.round(canvas.height * 0.68), size: 22, fill: muted, limit: 38 })}${dataLine}${notes}<line x1="${pad}" y1="${canvas.height - pad * 1.6}" x2="${canvas.width - pad}" y2="${canvas.height - pad * 1.6}" stroke="${secondary}" stroke-opacity=".7" stroke-width="3"/><text x="${pad}" y="${canvas.height - pad * 0.85}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="16" letter-spacing="2" fill="${muted}">${escapeXml(footer)}</text></svg>`;
 }
 
 function renderMaterialPosterSvg({ canvas, token, eyebrow, title, subtitle, metrics, footer, photoHref, embedPhoto }) {
@@ -288,13 +297,13 @@ function renderMaterialPosterSvg({ canvas, token, eyebrow, title, subtitle, metr
   const pad = Math.round(canvas.width * 0.1);
   const safePhoto = safePhotoHref(photoHref, embedPhoto);
   const anchor = safePhoto ? `<clipPath id="photo-anchor"><circle cx="${canvas.width * 0.76}" cy="${canvas.height * 0.23}" r="${canvas.width * 0.18}"/></clipPath><image href="${safePhoto}" x="${canvas.width * 0.58}" y="${canvas.height * 0.05}" width="${canvas.width * 0.36}" height="${canvas.width * 0.36}" clip-path="url(#photo-anchor)" preserveAspectRatio="xMidYMid slice" opacity=".86"/>` : `<circle cx="${canvas.width * 0.76}" cy="${canvas.height * 0.23}" r="${canvas.width * 0.18}" fill="${secondary}" fill-opacity=".26"/>`;
-  const rows = metrics.slice(0, 5).map((metric, index) => { const y = Math.round(canvas.height * 0.59) + index * 66; return `<text x="${pad}" y="${y}" font-family="Arial, Microsoft YaHei, sans-serif" font-size="18" fill="${muted}">${escapeXml(metric.label)}</text><text x="${canvas.width - pad}" y="${y}" text-anchor="end" font-family="Arial, Microsoft YaHei, sans-serif" font-size="30" font-weight="800" fill="${text}">${escapeXml(metric.value)}</text><line x1="${pad}" y1="${y + 20}" x2="${canvas.width - pad}" y2="${y + 20}" stroke="${text}" stroke-opacity=".16"/>`; }).join('');
+  const rows = metrics.slice(0, 5).map((metric, index) => { const y = Math.round(canvas.height * 0.59) + index * 66; return `<text x="${pad}" y="${y}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="18" fill="${muted}">${escapeXml(metric.label)}</text><text x="${canvas.width - pad}" y="${y}" text-anchor="end" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="30" font-weight="800" fill="${text}">${escapeXml(metric.value)}</text><line x1="${pad}" y1="${y + 20}" x2="${canvas.width - pad}" y2="${y + 20}" stroke="${text}" stroke-opacity=".16"/>`; }).join('');
   const patternBody = token.edge_rhythm === 'vertical'
     ? `<path d="M7 0 V28 M21 0 V28" stroke="${secondary}" stroke-opacity=".12" stroke-width="2"/>`
     : token.edge_rhythm === 'horizontal'
       ? `<path d="M0 7 H28 M0 21 H28" stroke="${secondary}" stroke-opacity=".12" stroke-width="2"/>`
       : `<circle cx="4" cy="6" r="1.2" fill="${text}" fill-opacity=".14"/><path d="M0 22 L28 4" stroke="${secondary}" stroke-opacity=".10" stroke-width="2"/>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" data-mode="material-poster" data-texture="${escapeXml(token.texture)}" data-edge-rhythm="${escapeXml(token.edge_rhythm)}" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><defs><pattern id="material-texture" width="28" height="28" patternUnits="userSpaceOnUse">${patternBody}</pattern></defs><rect width="100%" height="100%" fill="${bg}"/><rect width="100%" height="100%" fill="url(#material-texture)"/><circle cx="${canvas.width * 0.14}" cy="${canvas.height * 0.82}" r="${canvas.width * 0.28}" fill="${accent}" fill-opacity=".1"/>${anchor}<text x="${pad}" y="${Math.round(canvas.height * 0.12)}" font-family="Arial, sans-serif" font-size="18" letter-spacing="3" fill="${accent}">${escapeXml(eyebrow)}</text>${textBlock({ text: title, x: pad, y: Math.round(canvas.height * 0.35), size: canvas.ratio === '1:1' ? 70 : 84, fill: text, weight: 800, limit: 18 })}${textBlock({ text: subtitle, x: pad, y: Math.round(canvas.height * 0.43), size: 24, fill: muted, limit: 32 })}<text x="${pad}" y="${Math.round(canvas.height * 0.52)}" font-family="Arial, sans-serif" font-size="68" font-weight="800" fill="${accent}">01</text>${rows}<text x="${pad}" y="${canvas.height - pad * 0.8}" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="${muted}">${escapeXml(footer)}</text></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" data-mode="material-poster" data-texture="${escapeXml(token.texture)}" data-edge-rhythm="${escapeXml(token.edge_rhythm)}" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><defs><pattern id="material-texture" width="28" height="28" patternUnits="userSpaceOnUse">${patternBody}</pattern></defs><rect width="100%" height="100%" fill="${bg}"/><rect width="100%" height="100%" fill="url(#material-texture)"/><circle cx="${canvas.width * 0.14}" cy="${canvas.height * 0.82}" r="${canvas.width * 0.28}" fill="${accent}" fill-opacity=".1"/>${anchor}<text x="${pad}" y="${Math.round(canvas.height * 0.12)}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="18" letter-spacing="3" fill="${accent}">${escapeXml(eyebrow)}</text>${textBlock({ text: title, x: pad, y: Math.round(canvas.height * 0.35), size: canvas.ratio === '1:1' ? 70 : 84, fill: text, weight: 800, limit: 18 })}${textBlock({ text: subtitle, x: pad, y: Math.round(canvas.height * 0.43), size: 24, fill: muted, limit: 32 })}<text x="${pad}" y="${Math.round(canvas.height * 0.52)}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="68" font-weight="800" fill="${accent}">01</text>${rows}<text x="${pad}" y="${canvas.height - pad * 0.8}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="16" letter-spacing="2" fill="${muted}">${escapeXml(footer)}</text></svg>`;
 }
 
 function renderDataAtlasSvg({ canvas, token, eyebrow, title, subtitle, metrics, footer, trendPoints = [], trainingDates = [] }) {
@@ -304,15 +313,51 @@ function renderDataAtlasSvg({ canvas, token, eyebrow, title, subtitle, metrics, 
   const max = Math.max(1, ...values);
   const line = trendPoints.map((point, index) => `${index ? 'L' : 'M'}${pad + index * ((canvas.width - pad * 2) / Math.max(1, trendPoints.length - 1))},${Math.round(canvas.height * 0.50 - (canvas.height * 0.08) * ((Number(point.value) || 0) / max))}`).join(' ');
   const cells = trainingDates.slice(0, 84).map((date, index) => `<rect x="${pad + (index % 14) * 26}" y="${Math.round(canvas.height * 0.63) + Math.floor(index / 14) * 26}" width="18" height="18" rx="4" fill="${accent}" fill-opacity="${0.25 + ((index % 4) * 0.18)}"/>`).join('');
-  const rows = metrics.slice(0, 4).map((metric, index) => `<text x="${pad + (index % 2) * (canvas.width * 0.46)}" y="${Math.round(canvas.height * 0.76) + Math.floor(index / 2) * 110}" font-family="Arial, Microsoft YaHei, sans-serif" font-size="18" fill="${muted}">${escapeXml(metric.label)}</text><text x="${pad + (index % 2) * (canvas.width * 0.46)}" y="${Math.round(canvas.height * 0.76) + 32 + Math.floor(index / 2) * 110}" font-family="Arial, Microsoft YaHei, sans-serif" font-size="34" font-weight="800" fill="${text}">${escapeXml(metric.value)}</text>`).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" data-mode="data-atlas" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" fill="${bg}"/><path class="atlas-grid" d="M${pad} ${canvas.height * 0.58} H${canvas.width - pad} M${pad} ${canvas.height * 0.61} H${canvas.width - pad}" stroke="${text}" stroke-opacity=".14"/><text x="${pad}" y="${Math.round(canvas.height * 0.1)}" font-family="Arial, sans-serif" font-size="18" letter-spacing="3" fill="${accent}">${escapeXml(eyebrow)}</text>${textBlock({ text: title, x: pad, y: Math.round(canvas.height * 0.22), size: canvas.ratio === '1:1' ? 66 : 80, fill: text, weight: 800, limit: 20 })}${textBlock({ text: subtitle, x: pad, y: Math.round(canvas.height * 0.3), size: 24, fill: muted, limit: 38 })}<path class="data-line" d="${line}" fill="none" stroke="${secondary}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>${cells}${rows}<text x="${pad}" y="${canvas.height - pad * 0.8}" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="${muted}">${escapeXml(footer)}</text></svg>`;
+  const rows = metrics.slice(0, 4).map((metric, index) => `<text x="${pad + (index % 2) * (canvas.width * 0.46)}" y="${Math.round(canvas.height * 0.76) + Math.floor(index / 2) * 110}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="18" fill="${muted}">${escapeXml(metric.label)}</text><text x="${pad + (index % 2) * (canvas.width * 0.46)}" y="${Math.round(canvas.height * 0.76) + 32 + Math.floor(index / 2) * 110}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="34" font-weight="800" fill="${text}">${escapeXml(metric.value)}</text>`).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" data-mode="data-atlas" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" fill="${bg}"/><path class="atlas-grid" d="M${pad} ${canvas.height * 0.58} H${canvas.width - pad} M${pad} ${canvas.height * 0.61} H${canvas.width - pad}" stroke="${text}" stroke-opacity=".14"/><text x="${pad}" y="${Math.round(canvas.height * 0.1)}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="18" letter-spacing="3" fill="${accent}">${escapeXml(eyebrow)}</text>${textBlock({ text: title, x: pad, y: Math.round(canvas.height * 0.22), size: canvas.ratio === '1:1' ? 66 : 80, fill: text, weight: 800, limit: 20 })}${textBlock({ text: subtitle, x: pad, y: Math.round(canvas.height * 0.3), size: 24, fill: muted, limit: 38 })}<path class="data-line" d="${line}" fill="none" stroke="${secondary}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>${cells}${rows}<text x="${pad}" y="${canvas.height - pad * 0.8}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="16" letter-spacing="2" fill="${muted}">${escapeXml(footer)}</text></svg>`;
 }
 
-function renderShareCardSvg({ mode, ratio = '3:4', styleToken = createStyleToken(), eyebrow = '', title = '', subtitle = '', metrics = [], footer = 'HEALTHY FITNESS COACH', photoHref = '', embedPhoto = false, trendPoints = [], trainingDates = [] } = {}) {
+function renderRichInfographicSvg({ canvas, token, eyebrow, title, subtitle, metrics, footer, trendPoints = [], trainingDates = [], bodyDistribution = [] }) {
+  const { bg, accent, secondary, text, muted } = token.palette;
+  const pad = Math.round(canvas.width * 0.08);
+  const contentWidth = canvas.width - pad * 2;
+  const values = trendPoints.map((point) => Math.max(0, Number(point.value) || 0));
+  const max = Math.max(1, ...values);
+  const trendLeft = pad + 30;
+  const trendRight = canvas.width - pad - 30;
+  const trendTop = Math.round(canvas.height * 0.32);
+  const trendBottom = Math.round(canvas.height * 0.48);
+  const trendLine = trendPoints.map((point, index) => {
+    const x = trendLeft + index * ((trendRight - trendLeft) / Math.max(1, trendPoints.length - 1));
+    const y = trendBottom - (trendBottom - trendTop) * ((Number(point.value) || 0) / max);
+    return `${index ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const trend = `<rect x="${pad}" y="${Math.round(canvas.height * 0.29)}" width="${contentWidth}" height="${Math.round(canvas.height * 0.24)}" rx="28" fill="${text}" fill-opacity=".05"/><text x="${pad + 28}" y="${Math.round(canvas.height * 0.33)}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, sans-serif" font-size="22" fill="${muted}">训练频率趋势</text>${[0.25, 0.5, 0.75, 1].map((ratio) => { const y = trendBottom - (trendBottom - trendTop) * ratio; return `<line x1="${trendLeft}" y1="${y}" x2="${trendRight}" y2="${y}" stroke="${text}" stroke-opacity=".12"/>`; }).join('')}<path d="${trendLine}" fill="none" stroke="${accent}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>${trendPoints.map((point, index) => { const x = trendLeft + index * ((trendRight - trendLeft) / Math.max(1, trendPoints.length - 1)); const y = trendBottom - (trendBottom - trendTop) * ((Number(point.value) || 0) / max); return `<circle cx="${x}" cy="${y}" r="7" fill="${accent}"/>`; }).join('')}`;
+  const radarItems = bodyDistribution.slice(0, 6);
+  const radarLabels = radarItems.length ? radarItems : [{ label: '暂无数据', value: 0 }];
+  const radarMax = Math.max(1, ...radarLabels.map((item) => Number(item.value) || 0));
+  const cx = Math.round(canvas.width * 0.27);
+  const cy = Math.round(canvas.height * 0.68);
+  const radius = Math.round(canvas.width * 0.16);
+  const n = radarLabels.length;
+  const point = (index, scale) => { const angle = (-Math.PI / 2) + (Math.PI * 2 * index / n); return [cx + Math.cos(angle) * radius * scale, cy + Math.sin(angle) * radius * scale]; };
+  const radarGrid = [0.33, 0.66, 1].map((scale) => `<polygon points="${radarLabels.map((_, index) => point(index, scale).join(',')).join(' ')}" fill="none" stroke="${text}" stroke-opacity=".16"/>`).join('');
+  const radarAxes = radarLabels.map((_, index) => { const [x, y] = point(index, 1); return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="${text}" stroke-opacity=".14"/>`; }).join('');
+  const radarShape = `<polygon points="${radarLabels.map((item, index) => point(index, Math.max(0.08, (Number(item.value) || 0) / radarMax)).join(',')).join(' ')}" fill="${accent}" fill-opacity=".26" stroke="${accent}" stroke-width="5"/>`;
+  const radarText = radarLabels.map((item, index) => { const [x, y] = point(index, 1.18); return `<text x="${x}" y="${y}" text-anchor="middle" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, sans-serif" font-size="18" fill="${muted}">${escapeXml(item.label)}</text>`; }).join('');
+  const radar = `<rect x="${pad}" y="${Math.round(canvas.height * 0.56)}" width="${Math.round(canvas.width * 0.42)}" height="${Math.round(canvas.height * 0.32)}" rx="28" fill="${text}" fill-opacity=".05"/><text x="${pad + 28}" y="${Math.round(canvas.height * 0.60)}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, sans-serif" font-size="22" fill="${muted}">部位/动作分布</text>${radarGrid}${radarAxes}${radarShape}${radarText}`;
+  const cells = trainingDates.slice(0, 84).map((date, index) => `<rect x="${Math.round(canvas.width * 0.57) + (index % 14) * 25}" y="${Math.round(canvas.height * 0.63) + Math.floor(index / 14) * 25}" width="17" height="17" rx="4" fill="${accent}" fill-opacity="${0.25 + ((index % 4) * 0.18)}"/>`).join('');
+  const heatmap = `<rect x="${Math.round(canvas.width * 0.53)}" y="${Math.round(canvas.height * 0.56)}" width="${Math.round(canvas.width * 0.39)}" height="${Math.round(canvas.height * 0.32)}" rx="28" fill="${text}" fill-opacity=".05"/><text x="${Math.round(canvas.width * 0.57)}" y="${Math.round(canvas.height * 0.60)}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, sans-serif" font-size="22" fill="${muted}">训练热力</text>${cells}`;
+  const rows = metrics.slice(0, 4).map((metric, index) => { const x = pad + (index % 2) * Math.round(contentWidth * 0.51); const y = Math.round(canvas.height * 0.22) + Math.floor(index / 2) * 66; return `<text x="${x}" y="${y}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, sans-serif" font-size="17" fill="${muted}">${escapeXml(metric.label)}</text><text x="${x}" y="${y + 34}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, sans-serif" font-size="32" font-weight="800" fill="${text}">${escapeXml(metric.value)}</text>`; }).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" data-layout="rich" data-mode="data-atlas" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" fill="${bg}"/><text x="${pad}" y="${Math.round(canvas.height * 0.08)}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, sans-serif" font-size="20" letter-spacing="3" fill="${accent}">${escapeXml(eyebrow)}</text>${textBlock({ text: title, x: pad, y: Math.round(canvas.height * 0.15), size: canvas.ratio === '1:1' ? 58 : 72, fill: text, weight: 800, limit: 20, family: 'Microsoft YaHei, Noto Sans CJK SC, PingFang SC, sans-serif', lineHeight: 1.16 })}${textBlock({ text: subtitle, x: pad, y: Math.round(canvas.height * 0.19), size: 22, fill: muted, limit: 40, family: 'Microsoft YaHei, Noto Sans CJK SC, PingFang SC, sans-serif' })}${rows}${trend}${radar}${heatmap}<line x1="${pad}" y1="${canvas.height - pad * 1.6}" x2="${canvas.width - pad}" y2="${canvas.height - pad * 1.6}" stroke="${accent}" stroke-opacity=".6" stroke-width="3"/><text x="${pad}" y="${canvas.height - pad * 0.8}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, sans-serif" font-size="16" letter-spacing="2" fill="${muted}">${escapeXml(footer)}</text></svg>`;
+}
+
+function renderShareCardSvg({ mode, layout = 'minimal', ratio = '3:4', styleToken = createStyleToken(), eyebrow = '', title = '', subtitle = '', metrics = [], footer = 'HEALTHY FITNESS COACH', photoHref = '', embedPhoto = false, trendPoints = [], trainingDates = [], bodyDistribution = [] } = {}) {
   const canvas = resolveCanvas(ratio);
   const token = overrideStyleToken(styleToken);
   const selected = mode || (embedPhoto && photoHref ? 'abstract-collage' : 'data-atlas');
-  const input = { canvas, token, eyebrow, title, subtitle, metrics, footer, photoHref, embedPhoto, trendPoints, trainingDates };
+  const input = { canvas, token, eyebrow, title, subtitle, metrics, footer, photoHref, embedPhoto, trendPoints, trainingDates, bodyDistribution };
+  if (layout === 'rich' && selected === 'data-atlas') return renderRichInfographicSvg(input);
   if (selected === 'training-editorial') return renderTrainingEditorialSvg(input);
   if (selected === 'material-poster') return renderMaterialPosterSvg(input);
   if (selected === 'data-atlas') return renderDataAtlasSvg(input);
@@ -325,6 +370,7 @@ module.exports = {
   escapeXml,
   getColorOptions,
   getDesignModeOptions,
+  getLayoutOptions,
   overrideStyleToken,
   renderCategoryChartSvg,
   renderPerformanceChartSvg,

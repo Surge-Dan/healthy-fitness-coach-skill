@@ -40,5 +40,8 @@ test('render-visual-assets CLI accepts a design mode and exposes mode discovery'
   const palettes = spawnSync(process.execPath, ['scripts/render-visual-assets.js', '--list-palettes'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
   assert.equal(palettes.status, 0, palettes.stderr);
   assert.equal(JSON.parse(palettes.stdout).length, 5);
+  const rich = spawnSync(process.execPath, ['scripts/render-visual-assets.js', '--input', input, '--output', output, '--ratio', '3:4', '--mode', 'data-atlas', '--layout', 'rich'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
+  assert.equal(rich.status, 0, rich.stderr);
+  assert.match(readFileSync(join(output, 'share-card-3-4.svg'), 'utf8'), /data-layout="rich"/);
   rmSync(root, { recursive: true, force: true });
 });
