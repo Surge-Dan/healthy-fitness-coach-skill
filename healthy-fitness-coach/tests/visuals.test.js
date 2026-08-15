@@ -170,6 +170,7 @@ test('annual heatmap cells stay inside their requested width', () => {
   });
   const rightEdges = [...svg.matchAll(/<rect x="([0-9.]+)"[^>]* width="([0-9.]+)"/g)].map((match) => Number(match[1]) + Number(match[2]));
   assert.ok(Math.max(...rightEdges) <= 920);
+  assert.equal(Math.max(...rightEdges), 920);
 });
 
 test('mini-month heatmap stays inside its panel bounds', () => {
@@ -185,6 +186,24 @@ test('mini-month heatmap stays inside its panel bounds', () => {
   });
   const rightEdges = [...svg.matchAll(/<rect x="([0-9.]+)"[^>]* width="([0-9.]+)"/g)].map((match) => Number(match[1]) + Number(match[2]));
   assert.ok(Math.max(...rightEdges) <= 500);
+});
+
+test('rich mini-month heatmap is centered inside the right panel', () => {
+  const svg = renderShareCardSvg({
+    layout: 'rich',
+    mode: 'data-atlas',
+    ratio: '3:4',
+    title: '年度训练图谱',
+    metrics: [{ label: '训练日', value: '74' }],
+    trainingDates: ['2026-01-01', '2026-12-31']
+  });
+  const heatmapSection = svg.slice(svg.indexOf('>训练热力</text>'));
+  const edges = [...heatmapSection.matchAll(/<rect x="([0-9.]+)"[^>]* width="([0-9.]+)"/g)].map((match) => [Number(match[1]), Number(match[1]) + Number(match[2])]);
+  const minX = Math.min(...edges.map(([left]) => left));
+  const maxX = Math.max(...edges.map(([, right]) => right));
+  const panelX = Math.round(resolveCanvas('3:4').width * 0.53);
+  const panelWidth = Math.round(resolveCanvas('3:4').width * 0.39);
+  assert.ok(Math.abs((minX + maxX) / 2 - (panelX + panelWidth / 2)) <= 3);
 });
 
 test('trend chart escapes labels and exposes accessible SVG metadata', () => {

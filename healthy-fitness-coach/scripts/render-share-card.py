@@ -95,16 +95,19 @@ def draw_heatmap(draw, training_dates, daily_stats, xy, cell, gap, accent, text,
     maximum = max([1.0, *values])
     days = heatmap_days(training_dates, start_value, end_value)
     columns = max(1, (len(days) + 6) // 7)
-    safe_gap = max(2, min(gap, int(max_width / (columns * 6)))) if max_width else gap
-    safe_cell = max(3, min(cell, int((max_width - (columns - 1) * safe_gap) / columns))) if max_width else cell
+    safe_gap = max(2, min(gap, max_width / (columns * 6))) if max_width else gap
+    safe_cell = max(3, min(cell, (max_width - (columns - 1) * safe_gap) / columns)) if max_width else cell
     for index, current in enumerate(days):
         key = current.isoformat()
         item = stats.get(key, {})
         value = float(item.get("volume", 0) or item.get("sets", 0) or (1 if key in active else 0))
         alpha = int(56 + 199 * min(1, value / maximum)) if value > 0 else 20
-        x = int(xy[0] + (index // 7) * (safe_cell + safe_gap))
-        y = int(xy[1] + (index % 7) * (safe_cell + safe_gap))
-        draw.rounded_rectangle((x, y, x + safe_cell, y + safe_cell), radius=max(1, safe_cell // 4), fill=(accent if value > 0 else text) + f"{alpha:02X}")
+        col, row = index // 7, index % 7
+        x = round(xy[0] + col * (safe_cell + safe_gap))
+        y = round(xy[1] + row * (safe_cell + safe_gap))
+        right = round(xy[0] + col * (safe_cell + safe_gap) + safe_cell)
+        bottom = round(xy[1] + row * (safe_cell + safe_gap) + safe_cell)
+        draw.rounded_rectangle((x, y, right, bottom), radius=max(1, round(safe_cell / 4)), fill=(accent if value > 0 else text) + f"{alpha:02X}")
     return len(days)
 
 
@@ -374,8 +377,11 @@ def render_rich_infographic(image, share, palette, fonts, training_dates, body_d
         label = str(item.get("label", ""))[:6]
         draw.text((label_point[0] - draw.textlength(label, font=fonts[0]) / 2, label_point[1] - 10), label, font=fonts[0], fill=muted)
     draw.text((int(width * 0.53) + 28, lower_top + 26), "训练热力", font=fonts[2], fill=muted)
-    grid_x, grid_y = int(width * 0.57), lower_top + 86
-    draw_year_heatmap(draw, training_dates, daily_stats, (grid_x, lower_top + 78, int(width * 0.39) - 56, lower_bottom - lower_top - 104), accent, text, date_start, date_end)
+    heatmap_x = int(width * 0.53)
+    heatmap_width = width - pad - heatmap_x
+    grid_width = int(width * 0.34)
+    grid_x = heatmap_x + (heatmap_width - grid_width) // 2
+    draw_year_heatmap(draw, training_dates, daily_stats, (grid_x, lower_top + 78, grid_width, lower_bottom - lower_top - 104), accent, text, date_start, date_end)
     draw.line((pad, height - int(pad * 1.6), width - pad, height - int(pad * 1.6)), fill=accent + "99", width=3)
     draw.text((pad, height - int(pad * 0.8)), share.get("footer", "HEALTHY FITNESS COACH"), font=fonts[2], fill=muted)
 
