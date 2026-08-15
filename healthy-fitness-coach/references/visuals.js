@@ -177,18 +177,23 @@ function resolveHeatmapRange(trainingDates = [], startDate, endDate) {
   return days;
 }
 
-function heatmapCellsSvg({ trainingDates = [], dailyStats = [], startDate, endDate, x = 0, y = 0, cell = 18, gap = 7, columns = 53, accent = '#D7FF4B', text = '#F6F7F2' } = {}) {
+function heatmapCellsSvg({ trainingDates = [], dailyStats = [], startDate, endDate, x = 0, y = 0, cell = 18, gap = 7, columns = 53, maxWidth, accent = '#D7FF4B', text = '#F6F7F2' } = {}) {
   const active = new Set(trainingDates.map((date) => String(date).slice(0, 10)));
   const stats = new Map((Array.isArray(dailyStats) ? dailyStats : []).map((item) => [String(item.date || '').slice(0, 10), item]));
   const days = resolveHeatmapRange(trainingDates, startDate, endDate);
   const max = Math.max(1, ...[...stats.values()].map((item) => Number(item.volume) || Number(item.sets) || Number(item.record_count) || 0));
+  const visibleColumns = Math.max(1, Math.min(columns, Math.ceil(days.length / 7)));
+  const safeGap = maxWidth ? Math.max(2, Math.min(gap, Math.floor(maxWidth / (visibleColumns * 6)))) : gap;
+  const safeCell = maxWidth
+    ? Math.max(3, Math.min(cell, Math.floor((maxWidth - (visibleColumns - 1) * safeGap) / visibleColumns)))
+    : cell;
   return days.map((date, index) => {
     const item = stats.get(date);
     const value = Number(item?.volume) || Number(item?.sets) || (active.has(date) ? 1 : 0);
     const opacity = value > 0 ? (0.22 + 0.78 * Math.min(1, value / max)).toFixed(2) : '0.08';
-    const px = x + Math.floor(index / 7) * (cell + gap);
-    const py = y + (index % 7) * (cell + gap);
-    return `<rect x="${px}" y="${py}" width="${cell}" height="${cell}" rx="4" fill="${value > 0 ? accent : text}" fill-opacity="${opacity}"><title>${date}${value > 0 ? ` · 训练量 ${number(value)}` : ' · 无记录'}</title></rect>`;
+    const px = x + Math.floor(index / 7) * (safeCell + safeGap);
+    const py = y + (index % 7) * (safeCell + safeGap);
+    return `<rect x="${px}" y="${py}" width="${safeCell}" height="${safeCell}" rx="${Math.min(4, Math.max(1, Math.floor(safeCell / 4)))}" fill="${value > 0 ? accent : text}" fill-opacity="${opacity}"><title>${date}${value > 0 ? ` · 训练量 ${number(value)}` : ' · 无记录'}</title></rect>`;
   }).join('');
 }
 
@@ -199,13 +204,14 @@ function yearHeatmapSvg({ trainingDates = [], dailyStats = [], startDate, x = 0,
   const year = Number(String(startDate || [...active][0] || '2026').slice(0, 4)) || 2026;
   const monthW = width / 4;
   const monthH = height / 3;
-  const cell = Math.max(6, Math.floor(Math.min((monthW - 22) / 7, (monthH - 25) / 6)));
-  const gap = Math.max(2, Math.floor(cell * 0.22));
+  const inset = 4;
+  const gap = Math.max(2, Math.min(4, Math.floor((monthW - inset * 2) / 44)));
+  const cell = Math.max(4, Math.floor(Math.min((monthW - inset * 2 - gap * 6) / 7, (monthH - 24 - gap * 5) / 6)));
   const body = [];
   for (let month = 0; month < 12; month += 1) {
     const col = month % 4;
     const row = Math.floor(month / 4);
-    const ox = x + col * monthW;
+    const ox = x + col * monthW + inset;
     const oy = y + row * monthH;
     body.push(`<text x="${ox}" y="${oy}" font-family="Microsoft YaHei, Noto Sans CJK SC, PingFang SC, Arial, sans-serif" font-size="${Math.max(11, cell)}" fill="${text}" fill-opacity=".68">${String(month + 1).padStart(2, '0')}</text>`);
     const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
@@ -381,15 +387,15 @@ function renderDataAtlasSvg({ canvas, token, eyebrow, title, subtitle, metrics, 
   const values = trendPoints.map((point) => Math.max(0, Number(point.value) || 0));
   const max = Math.max(1, ...values);
   const chartTop = Math.round(canvas.height * 0.53);
-  const chartBottom = Math.round(canvas.height * 0.72);
+  const chartBottom = Math.round(canvas.height * 0.66);
   const chartLeft = pad;
   const chartRight = canvas.width - pad;
   const line = trendPoints.map((point, index) => `${index ? 'L' : 'M'}${chartLeft + index * ((chartRight - chartLeft) / Math.max(1, trendPoints.length - 1))},${chartBottom - (chartBottom - chartTop) * ((Number(point.value) || 0) / max)}`).join(' ');
-  const cells = heatmapCellsSvg({ trainingDates, dailyStats, startDate: dateStart, endDate: dateEnd, x: pad * 1.35, y: Math.round(canvas.height * 0.77), cell: 17, gap: 8, accent, text });
+  const cells = heatmapCellsSvg({ trainingDates, dailyStats, startDate: dateStart, endDate: dateEnd, x: pad * 1.35, y: Math.round(canvas.height * 0.74), maxWidth: canvas.width - pad * 2.7, cell: 17, gap: 8, accent, text });
   const value = metrics[0]?.value || '0';
   const label = metrics[0]?.label || '训练日';
   const otherMetrics = metrics.slice(1, 3).map((metric, index) => `<text x="${pad + index * Math.round(canvas.width * 0.29)}" y="${Math.round(canvas.height * 0.875)}" font-family="${sans}" font-size="16" fill="#8E98A8">${escapeXml(metric.label)}</text><text x="${pad + index * Math.round(canvas.width * 0.29)}" y="${Math.round(canvas.height * 0.915)}" font-family="${sans}" font-size="28" font-weight="700" fill="${paper}">${escapeXml(metric.value)}</text>`).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" data-mode="data-atlas" data-layout="minimal" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" fill="${bg}"/><path d="M${canvas.width * 0.58} 0 L${canvas.width} ${canvas.height * 0.26}" stroke="${accent}" stroke-opacity=".18" stroke-width="${canvas.width * 0.18}"/><path d="M0 ${canvas.height * 0.79} L${canvas.width * 0.42} ${canvas.height}" stroke="${secondary}" stroke-opacity=".16" stroke-width="${canvas.width * 0.12}"/><text x="${pad}" y="${Math.round(canvas.height * 0.09)}" font-family="${sans}" font-size="16" letter-spacing="4" fill="${accent}">${escapeXml(eyebrow)}</text><text x="${canvas.width - pad}" y="${Math.round(canvas.height * 0.09)}" text-anchor="end" font-family="${sans}" font-size="14" letter-spacing="2" fill="#8E98A8">01 / TRAINING LOG</text>${textBlock({ text: title, x: pad, y: Math.round(canvas.height * 0.22), size: canvas.ratio === '1:1' ? 72 : 92, fill: paper, weight: 500, limit: 12, family: serif, lineHeight: 1.08 })}${textBlock({ text: subtitle, x: pad, y: Math.round(canvas.height * 0.35), size: 20, fill: '#8E98A8', limit: 36, family: sans })}<line class="atlas-grid" x1="${pad}" y1="${Math.round(canvas.height * 0.43)}" x2="${canvas.width - pad}" y2="${Math.round(canvas.height * 0.43)}" stroke="#FFFFFF" stroke-opacity=".18"/><text x="${pad}" y="${Math.round(canvas.height * 0.49)}" font-family="${sans}" font-size="15" letter-spacing="2" fill="#8E98A8">${escapeXml(label).toUpperCase()}</text><text x="${pad}" y="${Math.round(canvas.height * 0.62)}" font-family="${serif}" font-size="${canvas.ratio === '1:1' ? 120 : 170}" fill="${accent}">${escapeXml(value)}</text><path class="data-line" d="${line}" fill="none" stroke="${accent}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>${trendPoints.map((point, index) => { const x = chartLeft + index * ((chartRight - chartLeft) / Math.max(1, trendPoints.length - 1)); const y = chartBottom - (chartBottom - chartTop) * ((Number(point.value) || 0) / max); return `<circle cx="${x}" cy="${y}" r="5" fill="${bg}" stroke="${accent}" stroke-width="3"/>`; }).join('')}${cells}<text x="${pad}" y="${Math.round(canvas.height * 0.76)}" font-family="${sans}" font-size="14" letter-spacing="2" fill="#8E98A8">CONSISTENCY MAP / ${trainingDates.length || 0} DAYS</text>${otherMetrics}<line x1="${pad}" y1="${Math.round(canvas.height * 0.94)}" x2="${canvas.width - pad}" y2="${Math.round(canvas.height * 0.94)}" stroke="${accent}" stroke-opacity=".6" stroke-width="2"/><text x="${pad}" y="${canvas.height - pad * 0.45}" font-family="${sans}" font-size="13" letter-spacing="3" fill="#8E98A8">${escapeXml(footer)}</text></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" data-mode="data-atlas" data-layout="minimal" role="img" aria-label="${escapeXml(title)}"><title>${escapeXml(title)}</title><rect width="100%" height="100%" fill="${bg}"/><path d="M${canvas.width * 0.58} 0 L${canvas.width} ${canvas.height * 0.26}" stroke="${accent}" stroke-opacity=".18" stroke-width="${canvas.width * 0.18}"/><path d="M0 ${canvas.height * 0.79} L${canvas.width * 0.42} ${canvas.height}" stroke="${secondary}" stroke-opacity=".16" stroke-width="${canvas.width * 0.12}"/><text x="${pad}" y="${Math.round(canvas.height * 0.09)}" font-family="${sans}" font-size="16" letter-spacing="4" fill="${accent}">${escapeXml(eyebrow)}</text><text x="${canvas.width - pad}" y="${Math.round(canvas.height * 0.09)}" text-anchor="end" font-family="${sans}" font-size="14" letter-spacing="2" fill="#8E98A8">01 / TRAINING LOG</text>${textBlock({ text: title, x: pad, y: Math.round(canvas.height * 0.18), size: canvas.ratio === '1:1' ? 72 : 92, fill: paper, weight: 500, limit: 12, family: serif, lineHeight: 1.08 })}${textBlock({ text: subtitle, x: pad, y: Math.round(canvas.height * 0.26), size: 20, fill: '#8E98A8', limit: 36, family: sans })}<line class="atlas-grid" x1="${pad}" y1="${Math.round(canvas.height * 0.33)}" x2="${canvas.width - pad}" y2="${Math.round(canvas.height * 0.33)}" stroke="#FFFFFF" stroke-opacity=".18"/><text x="${pad}" y="${Math.round(canvas.height * 0.39)}" font-family="${sans}" font-size="15" letter-spacing="2" fill="#8E98A8">${escapeXml(label).toUpperCase()}</text><text x="${pad}" y="${Math.round(canvas.height * 0.49)}" font-family="${serif}" font-size="${canvas.ratio === '1:1' ? 120 : 170}" fill="${accent}">${escapeXml(value)}</text><path class="data-line" d="${line}" fill="none" stroke="${accent}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>${trendPoints.map((point, index) => { const x = chartLeft + index * ((chartRight - chartLeft) / Math.max(1, trendPoints.length - 1)); const y = chartBottom - (chartBottom - chartTop) * ((Number(point.value) || 0) / max); return `<circle cx="${x}" cy="${y}" r="5" fill="${bg}" stroke="${accent}" stroke-width="3"/>`; }).join('')}${cells}<text x="${pad}" y="${Math.round(canvas.height * 0.71)}" font-family="${sans}" font-size="14" letter-spacing="2" fill="#8E98A8">CONSISTENCY MAP / ${trainingDates.length || 0} DAYS</text>${otherMetrics}<line x1="${pad}" y1="${Math.round(canvas.height * 0.94)}" x2="${canvas.width - pad}" y2="${Math.round(canvas.height * 0.94)}" stroke="${accent}" stroke-opacity=".6" stroke-width="2"/><text x="${pad}" y="${canvas.height - pad * 0.45}" font-family="${sans}" font-size="13" letter-spacing="3" fill="#8E98A8">${escapeXml(footer)}</text></svg>`;
 }
 
 function renderRichInfographicSvg({ canvas, token, eyebrow, title, subtitle, metrics, footer, trendPoints = [], trainingDates = [], dailyStats = [], dateStart, dateEnd, bodyDistribution = [] }) {

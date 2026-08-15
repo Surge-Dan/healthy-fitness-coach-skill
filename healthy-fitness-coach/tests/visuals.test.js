@@ -10,6 +10,8 @@ const {
   getDesignModeOptions,
   overrideStyleToken,
   renderShareCardSvg,
+  heatmapCellsSvg,
+  yearHeatmapSvg,
   renderCategoryChartSvg,
   renderPerformanceChartSvg,
   renderTrainingHeatmapSvg,
@@ -150,6 +152,39 @@ test('minimal data atlas uses a distinct poster composition and serif typography
   assert.match(svg, /Noto Serif CJK SC/);
   assert.match(svg, /M1044 0/);
   assert.doesNotMatch(svg, /部位\/动作分布/);
+});
+
+test('annual heatmap cells stay inside their requested width', () => {
+  const svg = heatmapCellsSvg({
+    trainingDates: ['2026-01-01', '2026-12-31'],
+    dailyStats: [{ date: '2026-01-01', volume: 100 }, { date: '2026-12-31', volume: 200 }],
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    x: 100,
+    y: 40,
+    maxWidth: 820,
+    cell: 17,
+    gap: 8,
+    accent: '#D7FF4B',
+    text: '#F6F7F2'
+  });
+  const rightEdges = [...svg.matchAll(/<rect x="([0-9.]+)"[^>]* width="([0-9.]+)"/g)].map((match) => Number(match[1]) + Number(match[2]));
+  assert.ok(Math.max(...rightEdges) <= 920);
+});
+
+test('mini-month heatmap stays inside its panel bounds', () => {
+  const svg = yearHeatmapSvg({
+    trainingDates: ['2026-01-01', '2026-12-31'],
+    startDate: '2026-01-01',
+    x: 100,
+    y: 40,
+    width: 400,
+    height: 240,
+    accent: '#D7FF4B',
+    text: '#F6F7F2'
+  });
+  const rightEdges = [...svg.matchAll(/<rect x="([0-9.]+)"[^>]* width="([0-9.]+)"/g)].map((match) => Number(match[1]) + Number(match[2]));
+  assert.ok(Math.max(...rightEdges) <= 500);
 });
 
 test('trend chart escapes labels and exposes accessible SVG metadata', () => {

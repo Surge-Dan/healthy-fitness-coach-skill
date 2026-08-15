@@ -88,20 +88,23 @@ def heatmap_days(training_dates, start_value=None, end_value=None):
     return [start + timedelta(days=index) for index in range((end - start).days + 1)]
 
 
-def draw_heatmap(draw, training_dates, daily_stats, xy, cell, gap, accent, text, start_value=None, end_value=None):
+def draw_heatmap(draw, training_dates, daily_stats, xy, cell, gap, accent, text, start_value=None, end_value=None, max_width=None):
     active = {str(value)[:10] for value in (training_dates or [])}
     stats = {str(item.get("date", ""))[:10]: item for item in (daily_stats or []) if item.get("date")}
     values = [float(item.get("volume", 0) or item.get("sets", 0) or item.get("record_count", 0) or 0) for item in stats.values()]
     maximum = max([1.0, *values])
     days = heatmap_days(training_dates, start_value, end_value)
+    columns = max(1, (len(days) + 6) // 7)
+    safe_gap = max(2, min(gap, int(max_width / (columns * 6)))) if max_width else gap
+    safe_cell = max(3, min(cell, int((max_width - (columns - 1) * safe_gap) / columns))) if max_width else cell
     for index, current in enumerate(days):
         key = current.isoformat()
         item = stats.get(key, {})
         value = float(item.get("volume", 0) or item.get("sets", 0) or (1 if key in active else 0))
         alpha = int(56 + 199 * min(1, value / maximum)) if value > 0 else 20
-        x = int(xy[0] + (index // 7) * (cell + gap))
-        y = int(xy[1] + (index % 7) * (cell + gap))
-        draw.rounded_rectangle((x, y, x + cell, y + cell), radius=max(1, cell // 4), fill=(accent if value > 0 else text) + f"{alpha:02X}")
+        x = int(xy[0] + (index // 7) * (safe_cell + safe_gap))
+        y = int(xy[1] + (index % 7) * (safe_cell + safe_gap))
+        draw.rounded_rectangle((x, y, x + safe_cell, y + safe_cell), radius=max(1, safe_cell // 4), fill=(accent if value > 0 else text) + f"{alpha:02X}")
     return len(days)
 
 
@@ -112,12 +115,13 @@ def draw_year_heatmap(draw, training_dates, daily_stats, box, accent, text, star
     maximum = max([1.0, *values])
     x0, y0, width, height = box
     month_w, month_h = width / 4, height / 3
-    cell = max(7, int(min((month_w - 28) / 7, (month_h - 28) / 6)))
-    gap = max(2, int(cell * 0.22))
+    inset = 4
+    gap = max(2, min(4, int((month_w - inset * 2) / 44)))
+    cell = max(4, int(min((month_w - inset * 2 - gap * 6) / 7, (month_h - 24 - gap * 5) / 6)))
     year = int(str(start_value or "2026")[:4])
     for month in range(1, 13):
         col, row = (month - 1) % 4, (month - 1) // 4
-        ox, oy = int(x0 + col * month_w), int(y0 + row * month_h)
+        ox, oy = int(x0 + col * month_w + inset), int(y0 + row * month_h)
         draw.text((ox, oy), f"{month:02d}", font=font(max(11, int(cell * 0.95))), fill=text + "A8")
         start = date(year, month, 1)
         next_month = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
@@ -277,31 +281,31 @@ def render_data_atlas(image, share, palette, fonts, training_dates, daily_stats=
     draw.rectangle((pad, pad, width - pad, height - pad), outline="#FFFFFF26", width=2)
     draw.text((pad * 1.35, int(height * 0.08)), share.get("eyebrow", "TRAINING LOG"), font=sans_label, fill=accent)
     draw.text((width - pad * 1.35, int(height * 0.08)), "01 / YEAR IN REVIEW", font=sans_label, fill=muted, anchor="ra")
-    draw_lines(draw, share.get("title", "训练图谱"), (pad * 1.35, int(height * 0.18)), serif_title, text, width - pad * 2.7, 1.05)
-    draw_lines(draw, share.get("subtitle", "把训练变成可见的时间线"), (pad * 1.35, int(height * 0.34)), fonts[2], muted, width - pad * 2.7)
-    draw.line((pad * 1.35, int(height * 0.42), width - pad * 1.35, int(height * 0.42)), fill="#FFFFFF38", width=2)
+    draw_lines(draw, share.get("title", "训练图谱"), (pad * 1.35, int(height * 0.17)), serif_title, text, width - pad * 2.7, 1.05)
+    draw_lines(draw, share.get("subtitle", "把训练变成可见的时间线"), (pad * 1.35, int(height * 0.25)), fonts[2], muted, width - pad * 2.7)
+    draw.line((pad * 1.35, int(height * 0.32), width - pad * 1.35, int(height * 0.32)), fill="#FFFFFF38", width=2)
     metrics = share.get("metrics", [])[:3]
     first = metrics[0] if metrics else {"label": "训练日", "value": "0"}
-    draw.text((pad * 1.35, int(height * 0.47)), str(first.get("label", "训练日")).upper(), font=sans_label, fill=muted)
-    draw.text((pad * 1.35, int(height * 0.53)), str(first.get("value", "0")), font=serif_number, fill=accent)
+    draw.text((pad * 1.35, int(height * 0.38)), str(first.get("label", "训练日")).upper(), font=sans_label, fill=muted)
+    draw.text((pad * 1.35, int(height * 0.46)), str(first.get("value", "0")), font=serif_number, fill=accent)
     points = share.get("trendPoints", [])
     values = [float(point.get("value", 0) or 0) for point in points]
     max_value = max([1.0, *values])
     coords = []
     for index, value in enumerate(values):
         x = pad + (width - pad * 2) * index / max(1, len(values) - 1)
-        y = int(height * 0.73) - int(height * 0.08 * value / max_value)
+        y = int(height * 0.66) - int(height * 0.08 * value / max_value)
         coords.append((int(x), y))
     if len(coords) >= 2:
         draw.line(coords, fill=accent, width=5, joint="curve")
         for x, y in coords:
             draw.ellipse((x - 5, y - 5, x + 5, y + 5), fill=bg, outline=accent, width=3)
-    draw.text((pad * 1.35, int(height * 0.77)), "CONSISTENCY MAP", font=sans_label, fill=muted)
-    draw_heatmap(draw, training_dates, daily_stats, (pad * 1.35, int(height * 0.80)), 17, 8, accent, text, date_start, date_end)
+    draw.text((pad * 1.35, int(height * 0.71)), "CONSISTENCY MAP", font=sans_label, fill=muted)
+    draw_heatmap(draw, training_dates, daily_stats, (pad * 1.35, int(height * 0.74)), 17, 8, accent, text, date_start, date_end, max_width=width - pad * 2.7)
     for index, metric in enumerate(metrics[1:]):
         x = pad * 1.35 + index * int(width * 0.30)
-        draw.text((x, int(height * 0.875)), str(metric.get("label", "")), font=sans_label, fill=muted)
-        draw.text((x, int(height * 0.91)), str(metric.get("value", "")), font=sans_value, fill=text)
+        draw.text((x, int(height * 0.845)), str(metric.get("label", "")), font=sans_label, fill=muted)
+        draw.text((x, int(height * 0.885)), str(metric.get("value", "")), font=sans_value, fill=text)
     draw.line((pad * 1.35, int(height * 0.94), width - pad * 1.35, int(height * 0.94)), fill=accent + "99", width=2)
     draw.text((pad * 1.35, height - pad * 0.82), share.get("footer", "HEALTHY FITNESS COACH"), font=sans_label, fill=muted)
 
