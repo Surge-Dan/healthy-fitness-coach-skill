@@ -6,6 +6,7 @@ import json
 import os
 import re
 import textwrap
+from datetime import date, datetime, timedelta
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
@@ -67,6 +68,69 @@ def fit_photo(photo_path, size, centering=(0.5, 0.42)):
 def draw_lines(draw, value, xy, font_obj, fill, width, gap=1.2):
     for index, line in enumerate(lines(draw, value, font_obj, width)):
         draw.text((xy[0], xy[1] + index * int(font_obj.size * gap)), line, font=font_obj, fill=fill)
+
+
+def heatmap_days(training_dates, start_value=None, end_value=None):
+    dates = sorted({str(value)[:10] for value in (training_dates or []) if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(value)[:10])})
+    first_value = str(start_value or (dates[0] if dates else ""))[:10]
+    last_value = str(end_value or (dates[-1] if dates else first_value))[:10]
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", first_value):
+        return []
+    try:
+        start = datetime.strptime(first_value, "%Y-%m-%d").date()
+        end = datetime.strptime(last_value, "%Y-%m-%d").date()
+    except ValueError:
+        return []
+    if start > end:
+        return []
+    if start.year == end.year:
+        start, end = date(start.year, 1, 1), date(start.year, 12, 31)
+    return [start + timedelta(days=index) for index in range((end - start).days + 1)]
+
+
+def draw_heatmap(draw, training_dates, daily_stats, xy, cell, gap, accent, text, start_value=None, end_value=None):
+    active = {str(value)[:10] for value in (training_dates or [])}
+    stats = {str(item.get("date", ""))[:10]: item for item in (daily_stats or []) if item.get("date")}
+    values = [float(item.get("volume", 0) or item.get("sets", 0) or item.get("record_count", 0) or 0) for item in stats.values()]
+    maximum = max([1.0, *values])
+    days = heatmap_days(training_dates, start_value, end_value)
+    for index, current in enumerate(days):
+        key = current.isoformat()
+        item = stats.get(key, {})
+        value = float(item.get("volume", 0) or item.get("sets", 0) or (1 if key in active else 0))
+        alpha = int(56 + 199 * min(1, value / maximum)) if value > 0 else 20
+        x = int(xy[0] + (index // 7) * (cell + gap))
+        y = int(xy[1] + (index % 7) * (cell + gap))
+        draw.rounded_rectangle((x, y, x + cell, y + cell), radius=max(1, cell // 4), fill=(accent if value > 0 else text) + f"{alpha:02X}")
+    return len(days)
+
+
+def draw_year_heatmap(draw, training_dates, daily_stats, box, accent, text, start_value=None, end_value=None):
+    active = {str(value)[:10] for value in (training_dates or [])}
+    stats = {str(item.get("date", ""))[:10]: item for item in (daily_stats or []) if item.get("date")}
+    values = [float(item.get("volume", 0) or item.get("sets", 0) or item.get("record_count", 0) or 0) for item in stats.values()]
+    maximum = max([1.0, *values])
+    x0, y0, width, height = box
+    month_w, month_h = width / 4, height / 3
+    cell = max(7, int(min((month_w - 28) / 7, (month_h - 28) / 6)))
+    gap = max(2, int(cell * 0.22))
+    year = int(str(start_value or "2026")[:4])
+    for month in range(1, 13):
+        col, row = (month - 1) % 4, (month - 1) // 4
+        ox, oy = int(x0 + col * month_w), int(y0 + row * month_h)
+        draw.text((ox, oy), f"{month:02d}", font=font(max(11, int(cell * 0.95))), fill=text + "A8")
+        start = date(year, month, 1)
+        next_month = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+        for day_index in range((next_month - start).days):
+            current = start + timedelta(days=day_index)
+            position = start.weekday() + day_index
+            key = current.isoformat()
+            item = stats.get(key, {})
+            value = float(item.get("volume", 0) or item.get("sets", 0) or (1 if key in active else 0))
+            alpha = int(52 + 203 * min(1, value / maximum)) if value > 0 else 18
+            x = ox + (position % 7) * (cell + gap)
+            y = oy + 18 + (position // 7) * (cell + gap)
+            draw.rounded_rectangle((x, y, x + cell, y + cell), radius=max(1, cell // 4), fill=(accent if value > 0 else text) + f"{alpha:02X}")
 
 
 def render_abstract_collage(image, share, palette, photo_path, fonts, ratio):
@@ -198,7 +262,7 @@ def render_material_poster(image, share, palette, photo_path, fonts, ratio):
     draw.text((pad, height - int(pad * 0.8)), share.get("footer", "HEALTHY FITNESS COACH"), font=fonts[2], fill=muted)
 
 
-def render_data_atlas(image, share, palette, fonts, training_dates):
+def render_data_atlas(image, share, palette, fonts, training_dates, daily_stats=None, date_start=None, date_end=None):
     draw = ImageDraw.Draw(image, "RGBA")
     width, height = image.size
     _, accent, secondary, _, _ = palette
@@ -226,19 +290,14 @@ def render_data_atlas(image, share, palette, fonts, training_dates):
     coords = []
     for index, value in enumerate(values):
         x = pad + (width - pad * 2) * index / max(1, len(values) - 1)
-        y = int(height * 0.68) - int(height * 0.12 * value / max_value)
+        y = int(height * 0.73) - int(height * 0.08 * value / max_value)
         coords.append((int(x), y))
     if len(coords) >= 2:
         draw.line(coords, fill=accent, width=5, joint="curve")
         for x, y in coords:
             draw.ellipse((x - 5, y - 5, x + 5, y + 5), fill=bg, outline=accent, width=3)
-    draw.text((pad * 1.35, int(height * 0.73)), "CONSISTENCY MAP", font=sans_label, fill=muted)
-    cells = list(training_dates or [])[:84]
-    for index in range(max(14 * 6, len(cells))):
-        x = pad * 1.35 + (index % 14) * 25
-        y = int(height * 0.77) + (index // 14) * 25
-        active = index < len(cells)
-        draw.rounded_rectangle((x, y, x + 17, y + 17), radius=2, fill=(accent + f"{50 + (index % 4) * 35:02X}") if active else text + "14")
+    draw.text((pad * 1.35, int(height * 0.77)), "CONSISTENCY MAP", font=sans_label, fill=muted)
+    draw_heatmap(draw, training_dates, daily_stats, (pad * 1.35, int(height * 0.80)), 17, 8, accent, text, date_start, date_end)
     for index, metric in enumerate(metrics[1:]):
         x = pad * 1.35 + index * int(width * 0.30)
         draw.text((x, int(height * 0.875)), str(metric.get("label", "")), font=sans_label, fill=muted)
@@ -247,7 +306,7 @@ def render_data_atlas(image, share, palette, fonts, training_dates):
     draw.text((pad * 1.35, height - pad * 0.82), share.get("footer", "HEALTHY FITNESS COACH"), font=sans_label, fill=muted)
 
 
-def render_rich_infographic(image, share, palette, fonts, training_dates, body_distribution):
+def render_rich_infographic(image, share, palette, fonts, training_dates, body_distribution, daily_stats=None, date_start=None, date_end=None):
     draw = ImageDraw.Draw(image, "RGBA")
     width, height = image.size
     bg, accent, secondary, text, muted = palette
@@ -312,11 +371,7 @@ def render_rich_infographic(image, share, palette, fonts, training_dates, body_d
         draw.text((label_point[0] - draw.textlength(label, font=fonts[0]) / 2, label_point[1] - 10), label, font=fonts[0], fill=muted)
     draw.text((int(width * 0.53) + 28, lower_top + 26), "训练热力", font=fonts[2], fill=muted)
     grid_x, grid_y = int(width * 0.57), lower_top + 86
-    for index in range(max(42, len(training_dates or []))):
-        active = index < len(training_dates or [])
-        x = grid_x + (index % 14) * 25
-        y = grid_y + (index // 14) * 25
-        draw.rounded_rectangle((x, y, x + 17, y + 17), radius=4, fill=(accent + f"{50 + (index % 4) * 35:02X}") if active else text + "16")
+    draw_year_heatmap(draw, training_dates, daily_stats, (grid_x, lower_top + 78, int(width * 0.39) - 56, lower_bottom - lower_top - 104), accent, text, date_start, date_end)
     draw.line((pad, height - int(pad * 1.6), width - pad, height - int(pad * 1.6)), fill=accent + "99", width=3)
     draw.text((pad, height - int(pad * 0.8)), share.get("footer", "HEALTHY FITNESS COACH"), font=fonts[2], fill=muted)
 
@@ -440,13 +495,13 @@ def main():
     image = Image.new("RGB", (width, height), colors[0])
     body_distribution = [{"label": item.get("name", ""), "value": item.get("count", 0)} for item in payload.get("trends", {}).get("exercise_frequency", [])]
     if layout == "rich" and not photo_path and mode == "data-atlas":
-        render_rich_infographic(image, share, colors, fonts, payload.get("trends", {}).get("training_dates", []), body_distribution)
+        render_rich_infographic(image, share, colors, fonts, payload.get("trends", {}).get("training_dates", []), body_distribution, payload.get("trends", {}).get("daily", []), payload.get("trends", {}).get("date_start"), payload.get("trends", {}).get("date_end"))
     elif mode == "training-editorial":
         render_training_editorial(image, share, colors, photo_path, fonts, args.ratio)
     elif mode == "material-poster":
         render_material_poster(image, share, colors, photo_path, fonts, args.ratio)
     elif mode == "data-atlas":
-        render_data_atlas(image, share, colors, fonts, payload.get("trends", {}).get("training_dates", []))
+        render_data_atlas(image, share, colors, fonts, payload.get("trends", {}).get("training_dates", []), payload.get("trends", {}).get("daily", []), payload.get("trends", {}).get("date_start"), payload.get("trends", {}).get("date_end"))
     else:
         render_abstract_collage(image, share, colors, photo_path, fonts, args.ratio)
     os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)

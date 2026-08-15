@@ -22,6 +22,7 @@ function analyzeTrainingRange(input = {}) {
   const dates = Array.isArray(input.dates) ? input.dates : [];
   const trainingDates = new Set(records.map((record) => record.record_date).filter(Boolean));
   const weeklyMap = new Map();
+  const dailyMap = new Map();
   const exercises = new Map();
   let totalSets = 0;
   let totalReps = 0;
@@ -37,6 +38,13 @@ function analyzeTrainingRange(input = {}) {
       bucket.dates.add(recordDate);
       bucket.record_count += 1;
       bucket.volume += numeric(record.volume);
+    }
+    if (recordDate) {
+      if (!dailyMap.has(recordDate)) dailyMap.set(recordDate, { date: recordDate, volume: 0, sets: 0, record_count: 0 });
+      const day = dailyMap.get(recordDate);
+      day.volume += numeric(record.volume);
+      day.sets += numeric(record.sets);
+      day.record_count += 1;
     }
     totalSets += numeric(record.sets);
     totalReps += numeric(record.total_reps || (record.sets && record.reps ? record.sets * record.reps : 0));
@@ -61,6 +69,7 @@ function analyzeTrainingRange(input = {}) {
       estimated_volume: bucket.volume
     }));
   const exercise_frequency = [...exercises.values()].sort((a, b) => b.count - a.count || b.last_date.localeCompare(a.last_date) || a.name.localeCompare(b.name));
+  const daily = [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date));
 
   return {
     date_start: dates[0],
@@ -72,6 +81,7 @@ function analyzeTrainingRange(input = {}) {
     total_reps: totalReps,
     estimated_volume: estimatedVolume,
     weekly,
+    daily,
     exercise_frequency,
     missing_dates: Array.isArray(input.missing_dates) ? input.missing_dates.slice() : [],
     parse_warnings: parseWarnings,

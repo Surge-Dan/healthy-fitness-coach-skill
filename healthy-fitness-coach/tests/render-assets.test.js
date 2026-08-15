@@ -28,7 +28,7 @@ test('render-visual-assets CLI accepts a design mode and exposes mode discovery'
   const input = join(root, 'input.json');
   const output = join(root, 'assets');
   writeFileSync(input, JSON.stringify({
-    trends: { weekly: [{ week_start: '2026-07-06', training_days: 2, estimated_volume: 1000 }], training_dates: ['2026-07-06'], exercise_frequency: [] },
+    trends: { date_start: '2026-01-01', date_end: '2026-12-31', weekly: [{ week_start: '2026-07-06', training_days: 2, estimated_volume: 1000 }], training_dates: ['2026-07-06'], daily: [{ date: '2026-07-06', volume: 1000, sets: 5, record_count: 1 }], exercise_frequency: [] },
     share: { mode: 'training-editorial', title: '战报', subtitle: '2026', metrics: [{ label: '训练天数', value: '2天' }], trendPoints: [{ label: '07', value: 2 }] }
   }));
   const result = spawnSync(process.execPath, ['scripts/render-visual-assets.js', '--input', input, '--output', output, '--ratio', '3:4', '--mode', 'training-editorial'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
@@ -42,6 +42,9 @@ test('render-visual-assets CLI accepts a design mode and exposes mode discovery'
   assert.equal(JSON.parse(palettes.stdout).length, 5);
   const rich = spawnSync(process.execPath, ['scripts/render-visual-assets.js', '--input', input, '--output', output, '--ratio', '3:4', '--mode', 'data-atlas', '--layout', 'rich'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
   assert.equal(rich.status, 0, rich.stderr);
-  assert.match(readFileSync(join(output, 'share-card-3-4.svg'), 'utf8'), /data-layout="rich"/);
+  const richSvg = readFileSync(join(output, 'share-card-3-4.svg'), 'utf8');
+  assert.match(richSvg, /data-layout="rich"/);
+  assert.match(richSvg, /训练量/);
+  assert.ok((richSvg.match(/<rect /g) || []).length >= 360);
   rmSync(root, { recursive: true, force: true });
 });

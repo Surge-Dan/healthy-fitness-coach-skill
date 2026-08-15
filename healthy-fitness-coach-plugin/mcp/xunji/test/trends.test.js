@@ -26,6 +26,10 @@ test('trend analysis aggregates sessions, volume, weekly frequency, and exercise
   assert.equal(result.data_freshness, 'mixed');
   assert.equal(result.weekly[0].week_start, '2026-07-27');
   assert.equal(result.weekly[0].training_days, 2);
+  assert.deepEqual(result.daily, [
+    { date: '2026-07-27', volume: 1960, sets: 5, record_count: 2 },
+    { date: '2026-07-28', volume: 1800, sets: 4, record_count: 1 }
+  ]);
   assert.equal(result.exercise_frequency[0].name, '背部训练');
   assert.equal(result.parse_warnings, 1);
 });
@@ -36,5 +40,6 @@ test('trend analysis reports an empty range without inventing metrics', () => {
   assert.equal(result.record_count, 0);
   assert.equal(result.estimated_volume, 0);
   assert.deepEqual(result.weekly, []);
+  assert.deepEqual(result.daily, []);
   assert.deepEqual(result.exercise_frequency, []);
 });

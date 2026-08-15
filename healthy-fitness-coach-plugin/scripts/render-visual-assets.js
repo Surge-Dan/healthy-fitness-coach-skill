@@ -2,9 +2,8 @@
 
 const { mkdir, readFile, writeFile } = require('node:fs/promises');
 const { join, resolve } = require('node:path');
-const skillReferences = '../skills/healthy-fitness-coach/references';
-const { buildVisualReportAssets } = require(`${skillReferences}/visual-report.js`);
-const { createStyleToken, getColorOptions, getDesignModeOptions, renderShareCardSvg } = require(`${skillReferences}/visuals.js`);
+const { buildVisualReportAssets } = require('../references/visual-report.js');
+const { createStyleToken, getColorOptions, getDesignModeOptions, renderShareCardSvg } = require('../references/visuals.js');
 
 function argument(name, fallback) {
   const index = process.argv.indexOf(name);
@@ -41,6 +40,9 @@ async function main() {
       styleToken: payload.share.styleToken || createStyleToken({ ...(payload.share.styleSignals || payload.styleSignals || {}), ...(palette ? { theme: palette } : {}) }),
       trendPoints: payload.share.trendPoints || (payload.trends?.weekly || []).map((item) => ({ label: item.week_start, value: item.training_days })),
       trainingDates: payload.trends?.training_dates || [],
+      dailyStats: payload.trends?.daily || [],
+      dateStart: payload.trends?.date_start,
+      dateEnd: payload.trends?.date_end,
       bodyDistribution: (payload.trends?.exercise_frequency || []).map((item) => ({ label: item.name, value: item.count }))
     });
     await writeFile(join(outputDir, `share-card-${ratio.replace(':', '-')}.svg`), svg, 'utf8');
