@@ -27,10 +27,11 @@ npm --prefix .\mcp\xunji ci --omit=dev --ignore-scripts
 ## 数据与隐私边界
 
 - 凭据和缓存仅保存在 `%LOCALAPPDATA%\HealthyFitnessCoach\`；缓存按日期存储。
-- MCP 提供按日/按范围读取、趋势分析、写回预览和显式确认写回；读取工具仍为**只读**，写回不是整天覆盖删除。
+- MCP 提供按日/按范围读取、趋势分析、训练DNA提取、写回预览和显式确认写回；读取与DNA提取工具仍为**只读**，写回不是整天覆盖删除。
 - 写回前先调用预览工具，确认所有记录属于同一天、最多 12 条且每条不超过 1500 字符；更新已有记录时保留 `id:`，有 `train_time:` 时原样带回。
 - 成功写回后，以训记返回的最新 `res` 作为最终结果并更新当天缓存。
 - 趋势工具返回本地自包含 HTML，可保存到工作区 `fitness-reports/`；不加载外部 CDN，也不上传用户数据。
+- `xunji_extract_training_dna`会分别分析阻力和有氧训练，返回八维DNA、数据质量、证据台账和版本变更；DNA版本保存在`%LOCALAPPDATA%\HealthyFitnessCoach\training-dna\`，按账号单向fingerprint隔离。
 - 标记为 Garmin 的记录会在面向模型的输出前被过滤；不会新增云数据库。
 - 插件不会随源码或 `dist` 打包 `node_modules`、凭据、缓存、个人报告或真实训练数据。
 

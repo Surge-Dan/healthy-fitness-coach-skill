@@ -100,7 +100,9 @@ Sohee Carpenter、Layne Norton、Alan Aragon、Danny Lennon/Sigma Nutrition。
 
 主要贡献：能量平衡、蛋白质、饮食依从性、补剂边界、研究质量和不确定性表达。优先建立可持续饮食和趋势反馈，不用极端断食、补剂堆叠或单一食物神话替代基本功。
 
-最终裁决顺序是：健康指南与安全边界 → 原始研究和系统综述 → 专业团队与研究转译 → 创作者执行经验。来源卡的完整记录见[`creator-cards.md`](healthy-fitness-coach/references/creator-cards.md)，有氧/阻力/功率/间歇/混合训练的编排规则见[`training-domains.md`](healthy-fitness-coach/references/training-domains.md)。
+最终裁决顺序是：健康指南与安全边界→原始研究和系统综述→专业团队与研究转译→创作者执行经验。来源卡的完整记录见[`creator-cards.md`](healthy-fitness-coach/references/creator-cards.md)，有氧/阻力/功率/间歇/混合训练的编排规则见[`training-domains.md`](healthy-fitness-coach/references/training-domains.md)。
+
+这里的四段是“证据裁决顺序”，不是四步就能完成的自动蒸馏流程。知识库维护会经过来源收集、原则提取、交叉验证与安全过滤、场景化应用和用户反馈复盘；创作者内容只作为执行体验和解释素材，不能越过指南、研究和安全边界。
 
 ## Skill如何工作
 
@@ -109,6 +111,8 @@ Sohee Carpenter、Layne Norton、Alan Aragon、Danny Lennon/Sigma Nutrition。
 3. **按领域加载知识**：根据任务读取对应的训练编排、动作、营养、恢复、证据和来源卡，而不是一次性套用整套课表。
 4. **输出可执行方案**：给出动作/方式、组次或时长、强度、休息、替代方案、最低有效版本和进阶条件。
 5. **用数据闭环调整**：结合训练记录、RPE/RIR、完成率、体重趋势、睡眠和不适反馈，每轮只调整少量变量。
+
+长期使用时，Skill还会把关键结论写入训练资产：档案负责“我是谁”，训练DNA负责“什么对我有效”，当前周期负责“现在怎么练”，决策日志负责“为什么这样改”。
 
 用户可以选择持续对话，也可以直接要求生成Markdown计划、周/月复盘、年度趋势报告或社交分享图。
 
@@ -133,6 +137,44 @@ Sohee Carpenter、Layne Norton、Alan Aragon、Danny Lennon/Sigma Nutrition。
 ### 📚训练知识库
 
 内置25个中外专业来源蒸馏卡，并按证据层级区分指南、研究转译、专业团队和执行体验。知识库同时覆盖有氧基础、阈值/节奏、高强度间歇、阻力/无氧、力量、肌肥大、功率、混合训练、恢复疼痛、女性运动生理和运动营养。来源卡只提炼可复用原则，不复制个人课表；与指南或用户反馈冲突时，以安全边界、适用条件和连续训练数据为准。
+
+### 🧬训练DNA与长期训练系统
+
+这是Healthy Fitness Coach区别于一次性问答的核心能力：它会把你的目标、约束、执行方式、阻力反应、有氧反应、恢复、依从性和风险边界沉淀成可持续更新的训练资产。每次复盘不是“重新生成一张课表”，而是基于已有记录解释本轮为什么调整、保留什么、下一周期验证什么。
+
+默认可以交付四份互相关联的文件：
+
+- `ATHLETE_PROFILE.md`：你的目标、经验、时间、器械、恢复和安全边界；
+- `TRAINING_DNA.md`：从真实记录中提炼的训练偏好、有效刺激、恢复模式和依从性规律；
+- `CURRENT_PROGRAM.md`：当前4～8周周期、动作选择、进阶规则和降级方案；
+- `DECISION_LOG.md`：每次调整的证据、假设、取舍和下一次验证条件。
+
+需要更完整的训练系统时，再按需生成动作库、训练流水账、证据台账、DNA变更日志和周复盘模板。连接训记后，Plugin可以调用`xunji_extract_training_dna`，在本机按账号指纹保存DNA版本和变更记录；没有连接器时，也可以使用手工日志完成同一套分析。所有结论都标注数据范围和事实/推断边界，不会把一次状态或缺失数据包装成“你的训练DNA”。你可以直接说：
+
+```text
+建立我的训练档案和训练DNA。
+根据过去8周记录更新训练DNA，并生成下一周期计划。
+分析我为什么平台了，保留有效部分，输出训练决策日志。
+```
+
+不连接训记时，也可以把标准化训练记录放进JSON，用独立脚本生成同一套DNA结果：
+
+```powershell
+node healthy-fitness-coach/scripts/extract-training-dna.js --input training-range.json --output TRAINING_DNA.json
+```
+
+### 训练DNA如何提取
+
+训练DNA不是根据一次对话或一张训练截图“猜出来”的标签，而是一个随数据更新的假设系统：
+
+1. **采集与标准化**：读取用户档案、训练日志、训记导出、RPE/RIR、睡眠、压力、体重和动作反馈，统一日期、动作、组次、负重、时长和训练部位。
+2. **建立基线**：先描述训练频率、训练量、动作表现、部位覆盖和完成率；没有数据的字段明确写“未知”。
+3. **提炼候选规律**：从多次记录中寻找稳定模式，例如某类训练量下恢复较好、某个动作在相近RPE下持续进步，或某种安排经常被跳过。
+4. **验证与更新**：把候选规律写入`TRAINING_DNA.md`和`DECISION_LOG.md`，标注证据范围、置信度和下一次验证条件；经过至少2～3个复盘窗口后，才提高规律的可信度。
+
+因此，当前版本已经完成了DNA的标准化、确定性指标计算、八维提取规则、证据边界、置信度、版本差异和本地持久化；它仍然不是一个独立的机器学习画像系统，也不会用黑箱模型替代训练证据。真正形成高质量个人DNA，通常需要连续4～8周的结构化训练数据；只有几次训练记录时，Skill会输出“初步假设”，不会伪装成确定结论。
+
+后续可继续增强的方向包括：自动识别动作别名、跨周期对比、训练量与表现的滞后关系、恢复风险评分、规律置信度曲线，以及基于决策日志的计划回溯。这样才能从“有模板的复盘”逐步升级为“有证据的个人教练系统”。
 
 ### 🎨报告图与分享图
 
@@ -186,7 +228,7 @@ Sohee Carpenter、Layne Norton、Alan Aragon、Danny Lennon/Sigma Nutrition。
 
 ### CodexPlugin高级模式
 
-如果希望长期在本机自动读取训记，可选安装[`healthy-fitness-coach-plugin/`](healthy-fitness-coach-plugin/)。插件提供本地训记MCP连接器、加密凭据存储、日期范围读取、趋势分析和确认后写回，普通用户不需要使用这条路径。
+如果希望长期在本机自动读取训记，可选安装[`healthy-fitness-coach-plugin/`](healthy-fitness-coach-plugin/)。插件提供本地训记MCP连接器、加密凭据存储、日期范围读取、趋势分析、训练DNA提取与版本保存，以及确认后写回，普通用户不需要使用这条路径。
 
 ## 数据与安全
 
@@ -201,7 +243,9 @@ Sohee Carpenter、Layne Norton、Alan Aragon、Danny Lennon/Sigma Nutrition。
 ```text
 healthy-fitness-coach/           # 独立Skill，入口为SKILL.md
 healthy-fitness-coach/references/ # 训练领域、来源卡、证据和输出规则
+healthy-fitness-coach/assets/     # 训练档案、训练DNA、周期与日志模板
 healthy-fitness-coach-plugin/    # 可选CodexPlugin与训记连接器
+healthy-fitness-coach-plugin/mcp/xunji/src/ # 训记解析、趋势、DNA提取与本地版本存储
 quality-tests/                   # Gherkin、变异、知识库和发布质量门禁
 dist/healthy-fitness-coach.skill # 可直接分发的Skill包
 LICENSE                          # MIT License

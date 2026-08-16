@@ -15,9 +15,30 @@ function sourceValue(text) {
 }
 
 function normalizeCompactDate(value) {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  if (/^\d{6}$/.test(value)) return `20${value.slice(0, 2)}-${value.slice(2, 4)}-${value.slice(4, 6)}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const parsed = new Date(`${value}T00:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value ? value : undefined;
+  }
+  if (/^\d{6}$/.test(value)) {
+    const expanded = `20${value.slice(0, 2)}-${value.slice(2, 4)}-${value.slice(4, 6)}`;
+    const parsed = new Date(`${expanded}T00:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === expanded ? expanded : undefined;
+  }
   return undefined;
+}
+
+function parseAerobicMetrics(tokens) {
+  const text = tokens.join(',');
+  const time = text.match(/(?:time|时长)\s*:\s*(\d+(?:\.\d+)?)\s*(s|秒|m|min|分钟)?/i) || text.match(/(\d+(?:\.\d+)?)\s*分钟/i);
+  const distance = text.match(/(\d+(?:\.\d+)?)\s*(km|公里|mile|英里)/i);
+  const avgHr = text.match(/(\d+(?:\.\d+)?)\s*(?:bpm|心率)/i);
+  if (!time && !distance && !avgHr) return {};
+  return {
+    kind: 'aerobic',
+    ...(time ? { duration_min: /s|秒/i.test(time[2] || '') ? Number(time[1]) / 60 : Number(time[1]) } : {}),
+    ...(distance ? { distance_km: /mile|英里/i.test(distance[2]) ? Number(distance[1]) * 1.60934 : Number(distance[1]) } : {}),
+    ...(avgHr ? { avg_hr: Number(avgHr[1]) } : {})
+  };
 }
 
 function parseOfficialXunjiRow(text) {
@@ -41,19 +62,26 @@ function parseOfficialXunjiRow(text) {
     index += 2;
   }
   const total_reps = groups.reduce((sum, group) => sum + group.sets * group.reps, 0);
-  const volume = groups.reduce((sum, group) => sum + group.sets * group.reps * group.weight, 0);
+  const units = new Set(groups.map((group) => group.unit.toLowerCase()));
+  const mixed_units = units.size > 1;
+  const volume = mixed_units ? undefined : groups.reduce((sum, group) => sum + group.sets * group.reps * group.weight, 0);
+  const aerobic = parseAerobicMetrics(tokens);
   return {
     record_date,
     ...(id ? { id } : {}),
     ...(title ? { title, name: title } : {}),
     ...(train_time ? { train_time } : {}),
+    ...(title && /^(休息日|rest(?: day)?|off)$/i.test(title) ? { kind: 'rest_day' } : {}),
     ...(groups.length ? {
       sets: groups.reduce((sum, group) => sum + group.sets, 0),
       reps: groups[0].reps,
       total_reps,
-      volume,
+      ...(volume !== undefined ? { volume } : {}),
+      volume_unit: groups[0].unit,
+      ...(mixed_units ? { mixed_units: true } : {}),
       weight: `${groups[0].weight}${groups[0].unit}`
-    } : {})
+    } : {}),
+    ...aerobic
   };
 }
 
@@ -84,10 +112,12 @@ function parseTrainingRecords(rawRecords) {
     const data_source = sourceValue(raw_text);
     const notes = extractNotes(raw_text);
     const warnings = [];
+    if (official.mixed_units) warnings.push('mixed_units');
     const known = /(?:id|train_time|name|date):/i.test(raw_text);
     const setRep = raw_text.match(/(\d+)\s*(?:sets?|组)\s*(?:x|×)\s*(\d+)\s*(?:reps?|次)/i) || raw_text.match(/(\d+)\s*[x×]\s*(\d+)/i);
     const weight = raw_text.match(/(?:@|重量[:：]?)\s*(\d+(?:\.\d+)?)\s*(kg|公斤|lb|lbs)/i);
     if (weight && Number(weight[1]) >= 500) warnings.push('extreme_weight');
+    if (/^\d{4}-\d{2}-\d{2}|^\d{6}/.test(raw_text) && !official.record_date) warnings.push('invalid_date');
     const parse_status = official.record_date
       ? (official.id && official.title ? 'complete' : 'partial')
       : (!known || (/train_time:/i.test(raw_text) && !train_time) ? 'raw_only' : (id && (train_time || name) ? 'complete' : 'partial'));
@@ -97,8 +127,12 @@ function parseTrainingRecords(rawRecords) {
       ...(official.id || id ? { id: official.id || id } : {}),
       ...(official.train_time || train_time ? { train_time: official.train_time || train_time } : {}),
       ...(official.title ? { title: official.title, name: official.name } : (name ? { name } : {})),
+      ...(official.kind ? { kind: official.kind } : {}),
       ...(data_source ? { data_source } : {}),
-      ...(official.sets ? { sets: official.sets, reps: official.reps, total_reps: official.total_reps, volume: official.volume, weight: official.weight } : (setRep ? { sets: Number(setRep[1]), reps: Number(setRep[2]) } : {})),
+      ...(official.duration_min !== undefined ? { duration_min: official.duration_min } : {}),
+      ...(official.distance_km !== undefined ? { distance_km: official.distance_km } : {}),
+      ...(official.avg_hr !== undefined ? { avg_hr: official.avg_hr } : {}),
+      ...(official.sets ? { sets: official.sets, reps: official.reps, total_reps: official.total_reps, ...(official.volume !== undefined ? { volume: official.volume } : {}), volume_unit: official.volume_unit, weight: official.weight } : (setRep ? { sets: Number(setRep[1]), reps: Number(setRep[2]) } : {})),
       ...(weight && !official.weight ? { weight: `${weight[1]}${weight[2]}` } : {}),
       parse_status,
       ...(notes.length ? { notes } : {}),

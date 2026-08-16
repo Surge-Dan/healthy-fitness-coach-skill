@@ -1,0 +1,1 @@
+{"generated_at":"YYYY-MM-DDTHH:mm:ssZ","dimension":"resistance_response","status":"observed|emerging|supported|validated|retired","confidence":"low|medium|high|none","date_range":{"start":"YYYY-MM-DD","end":"YYYY-MM-DD"},"source_record_ids":["id"],"metric":"metric_name","fact":"只写可追溯事实","inference":"可为空；必须标注为推断","next_validation":"下一次如何验证"}

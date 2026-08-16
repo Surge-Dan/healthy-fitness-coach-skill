@@ -294,6 +294,7 @@ function renderTrainingHeatmapSvg({ dates = [], startDate, endDate, title = '训
   const end = new Date(`${endValue}T00:00:00Z`);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return shell(`${textBlock({ text: '暂无有效日期', x: width / 2, y: height / 2 + 8, size: 18, fill: '#A9B0AA', anchor: 'middle' })}`, 'data-no-data="true"');
   const totalDays = Math.floor((end - start) / 86400000) + 1;
+  if (start.getUTCFullYear() !== end.getUTCFullYear()) return shell(`${textBlock({ text: '跨年范围请拆分为年度面板', x: width / 2, y: height / 2 + 8, size: 18, fill: '#A9B0AA', anchor: 'middle', limit: 24 })}`, 'data-no-data="true" data-cross-year="true"');
   if (totalDays > 90) return shell(yearHeatmapSvg({ trainingDates: [...active], dailyStats: arguments[0]?.dailyStats || [], startDate: startValue, x: 24, y: 54, width: width - 48, height: height - 70, accent: '#D7FF4B', text: '#F6F7F2' }), 'data-heatmap="year"');
   const day = (value) => value === 0 ? 6 : value - 1;
   const firstDay = day(start.getUTCDay());

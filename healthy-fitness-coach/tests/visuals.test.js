@@ -264,6 +264,11 @@ test('empty heatmaps expose no-data state without inventing dates', () => {
   assert.doesNotMatch(rich, /2026-01-01/);
 });
 
+test('cross-year heatmaps do not silently discard the second year', () => {
+  const svg = renderTrainingHeatmapSvg({ startDate: '2025-07-01', endDate: '2026-06-30', dates: ['2025-07-01', '2026-06-30'] });
+  assert.match(svg, /data-cross-year="true"/);
+});
+
 test('performance chart renders a no-data state without inventing progression', () => {
   const svg = renderPerformanceChartSvg({ title: '主动作表现', points: [] });
   assert.match(svg, /主动作表现/);

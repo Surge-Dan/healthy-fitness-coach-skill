@@ -38,6 +38,7 @@ description: 面向 18～55 岁、无重大疾病的健身新手与普通进阶�
 - 饮食、减脂、增肌或体重平台：读取 `references/nutrition.md`。
 - 睡眠、疲劳、疼痛或恢复：读取 `references/recovery-pain.md`。
 - 分析训练日志或调整下一周：读取 `references/review-adjustment.md`。
+- 建立训练档案、提炼训练DNA、管理4～8周周期、诊断平台期或记录计划调整：读取 `references/training-dna.md`。
 - 解释依据、处理专家观点冲突或更新知识：读取 `references/evidence-rules.md`。
 - 用户询问博主观点或需要追溯 25 个来源：读取 `references/creator-cards.md`；涉及有氧、无氧/阻力、功率、间歇或混合训练编排时，同时读取 `references/training-domains.md`。
 
@@ -85,6 +86,7 @@ description: 面向 18～55 岁、无重大疾病的健身新手与普通进阶�
 - `assets/user-profile-template.md`
 - `assets/workout-log-template.md`
 - `assets/weekly-review-template.md`
+- 需要长期训练资产时，按 `references/training-dna.md` 选择 `athlete-profile-template.md`、`training-dna-template.md`、`current-program-template.md`、`decision-log-template.md`、`exercise-playbook-template.md`、`progress-ledger-template.csv`、`dna-evidence-template.jsonl` 和 `dna-changelog-template.md`。
 
 ## 证据表达
 
@@ -96,9 +98,13 @@ description: 面向 18～55 岁、无重大疾病的健身新手与普通进阶�
 
 Markdown 模式且具备写入工具时，默认在当前工作区的 `fitness-reports/` 创建完整 `.md` 文件；使用简短、非 PII 的文件名并在冲突时追加数字后缀，绝不覆盖无关已有文件。用户明确给出安全目标位置时才覆盖默认目录。文件名决策可使用 `references/report-artifact.js`；无写入工具时，直接返回完整 Markdown，并说明未创建文件。训练记录分析、结构化报告或需保留结论时，读取 `assets/fitness-analysis-report-template.md`。
 
-用户首次提到训记时，先询问是否确认连接训记。若用户不连接，直接要求其粘贴训记导出文本或手工日志；若用户确认连接并提供官方导入/导出说明、截图或接口文档，以及 API Key，则优先使用当前运行环境可用的 HTTPS/shell 工具按说明临时调用训记接口，不要求普通用户安装 Node、运行命令或添加 Plugin。解析截图或文本时只提取接口规则，不在回复、日志、Markdown、报告或仓库中回显或保存 Key。先读 `references/xunji-integration.md`：按任务选择读取、趋势、写回预览和写回工具，最小日期范围且缓存优先；缺少网络工具、接口规则或有效凭据时，降级为粘贴导出/手工日志并清楚标记证据边界。写回必须先预览，确认 `res` 同一天、最多 12 条且每条不超过 1500 字符，更新已有训练时保留 `id:` 和 `train_time:`，再以 `confirm: true` 调用写回工具；成功后以服务端返回的 `res` 作为最终缓存。不得整天覆盖删除，不得把 Garmin 来源记录送入模型分析。长期本地自动同步才推荐使用可选的 Codex Plugin。
+用户首次提到训记时，先询问是否确认连接训记。若用户不连接，直接要求其粘贴训记导出文本或手工日志；若用户确认连接并提供官方导入/导出说明、截图或接口文档，以及 API Key，则优先使用当前运行环境可用的 HTTPS/shell 工具按说明临时调用训记接口，不要求普通用户安装 Node、运行命令或添加 Plugin。解析截图或文本时只提取接口规则，不在回复、日志、Markdown、报告或仓库中回显或保存 Key。先读 `references/xunji-integration.md`：按任务选择读取、趋势、训练DNA提取、写回预览和写回工具，最小日期范围且缓存优先；缺少网络工具、接口规则或有效凭据时，降级为粘贴导出/手工日志并清楚标记证据边界。写回必须先预览，确认 `res` 同一天、最多 12 条且每条不超过 1500 字符，更新已有训练时保留 `id:` 和 `train_time:`，再以 `confirm: true` 调用写回工具；成功后以服务端返回的 `res` 作为最终缓存。不得整天覆盖删除，不得把 Garmin 来源记录送入模型分析。长期本地自动同步才推荐使用可选的 Codex Plugin。
 
 训练数据复盘前读 `references/multidimensional-analysis.md`，逐项运行八维矩阵，分开写事实、推断、不确定性和下一步验证指标。安全筛查优先；只比较同动作和相近条件；单次不判定平台；2～3 周只给初步趋势，比较训练量/频率至少 4 周，长期平台/周期主张至少 8 周；保留有效部分，每轮最多调整 1～2 个变量。
+
+用户说“建立我的训练系统”“提炼我的训练DNA”“记住我的训练习惯”或要求长期多文件交付时，读取 `references/training-dna.md`。默认生成或更新 `ATHLETE_PROFILE.md`、`TRAINING_DNA.md`、`CURRENT_PROGRAM.md`、`DECISION_LOG.md`；只有用户需要动作库、训练流水账或完整周期包时，才额外生成 `EXERCISE_PLAYBOOK.md`、`PROGRESS_LEDGER.csv` 和 `WEEKLY_REVIEW.md`。每个文件注明生成日期、数据范围、未知项和下一次更新条件；不得把推断写成事实，也不得因为缺少数据制造进步、热力或偏好。
+
+没有训记Plugin时，可以使用 `scripts/extract-training-dna.js` 读取用户提供的JSON训练记录；它只做确定性标准化、指标计算和证据结构化，不替代模型对用户目标、偏好和安全边界的判断。
 
 只有用户要求当前研究、创作者/产品/API 更新、给出网页，或当前事实会改变结论时，才读 `references/web-research.md` 并按可用能力联网。优先公开已知页面与一手/官方来源；不可访问或登录受限时说明未验证部分、接受用户授权浏览器/截图/粘贴文本，绝不绕过登录、验证码、robots 或反爬限制。
 

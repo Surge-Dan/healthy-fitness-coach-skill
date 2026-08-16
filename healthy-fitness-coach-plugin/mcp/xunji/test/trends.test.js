@@ -61,3 +61,22 @@ test('trend analysis reports an empty range without inventing metrics', () => {
   assert.deepEqual(result.daily, []);
   assert.deepEqual(result.exercise_frequency, []);
 });
+
+test('trend analysis exposes conservative training DNA with separate aerobic and resistance evidence', () => {
+  const result = analyzeTrainingRange({
+    dates: ['2026-01-05', '2026-01-07', '2026-01-12', '2026-01-14'],
+    records: [
+      { record_date: '2026-01-05', title: '卧推', sets: 3, reps: 8, weight: '60kg', volume: 1440 },
+      { record_date: '2026-01-07', title: '跑步', raw_text: '2026-01-07,跑步,time:1800s,4.5km,140bpm' },
+      { record_date: '2026-01-12', title: '卧推', sets: 3, reps: 8, weight: '62.5kg', volume: 1500 },
+      { record_date: '2026-01-14', title: '跑步', raw_text: '2026-01-14,跑步,time:1920s,4.9km,141bpm' }
+    ]
+  });
+
+  assert.equal(result.training_dna.schema_version, '1.0');
+  assert.equal(result.training_dna.metrics.resistance.sessions, 2);
+  assert.equal(result.training_dna.metrics.aerobic.sessions, 2);
+  assert.equal(result.training_dna.dimensions.resistance_response.status, 'emerging');
+  assert.equal(result.training_dna.dimensions.aerobic_response.status, 'emerging');
+  assert.ok(result.training_dna.evidence_ledger.length >= 4);
+});

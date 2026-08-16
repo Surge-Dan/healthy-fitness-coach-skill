@@ -128,10 +128,14 @@ test('range results keep successful days grouped and return a partial result aft
   assert.ok(result.warnings.some((warning) => warning.includes('2026-08-02')));
 });
 
-test('service returns stable invalid-date and oversized-range errors', async () => {
-  const service = createTrainingService({ cache: memoryCache(), client: {}, credentialProvider: async () => 'FAKE_TEST_CREDENTIAL' });
+test('service rejects invalid dates and chunks annual ranges into safe requests', async () => {
+  let calls = 0;
+  const service = createTrainingService({ cache: memoryCache(), client: { async fetchDay() { calls += 1; return { records: [] }; } }, credentialProvider: async () => 'FAKE_TEST_CREDENTIAL' });
   assert.equal((await service.getTrainingDay({ date: '2026-02-30' })).error.code, 'invalid_date');
-  assert.equal((await service.getTrainingRange({ start_date: '2026-01-01', end_date: '2026-05-01' })).error.code, 'range_too_large');
+  const result = await service.getTrainingRange({ start_date: '2026-01-01', end_date: '2026-05-01' });
+  assert.equal(result.error, undefined);
+  assert.equal(result.dates.length, 121);
+  assert.equal(calls, 121);
 });
 
 test('failed refresh preserves and returns the existing valid cache entry', async () => {
@@ -147,17 +151,18 @@ test('failed refresh preserves and returns the existing valid cache entry', asyn
   assert.ok(result.warnings.includes('refresh_failed_using_cache'));
 });
 
-test('MCP server registers read, preview, write, and trend training tools', () => {
+test('MCP server registers read, preview, write, trend, and training DNA tools', () => {
   const { createMcpServer } = require('../src/server.js');
   const { server } = createMcpServer({ service: {
     getTrainingDay: async () => ({}),
     getTrainingRange: async () => ({}),
     getTrainingTrends: async () => ({}),
+    getTrainingDNA: async () => ({}),
     previewTrainingUpsert: async () => ({}),
     upsertTrainingRecords: async () => ({})
   } });
   assert.deepEqual(Object.keys(server._registeredTools).sort(), [
-    'xunji_get_training_day', 'xunji_get_training_range', 'xunji_get_training_trends',
+    'xunji_extract_training_dna', 'xunji_get_training_day', 'xunji_get_training_range', 'xunji_get_training_trends',
     'xunji_preview_training_upsert', 'xunji_upsert_training_records'
   ]);
 });
@@ -302,6 +307,18 @@ test('service caches the server-normalized upsert response as the final result',
   assert.equal(cached.entry.records[0].raw_text, '2026-08-01,id:1,胸部训练,标准化');
 });
 
+test('service rejects a cross-date write-back response before caching it', async () => {
+  let writes = 0;
+  const service = createTrainingService({
+    cache: { async get() { return null; }, async set() { writes += 1; } },
+    credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
+    client: { async upsertRecords() { return { records: ['2026-08-02,id:wrong,title'] }; } }
+  });
+  const result = await service.upsertTrainingRecords({ records: ['2026-08-01,id:1,title'], confirm: true });
+  assert.equal(result.error.code, 'invalid_upsert');
+  assert.equal(writes, 0);
+});
+
 test('service returns trend metrics alongside the cached training range', async () => {
   const service = createTrainingService({
     cache: memoryCache(),
@@ -316,4 +333,24 @@ test('service returns trend metrics alongside the cached training range', async 
   assert.match(result.dashboard_html, /<!doctype html>/i);
   assert.ok(Array.isArray(result.visual_assets));
   assert.ok(result.visual_assets.some((asset) => asset.name === 'training-heatmap.svg'));
+});
+
+test('service persists versioned training DNA and returns an auditable diff', async () => {
+  let artifact = null;
+  const service = createTrainingService({
+    cache: memoryCache(),
+    dnaStore: { async get() { return artifact; }, async set(value) { artifact = value; } },
+    credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
+    client: { async fetchDay(date) { return { records: [`${date},id:${date},卧推,1组,60kg,8次`] }; } },
+    now: () => 123456
+  });
+  const first = await service.getTrainingDNA({ start_date: '2026-08-01', end_date: '2026-08-02' });
+  assert.equal(first.training_dna.version, 1);
+  assert.equal(first.training_dna.persisted, true);
+  assert.equal(artifact.version, 1);
+  const second = await service.getTrainingDNA({ start_date: '2026-08-01', end_date: '2026-08-02' });
+  assert.equal(second.training_dna.version, 1);
+  assert.equal(second.training_dna.previous_version, undefined);
+  assert.deepEqual(second.training_dna.changes.changed_dimensions, []);
+  assert.ok(Array.isArray(second.training_dna.changes.changed_dimensions));
 });

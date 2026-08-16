@@ -1,7 +1,11 @@
 'use strict';
 
+const { extractTrainingDNA, validDate } = require('./training-dna.js');
+
 function parseDate(value) {
-  const date = new Date(`${value}T00:00:00Z`);
+  const normalized = validDate(value);
+  if (!normalized) return null;
+  const date = new Date(`${normalized}T00:00:00Z`);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -22,9 +26,18 @@ function numericWeight(value) {
   return match ? Number(match[0]) : 0;
 }
 
+function isRestDay(record) {
+  return record?.kind === 'rest_day' || /^(休息日|rest(?: day)?|off)$/i.test(String(record?.title || record?.name || '').trim());
+}
+
+function numericVolume(record) {
+  const value = numeric(record?.volume);
+  return /lb|磅/i.test(String(record?.volume_unit || '')) ? value * 0.45359237 : value;
+}
+
 function analyzeTrainingRange(input = {}) {
-  const records = Array.isArray(input.records) ? input.records : [];
-  const dates = Array.isArray(input.dates) ? input.dates : [];
+  const records = (Array.isArray(input.records) ? input.records : []).filter((record) => !isRestDay(record) && validDate(record.record_date));
+  const dates = (Array.isArray(input.dates) ? input.dates : []).filter((value) => validDate(value));
   const trainingDates = new Set(records.map((record) => record.record_date).filter(Boolean));
   const weeklyMap = new Map();
   const dailyMap = new Map();
@@ -43,18 +56,18 @@ function analyzeTrainingRange(input = {}) {
       const bucket = weeklyMap.get(week);
       bucket.dates.add(recordDate);
       bucket.record_count += 1;
-      bucket.volume += numeric(record.volume);
+      bucket.volume += numericVolume(record);
     }
     if (recordDate) {
       if (!dailyMap.has(recordDate)) dailyMap.set(recordDate, { date: recordDate, volume: 0, sets: 0, record_count: 0 });
       const day = dailyMap.get(recordDate);
-      day.volume += numeric(record.volume);
+      day.volume += numericVolume(record);
       day.sets += numeric(record.sets);
       day.record_count += 1;
     }
     totalSets += numeric(record.sets);
     totalReps += numeric(record.total_reps || (record.sets && record.reps ? record.sets * record.reps : 0));
-    estimatedVolume += numeric(record.volume);
+    estimatedVolume += numericVolume(record);
     if (record.parse_status && record.parse_status !== 'complete') parseWarnings += 1;
     if (Array.isArray(record.warnings) && record.warnings.length) parseWarnings += 1;
     const name = record.title || record.name;
@@ -64,7 +77,7 @@ function analyzeTrainingRange(input = {}) {
       if (recordDate && recordDate > current.last_date) current.last_date = recordDate;
       exercises.set(name, current);
       const weight = numericWeight(record.weight);
-      const volume = numeric(record.volume);
+      const volume = numericVolume(record);
       const value = weight > 0 ? weight : volume > 0 ? volume : 0;
       if (recordDate && value > 0) {
         const series = performance.get(name) || { name, values: [] };
@@ -106,7 +119,15 @@ function analyzeTrainingRange(input = {}) {
     exercise_performance,
     missing_dates: Array.isArray(input.missing_dates) ? input.missing_dates.slice() : [],
     parse_warnings: parseWarnings,
-    data_freshness: input.data_freshness || 'unknown'
+    data_freshness: input.data_freshness || 'unknown',
+    training_dna: extractTrainingDNA({
+      records,
+      dateStart: dates[0],
+      dateEnd: dates[dates.length - 1],
+      plannedSessionsPerWeek: input.planned_sessions_per_week,
+      profile: input.profile,
+      missingDates: Array.isArray(input.missing_dates) ? input.missing_dates : []
+    })
   };
 }
 

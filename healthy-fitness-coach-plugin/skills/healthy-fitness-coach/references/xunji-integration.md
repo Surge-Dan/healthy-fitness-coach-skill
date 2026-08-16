@@ -17,6 +17,7 @@ Key 只存在于当前调用过程或受运行环境保护的凭据存储中，�
 - `xunji_get_training_day`：读取一个日期，优先使用本地缓存。
 - `xunji_get_training_range`：读取最小必要日期范围，返回成功日期、缺失日期、缓存/网络来源和原始记录 ID。
 - `xunji_get_training_trends`：读取范围并返回结构化趋势与本地自包含 HTML 面板内容。
+- `xunji_extract_training_dna`：读取缓存训练范围，分别分析阻力与有氧反应，生成带证据范围和置信度的训练DNA，并在本机按账号指纹保存版本与变更记录。
 - `xunji_preview_training_upsert`：只校验和展示写回预览，不联网、不修改记录。
 - `xunji_upsert_training_records`：仅在用户明确确认后调用，按训练 ID upsert。
 
@@ -37,6 +38,12 @@ Key 只存在于当前调用过程或受运行环境保护的凭据存储中，�
 - 缺失日期、解析警告和无法结构化的原文数量。
 
 HTML 不得加载外部 CDN，不得上传用户数据。文件名冲突时使用 `references/report-artifact.js` 追加后缀，不覆盖既有文件。
+
+## 训练DNA模式
+
+用户要求“提炼训练DNA”“建立训练系统”或“更新下一周期”时调用 `xunji_extract_training_dna`。它先复用训练日缓存，再执行确定性标准化和指标计算，最后返回八类DNA维度、事实/推断边界、未知项、证据台账和版本变更。首次样本只标记为观察中；连续2～3个复盘窗口且条件可比时，才允许提升置信度。
+
+DNA版本只保存在本机`HealthyFitnessCoach/training-dna/`，文件名使用账号单向fingerprint，不保存API Key或原始凭据。读取失败时可以继续返回当前分析，但必须标记未持久化；不得为了生成完整DNA而填补缺失训练数据。
 
 ## 写回规则
 

@@ -30,7 +30,7 @@ test('stdio initializes and lists all Xunji tools without invoking a tool', asyn
         }
         if (message.id === 2) {
           assert.deepEqual(message.result.tools.map((tool) => tool.name).sort(), [
-            'xunji_get_training_day', 'xunji_get_training_range', 'xunji_get_training_trends',
+            'xunji_extract_training_dna', 'xunji_get_training_day', 'xunji_get_training_range', 'xunji_get_training_trends',
             'xunji_preview_training_upsert', 'xunji_upsert_training_records'
           ]);
           listed = true;

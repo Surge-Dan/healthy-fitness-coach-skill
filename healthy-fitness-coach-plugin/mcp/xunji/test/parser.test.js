@@ -74,3 +74,28 @@ test('parser understands official Xunji dated training rows and preserves write-
   assert.equal(record.volume, 1560);
   assert.equal(record.parse_status, 'complete');
 });
+
+test('parser extracts official aerobic metrics without treating them as resistance sets', () => {
+  const [record] = parseTrainingRecords([
+    '2026-08-02,id:987,有氧,2.跑步,5km,300kcal,time:1800s,140bpm'
+  ]);
+
+  assert.equal(record.record_date, '2026-08-02');
+  assert.equal(record.title, '有氧');
+  assert.equal(record.duration_min, 30);
+  assert.equal(record.distance_km, 5);
+  assert.equal(record.avg_hr, 140);
+  assert.equal(record.kind, 'aerobic');
+  assert.equal(record.sets, undefined);
+});
+
+test('parser recognizes official rest days, invalid calendar dates, minutes, and weight units', () => {
+  const [rest] = parseTrainingRecords(['2026-08-03,id:rest,休息日']);
+  assert.equal(rest.kind, 'rest_day');
+  const [bad] = parseTrainingRecords(['2026-02-30,id:bad,press,1组,100lb,5次']);
+  assert.ok(bad.warnings.includes('invalid_date'));
+  const [run] = parseTrainingRecords(['2026-08-04,id:run,有氧,跑步,30分钟']);
+  assert.equal(run.duration_min, 30);
+  const [lift] = parseTrainingRecords(['2026-08-05,id:lb,press,1组,100lb,5次']);
+  assert.equal(lift.volume_unit, 'lb');
+});
