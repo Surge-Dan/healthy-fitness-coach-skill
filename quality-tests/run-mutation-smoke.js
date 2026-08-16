@@ -19,6 +19,18 @@ const mutants = [
     source: join(__dirname, '..', 'healthy-fitness-coach-plugin', 'mcp', 'xunji', 'src', 'trends.js'),
     mutation: (source) => source.replace("const value = weight > 0 ? weight : volume > 0 ? volume : 0;", 'const value = 0;'),
     probe: (path) => `const { analyzeTrainingRange } = require(${JSON.stringify(path)}); const result = analyzeTrainingRange({ dates: ['2026-08-01'], records: [{ record_date: '2026-08-01', title: '卧推', weight: '60kg', volume: 1000 }] }); if (!result.exercise_performance.length) process.exit(1);`
+  },
+  {
+    name: 'visual input multi-photo routing',
+    source: join(__dirname, '..', 'healthy-fitness-coach', 'references', 'visual-dna.js'),
+    mutation: (source) => source.replace('if (photoCount > 1)', 'if (photoCount > 99)'),
+    probe: (path) => `const { routeVisualInput } = require(${JSON.stringify(path)}); if (routeVisualInput({ photos: ['a','b'] }).kind !== 'multi-photo') process.exit(1);`
+  },
+  {
+    name: 'derived prompt forbids generated numbers',
+    source: join(__dirname, '..', 'healthy-fitness-coach', 'references', 'visual-prompt-compiler.js'),
+    mutation: (source) => source.replace('No text. No letters. No numbers.', 'No text. No letters.'),
+    probe: (path) => `const { compileDerivedLayerPrompt } = require(${JSON.stringify(path)}); if (!compileDerivedLayerPrompt({}).prompt.includes('No numbers.')) process.exit(1);`
   }
 ];
 

@@ -56,3 +56,24 @@ test('render-share-card keeps rich empty reports valid and accepts UTF-8 BOM inp
   assert.deepEqual([...readFileSync(output).slice(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
   rmSync(root, { recursive: true, force: true });
 });
+
+test('visual composition renderer creates distinct photo art and data-art PNG outputs', () => {
+  const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-compiled-png-'));
+  const firstPhoto = join(root, 'one.ppm');
+  const secondPhoto = join(root, 'two.ppm');
+  const photoInput = join(root, 'photo.json');
+  const dataInput = join(root, 'data.json');
+  const photoOutput = join(root, 'storyboard.png');
+  const dataOutput = join(root, 'rings.png');
+  writeFileSync(firstPhoto, 'P3\n2 2\n255\n255 90 70  255 90 70\n20 30 40  20 30 40\n');
+  writeFileSync(secondPhoto, 'P3\n2 2\n255\n60 220 190  60 220 190\n240 230 210  240 230 210\n');
+  writeFileSync(photoInput, JSON.stringify({ recipe: 'multi-photo-storyboard', title: '训练分镜', photos: [firstPhoto, secondPhoto] }));
+  writeFileSync(dataInput, JSON.stringify({ recipe: 'training-rings', title: '训练年轮', trends: { weekly: [{ training_days: 2, estimated_volume: 1200 }, { training_days: 4, estimated_volume: 2400 }] } }));
+  const photoResult = spawnSync('python', ['scripts/render-visual-composition.py', '--input', photoInput, '--output', photoOutput, '--ratio', '3:4'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
+  const dataResult = spawnSync('python', ['scripts/render-visual-composition.py', '--input', dataInput, '--output', dataOutput, '--ratio', '3:4'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
+  assert.equal(photoResult.status, 0, photoResult.stderr);
+  assert.equal(dataResult.status, 0, dataResult.stderr);
+  assert.deepEqual([...readFileSync(photoOutput).slice(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.notDeepEqual(readFileSync(photoOutput), readFileSync(dataOutput));
+  rmSync(root, { recursive: true, force: true });
+});

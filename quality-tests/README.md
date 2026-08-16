@@ -21,6 +21,8 @@ node quality-tests\run-gherkin.js
 node quality-tests\run-mutation-smoke.js
 node quality-tests\run-knowledge-base.js
 node quality-tests\run-training-system.js
+node quality-tests\run-visual-system.js
+node quality-tests\run-visual-png-smoke.js
 
 # Skill格式与Python语法
 $env:PYTHONUTF8='1'
@@ -31,10 +33,11 @@ python -m py_compile healthy-fitness-coach\scripts\*.py healthy-fitness-coach-pl
 ## 质量指标
 
 - 单元/集成测试：必须全部通过，禁止跳过和未决状态
-- Gherkin：3个关键业务场景全部通过（缓存幂等、年度热力图边界、写回同日校验）
+- Gherkin：6个关键业务场景全部通过（缓存幂等、年度热力图边界、写回同日校验、视觉配方差异、派生层真实性、多图保留）
 - 变异测试：关键阈值和主动作聚合变异必须被测试杀死，目标100%
 - 知识库完整性：来源卡编号连续且训练领域矩阵覆盖有氧、阻力/无氧、功率、间歇与混合训练
 - 长期训练系统：训练DNA参考、四份默认资产和三份按需模板必须存在，入口路由与事实/推断边界必须可审计
+- 视觉编译器：11个配方×3个比例的SVG全部可渲染，11个配方的PNG逐一冒烟，推荐的3个配方构图语法不同，Plugin与独立Skill副本一致
 - 覆盖率：使用Node内置V8覆盖率；当前门禁记录行、分支、函数覆盖率
 - 视觉QA：1:1、9:16、3:4均生成SVG/PNG；像素尺寸、SVG视窗边界、热力图对齐和空数据降级均校验
 - 安全检查：源码与Git跟踪文件不得出现真实API-Key、Bearer凭据、个人训练缓存或导出报告

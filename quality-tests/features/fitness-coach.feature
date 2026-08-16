@@ -15,3 +15,18 @@ Feature: Healthy Fitness Coach quality gates
     Given write-back rows from two different dates
     When the write-back payload is validated
     Then validation fails before any network call
+
+  Scenario: A single photo receives three structurally different recipes
+    Given one local fitness photo with observed visual facts
+    When the visual brief is compiled
+    Then three recommendations use three different composition grammars
+
+  Scenario: A derived art layer cannot invent training facts
+    Given a traceable fitness motif from the source photo
+    When the image-model prompt is compiled
+    Then text numbers logos and invented achievements are forbidden
+
+  Scenario: Multiple photos remain present in the training storyboard
+    Given three local fitness photos
+    When a multi-photo storyboard is rendered
+    Then all three originals are present in separate narrative panels

@@ -100,7 +100,7 @@ Sohee Carpenter、Layne Norton、Alan Aragon、Danny Lennon/Sigma Nutrition。
 
 主要贡献：能量平衡、蛋白质、饮食依从性、补剂边界、研究质量和不确定性表达。优先建立可持续饮食和趋势反馈，不用极端断食、补剂堆叠或单一食物神话替代基本功。
 
-最终裁决顺序是：健康指南与安全边界→原始研究和系统综述→专业团队与研究转译→创作者执行经验。来源卡的完整记录见[`creator-cards.md`](healthy-fitness-coach/references/creator-cards.md)，有氧/阻力/功率/间歇/混合训练的编排规则见[`training-domains.md`](healthy-fitness-coach/references/training-domains.md)。
+最终裁决顺序是：健康指南与安全边界→原始研究和系统综述→专业团队与研究转译→创作者执行经验。来源卡的完整记录见[`creator-cards.md`](healthy-fitness-coach/references/creator-cards.md)，研究访问状态和证据边界见[`research-ledger.md`](healthy-fitness-coach/references/research-ledger.md)，有氧/阻力/功率/间歇/混合训练的编排规则见[`training-domains.md`](healthy-fitness-coach/references/training-domains.md)。
 
 这里的四段是“证据裁决顺序”，不是四步就能完成的自动蒸馏流程。知识库维护会经过来源收集、原则提取、交叉验证与安全过滤、场景化应用和用户反馈复盘；创作者内容只作为执行体验和解释素材，不能越过指南、研究和安全边界。
 
@@ -176,7 +176,13 @@ node healthy-fitness-coach/scripts/extract-training-dna.js --input training-rang
 
 ### 🎨报告图与分享图
 
-支持1:1、9:16和3:4三种输出比例，报告图可选择完全不同的视觉布局：
+支持1:1、9:16和3:4三种输出比例。视觉系统不是给照片套壳，而是把输入编译成可追溯的设计：
+
+```text
+照片/训记数据→Visual DNA2.0→健身视觉母题→3个设计配方→派生艺术层→本地精确合成→质量门禁
+```
+
+报告图可选择完全不同的视觉布局：
 
 | 布局 | 设计语言 | 适合场景 |
 | --- | --- | --- |
@@ -190,11 +196,20 @@ node healthy-fitness-coach/scripts/extract-training-dna.js --input training-rang
 用极简分享图布局、钴蓝珊瑚配色，生成最近30天的9:16训练战绩卡。
 ```
 
-用户上传照片时，Skill会先提取色彩、明暗、纹理、构图、边缘节奏和留白，再提供三种照片优先模式：
+用户上传照片时，Skill会先在本地提取尺寸、比例、分区色板、明暗、纹理、边缘节奏、视觉重心和安全文字区，再结合照片中已观察到的器械、镜面、环形灯和动作关系，提供3个结构不同的设计配方：
 
-- **抽象拼贴档案**：提炼照片中的色块、裁切和几何关系，生成具有个人视觉DNA的拼贴图。
-- **训练战报杂志**：保留照片叙事感，加入训练数据、标题和编辑部式标注。
-- **材质化数据海报**：提炼照片纹理与色彩，将训练数据融入材质、肌理和非对称版式。
+- **原图×运动速写**：原图与手绘派生层并置，既保留本人，也形成二次创作。
+- **训练漫画分镜**：用一个主画面、局部裁切和运动轨迹重组训练瞬间。
+- **双色训练小志**：使用网点、套色偏移和纸张肌理形成独立小志。
+- **健身符号实验室**：把照片中的器械和空间形态转译成可追溯的视觉符号。
+- **极简身体轨迹**：高留白、全幅照片和单一运动路径。
+- **多图训练故事板**：按动作或时间组织2～6张照片，适合训练日记和阶段记录。
+
+图像模型只负责不含文字和数字的手绘、卡通、纹理或抽象“派生艺术层”；原图、中文标题和真实训练数据由本地合成器精确排版，避免人物和数字被模型改坏。
+
+视觉研究方法和事实层/派生层边界见[`visual-reference-ledger.md`](healthy-fitness-coach/references/visual-reference-ledger.md)。
+
+没有照片时，除信息丰富的训练数据图谱外，还可以生成训练年轮、肌群星座、力量地形和动作指纹。不同配方使用不同构图骨架和图形语法，不只是换配色。
 
 ## 训记数据闭环
 
@@ -242,6 +257,7 @@ node healthy-fitness-coach/scripts/extract-training-dna.js --input training-rang
 healthy-fitness-coach/           # 独立Skill，入口为SKILL.md
 healthy-fitness-coach/references/ # 训练领域、来源卡、证据和输出规则
 healthy-fitness-coach/assets/     # 训练档案、训练DNA、周期与日志模板
+healthy-fitness-coach/scripts/    # Visual DNA、设计编译、SVG/PNG和训练DNA工具
 healthy-fitness-coach-plugin/    # 可选CodexPlugin与训记连接器
 healthy-fitness-coach-plugin/mcp/xunji/src/ # 训记解析、趋势、DNA提取与本地版本存储
 quality-tests/                   # Gherkin、变异、知识库和发布质量门禁
@@ -259,6 +275,12 @@ node --test tests
 
 cd ..\healthy-fitness-coach-plugin\mcp\xunji
 node --test test
+
+cd ..\..\..
+node quality-tests\run-gherkin.js
+node quality-tests\run-mutation-smoke.js
+node quality-tests\run-visual-system.js
+node quality-tests\run-visual-png-smoke.js
 ```
 
 重新打包独立Skill：
@@ -269,7 +291,7 @@ python -m scripts.package_skill `
   C:\path\to\dist
 ```
 
-需要PNG分享图时使用`render-share-card.py`，依赖Pillow；SVG渲染器无需将个人数据写入仓库。
+照片创作先使用`extract-style.py`和`compile-visual-brief.js`，最终PNG使用`render-visual-composition.py`；旧版报告卡仍可使用`render-share-card.py`。Python图像渲染依赖Pillow，所有个人图片和Manifest都应保存在`fitness-reports/`等本地输出目录，不要提交仓库。
 
 ## 贡献与反馈
 

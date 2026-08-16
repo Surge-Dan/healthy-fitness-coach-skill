@@ -1,38 +1,76 @@
-# 分享图参考
+# 分享图与视觉编译器
 
-分享图是社交媒体可读的叙事卡，不是把报告整页截图。每张图只突出一个主结论，配合最多3～5个指标。支持 `1:1`、`9:16`、`3:4`，默认不替用户生成未指定的额外比例。
+分享图不是报告截图，也不是“照片外框+指标卡”。先按输入路由，再把照片事实或训练数据编译成有来源的视觉母题。支持`1:1`、`3:4`、`9:16`，只生成用户指定或当前场景需要的比例。
 
-SVG适合Markdown/HTML和二次编辑；需要可直接发布的PNG时使用：
+## 输入路由
+
+- 单张照片：默认推荐3个结构不同的配方，优先原图×派生艺术层的双联、分镜或小志。
+- 多张照片：优先训练故事板、漫画分镜或不规则拼贴；每张原图都要保留且可辨认。
+- 照片+训练数据：照片负责叙事，数字和图表由本地渲染器负责。
+- 无照片：输出数据图谱、训练年轮、肌群星座、力量地形或动作指纹。
+
+用户点名风格时直接执行；用户只说“做一张分享图”时使用`references/visual-dna.js`推荐3个配方并解释差异。用户说“直接生成”时自动采用排名第一的配方。
+
+## 照片配方
+
+| ID | 中文名 | 构图语法 | 适用输入 |
+| --- | --- | --- | --- |
+| `sketch-diptych` | 原图×运动速写 | 左右或上下双联，原图与手绘派生层并置 | 单图、照片+数据 |
+| `motion-comic` | 训练漫画分镜 | 1个主画面+2个局部画面+运动轨迹 | 单图/多图 |
+| `risograph-zine` | 双色训练小志 | 网点、双色套印偏移、纸张质感 | 单图/多图 |
+| `symbol-lab` | 健身符号实验室 | 原图与可追溯器械符号并置 | 单图、照片+数据 |
+| `minimal-trajectory` | 极简身体轨迹 | 全幅原图、高留白、单一运动路径 | 单图 |
+| `multi-photo-storyboard` | 多图训练故事板 | 按动作或时间组织2～6张照片 | 多图 |
+
+图像模型只生成手绘、卡通、纹理、剪影碎片、速度线或抽象符号等“派生艺术层”；不生成中文、数字、图表、Logo或训练成绩。原图由本地合成器作为独立图层保留，失败时用本地线稿和几何母题回退。
+
+## 无照片配方
+
+- `data-atlas`：信息丰富图谱，强调趋势、全年热力、部位分布和主动作表现。
+- `training-rings`：把周频率、训练量和连续性编码成同心年轮。
+- `muscle-constellation`：把训练部位和容量编码成节点网络。
+- `strength-terrain`：把周/月训练量编码成等高线和力量地形。
+- `action-fingerprint`：把动作分布和节奏编码成个人指纹。
+
+无照片的配方必须改变构图骨架和图形语法，不能只是切换配色。无数据时显示“暂无数据”，不得生成默认年份、训练天数或虚假热力。
+
+## Visual DNA2.0
+
+先运行本地提取器：
 
 ```powershell
-python .\healthy-fitness-coach\scripts\render-share-card.py `
-  --input .\share-data.json `
-  --output .\fitness-reports\share-card.png `
-  --ratio 9:16
+python .\healthy-fitness-coach\scripts\extract-style.py .\photo.jpg
 ```
 
-PNG渲染依赖Pillow（`python -m pip install Pillow`）。支持Windows微软雅黑、Linux Noto Sans CJK和`HEALTHY_FITNESS_FONT`自定义字体路径。
+输出只包含尺寸、比例、分区色板、明暗、对比、纹理、边缘节奏、视觉重心、留白和安全文字区，不做人脸识别、身份推断或身体评价。Agent可基于已看到的照片补充`ring_light:top_center`、`mirror:background`、`barbell_plate:foreground`等语义事实。
 
-## 设计模式
+编译设计简报：
 
-用户上传照片时，先展示以下模式，不要直接套用旧模板：
+```powershell
+node .\healthy-fitness-coach\scripts\compile-visual-brief.js `
+  --input .\visual-input.json `
+  --output .\fitness-reports\visual-manifest.json
+```
 
-1. **抽象拼贴档案**：保留主体照片，从横线、圆形、明暗块和主色重构抽象面板。
-2. **训练战报杂志**：将照片拆成2～4个裁切片段，加入趋势线、日期标记和注释排版。
-3. **材质化数据海报**：提取照片中的颗粒、反光、镜面或木地板关系，让数据成为主视觉。
+Manifest包含输入路由、视觉DNA、可追溯母题、3个推荐配方、派生层Prompt和真实性约束。每个母题都必须指向一个照片事实或训练数据字段。
 
-没有照片时使用**数据图谱**模式，直接组合趋势线、热力图、部位分布和年度数字；同时提供五套配色主题，不固定使用单一荧光绿。可用 `--palette acid-night|cobalt-coral|ultraviolet|paper-ink|ember-steel` 指定主题。
+## 本地合成
 
-数据图谱有两种完全不同的布局：`rich` 信息图使用中文衬线标题、纸张底色、细边框与编辑部网格，强化标题/正文间距、趋势、训练热力、部位/动作雷达分布和记录页脚，适合月报、年报与复盘；`minimal` 极简分享图切换为深色艺术海报，使用超大衬线数字、非对称几何色块、细线趋势轨迹和稀疏信息，不复用信息图卡片结构，适合社交媒体发布。CLI可用 `--layout rich|minimal` 指定；未指定时，年度/月度复盘默认使用 `rich`，训练战绩卡默认使用 `minimal`。
+派生层生成后，把其路径写入`derived_image`；照片路径写入`photos`数组：
 
-CLI可用 `--mode abstract-collage|training-editorial|material-poster|data-atlas` 指定模式，也可用 `node scripts/render-visual-assets.js --list-modes --has-photo` 查看模式描述，用 `node scripts/render-visual-assets.js --list-palettes` 查看配色。
+```powershell
+python .\healthy-fitness-coach\scripts\render-visual-composition.py `
+  --input .\composition.json `
+  --output .\fitness-reports\share-card.png `
+  --ratio 3:4
+```
 
-照片模式至少使用两种派生操作（裁切、拼贴、抽象面板、纹理复刻、图表叠加或非对称排版）。用户说“直接生成”时默认选择抽象拼贴档案；未明确时先让用户选择。
+旧版`render-share-card.py`与`render-visual-assets.js`继续用于兼容的报告图和旧模式。新照片创作优先使用视觉编译器与`render-visual-composition.py`。
 
-## Visual DNA
+## 质量与隐私
 
-用户上传照片后运行 `scripts/extract-style.py`，输出包括色彩、明暗、纹理、构图、边缘节奏、留白位置和可解释的 `visual_facts`；将结果传给 `references/visuals.js` 的 `createStyleToken`，再应用到所选模式。每种模式应有独立构图，不能只是改变颜色。
-
-## 照片
-
-本地先做主体保护裁切和数据排版；具备图像生成能力时，只增强氛围、材质和光影。数字、日期、重量和次数必须由本地渲染，避免图像模型写错。只有用户明确要求把照片放入分享图时，PNG/SVG才会保留照片像素；分析报告默认不嵌入原图。不得复制水印、Logo、品牌字体或具体作品构图。
+- 360px缩略图仍能读懂主视觉和标题；安全边距内不得溢出。
+- 真实数据、日期、重量和次数只由本地渲染器叠加。
+- 原图、派生图、Manifest和报告默认写入`fitness-reports/`，不得提交仓库。
+- 不复制具体作品构图、品牌字体、水印或Logo；只借鉴抽象设计原则。
+- 只有用户明确要求照片分享图时才在产物中保留照片像素。

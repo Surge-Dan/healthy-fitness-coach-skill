@@ -93,12 +93,17 @@ function normalizeTrainingRecords(records = [], { dateStart, dateEnd } = {}) {
     const totalReps = finiteNumber(source.total_reps) ?? (sets !== undefined && reps !== undefined ? sets * reps : undefined);
     const weightKg = parseWeightKg(source.weight);
     const rawVolume = finiteNumber(source.volume);
-    const volumeKg = rawVolume !== undefined && /lb|磅/i.test(String(source.volume_unit || source.weight || '')) ? Number((rawVolume * 0.45359237).toFixed(2)) : rawVolume ?? (sets !== undefined && reps !== undefined && weightKg !== undefined ? sets * reps * weightKg : undefined);
+    const volumeKg = source.mixed_units
+      ? undefined
+      : rawVolume !== undefined && /lb|磅/i.test(String(source.volume_unit || source.weight || ''))
+        ? Number((rawVolume * 0.45359237).toFixed(2))
+        : rawVolume ?? (sets !== undefined && reps !== undefined && weightKg !== undefined ? sets * reps * weightKg : undefined);
     const duration = finiteNumber(source.duration_min) ?? aerobic.duration_min;
     const distance = finiteNumber(source.distance_km) ?? aerobic.distance_km;
     const heartRate = finiteNumber(source.avg_hr) ?? aerobic.avg_hr;
     if ([duration, distance, heartRate].some((value) => value !== undefined && value < 0)) warnings.push({ code: 'invalid_measurement', index, source_record_id: source.id });
     sessions.push({ date, name, kind, body_part: inferBodyPart(name), sets: sets !== undefined && sets >= 0 ? sets : undefined, reps: reps !== undefined && reps >= 0 ? reps : undefined, total_reps: totalReps !== undefined && totalReps >= 0 ? totalReps : undefined, weight_kg: weightKg, volume_kg: volumeKg !== undefined && volumeKg >= 0 ? volumeKg : undefined, duration_min: duration !== undefined && duration >= 0 ? duration : undefined, distance_km: distance !== undefined && distance >= 0 ? distance : undefined, avg_hr: heartRate !== undefined && heartRate >= 0 ? heartRate : undefined, rpe: finiteNumber(source.rpe), rir: finiteNumber(source.rir), completed: typeof source.completed === 'boolean' ? source.completed : undefined, notes: Array.isArray(source.notes) ? source.notes.slice() : (source.notes ? [String(source.notes)] : []), source_record_id: source.id !== undefined ? String(source.id) : undefined, source_date: rawDate });
+    if (source.mixed_units) warnings.push({ code: 'mixed_units', index, source_record_id: source.id });
     if (kind === 'unknown') warnings.push({ code: 'unknown_training_kind', index, source_record_id: source.id });
   });
   const dates = [...new Set(sessions.filter((session) => session.kind !== 'rest_day').map((session) => session.date))].sort();
@@ -127,7 +132,7 @@ function dimension({ sessions, weekCount, hypothesis, nextValidation, emptyUnkno
 
 function extractTrainingDNA({ records = [], dateStart, dateEnd, generatedAt = new Date().toISOString(), plannedSessionsPerWeek, profile = null, missingDates = [] } = {}) {
   const normalized = normalizeTrainingRecords(records, { dateStart, dateEnd });
-  const active = normalized.sessions.filter((session) => session.kind !== 'rest_day');
+  const active = normalized.sessions.filter((session) => session.kind === 'resistance' || session.kind === 'aerobic');
   const resistance = active.filter((session) => session.kind === 'resistance'); const aerobic = active.filter((session) => session.kind === 'aerobic');
   const allDates = [...new Set(active.map((session) => session.date))].sort();
   const start = validDate(dateStart) || allDates[0]; const end = validDate(dateEnd) || allDates.at(-1) || start;

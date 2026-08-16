@@ -80,3 +80,19 @@ test('trend analysis exposes conservative training DNA with separate aerobic and
   assert.equal(result.training_dna.dimensions.aerobic_response.status, 'emerging');
   assert.ok(result.training_dna.evidence_ledger.length >= 4);
 });
+
+test('trend analysis excludes records outside the requested date list and unknown rows', () => {
+  const result = analyzeTrainingRange({
+    dates: ['2026-08-01', '2026-08-02'],
+    records: [
+      { record_date: '2026-07-31', title: '卧推', sets: 3, reps: 8, volume: 1440 },
+      { record_date: '2026-08-01', title: '状态记录' },
+      { record_date: '2026-08-02', title: '卧推', sets: 3, reps: 8, volume: 1500 }
+    ]
+  });
+
+  assert.equal(result.training_days, 1);
+  assert.equal(result.record_count, 1);
+  assert.equal(result.estimated_volume, 1500);
+  assert.deepEqual(result.training_dates, ['2026-08-02']);
+});

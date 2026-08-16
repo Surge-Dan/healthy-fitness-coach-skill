@@ -118,3 +118,28 @@ test('adherence counts calendar weeks and active completed sessions only', () =>
   });
   assert.equal(result.metrics.adherence, 0.1);
 });
+
+test('does not estimate resistance volume when a row mixes kg and lb', () => {
+  const result = extractTrainingDNA({
+    dateStart: '2026-04-01', dateEnd: '2026-04-07',
+    records: [{ record_date: '2026-04-02', id: 'mixed', title: '卧推', kind: 'resistance', sets: 3, reps: 8, weight: '60kg', volume_unit: 'kg', mixed_units: true }]
+  });
+
+  assert.equal(result.metrics.resistance.volume_kg, 0);
+  assert.ok(result.warnings.some((warning) => warning.code === 'mixed_units'));
+});
+
+test('does not count unknown rows as training sessions or training days', () => {
+  const result = extractTrainingDNA({
+    dateStart: '2026-04-01', dateEnd: '2026-04-14',
+    records: [
+      { record_date: '2026-04-02', id: 'unknown', title: '状态记录' },
+      { record_date: '2026-04-03', id: 'rest', title: '休息日', kind: 'rest_day' }
+    ]
+  });
+
+  assert.equal(result.metrics.training_days, 0);
+  assert.equal(result.metrics.sessions, 0);
+  assert.equal(result.metrics.rest_days, 1);
+  assert.ok(result.warnings.some((warning) => warning.code === 'unknown_training_kind'));
+});

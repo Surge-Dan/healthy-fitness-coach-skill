@@ -41,6 +41,7 @@ description: 面向 18～55 岁、无重大疾病的健身新手与普通进阶�
 - 建立训练档案、提炼训练DNA、管理4～8周周期、诊断平台期或记录计划调整：读取 `references/training-dna.md`。
 - 解释依据、处理专家观点冲突或更新知识：读取 `references/evidence-rules.md`。
 - 用户询问博主观点或需要追溯 25 个来源：读取 `references/creator-cards.md`；涉及有氧、无氧/阻力、功率、间歇或混合训练编排时，同时读取 `references/training-domains.md`。
+- 需要核查来源访问状态或更新研究：读取 `references/research-ledger.md`；需要设计分享图、照片拼贴或视觉DNA时，同时读取 `references/visual-reference-ledger.md`。
 
 所有 reference 都从本入口直接加载，不通过多层引用寻找关键规则。
 
@@ -94,7 +95,7 @@ description: 面向 18～55 岁、无重大疾病的健身新手与普通进阶�
 
 ## V2：输出、训练数据与研究路由
 
-先完成安全筛查；红旗和症状升级永远优先于报告、训练优化或工具调用。之后按任务类型和用户的明确命令加载 `references/output-routing.md`；需要确定性判定时使用其中的 `references/output-routing.js`。默认不弹窗或追问模式：今日训练、逐组跟练、动作/姿势调整和即时症状分流使用对话；周期计划、周/月复盘、训练数据分析和可复用档案使用 Markdown；用户要求趋势时使用 dashboard 模式生成本地 HTML 面板。用户上传照片并要求分享图时，先展示三种设计模式（抽象拼贴档案、训练战报杂志、材质化数据海报）让用户选择；用户明确说“直接生成”时才自动采用推荐模式。没有照片时直接进入数据图谱/报告图模式。其他多个产物都合理且需要选择时，才提一个最小对话选择。
+先完成安全筛查；红旗和症状升级永远优先于报告、训练优化或工具调用。之后按任务类型和用户的明确命令加载`references/output-routing.md`；需要确定性判定时使用其中的`references/output-routing.js`。默认不弹窗或追问模式：今日训练、逐组跟练、动作/姿势调整和即时症状分流使用对话；周期计划、周/月复盘、训练数据分析和可复用档案使用Markdown；用户要求趋势时使用dashboard模式生成本地HTML面板。用户上传照片并要求分享图时，按`references/share-cards.md`识别单图、多图或照片+数据输入，并提供3个结构不同的设计配方；用户点名风格或说“直接生成”时立即执行。没有照片时进入数据图谱或抽象数据艺术模式。其他多个产物都合理且需要选择时，才提一个最小对话选择。
 
 Markdown 模式且具备写入工具时，默认在当前工作区的 `fitness-reports/` 创建完整 `.md` 文件；使用简短、非 PII 的文件名并在冲突时追加数字后缀，绝不覆盖无关已有文件。用户明确给出安全目标位置时才覆盖默认目录。文件名决策可使用 `references/report-artifact.js`；无写入工具时，直接返回完整 Markdown，并说明未创建文件。训练记录分析、结构化报告或需保留结论时，读取 `assets/fitness-analysis-report-template.md`。
 
@@ -108,10 +109,12 @@ Markdown 模式且具备写入工具时，默认在当前工作区的 `fitness-r
 
 只有用户要求当前研究、创作者/产品/API 更新、给出网页，或当前事实会改变结论时，才读 `references/web-research.md` 并按可用能力联网。优先公开已知页面与一手/官方来源；不可访问或登录受限时说明未验证部分、接受用户授权浏览器/截图/粘贴文本，绝不绕过登录、验证码、robots 或反爬限制。
 
-## V3：可视化报告与分享图
+## V4：可视化报告与视觉编译器
 
 数据图谱提供两种完全不同的布局：`rich` 信息图使用中文衬线标题、米白纸张、细边框和编辑部网格，包含核心指标、趋势线、训练热力、部位/动作雷达分布和记录页脚；`minimal` 极简分享图切换为深色艺术海报，使用超大衬线数字、非对称几何色块、细线趋势轨迹和稀疏信息，不复用信息图卡片结构。用户未指定时，年度/月度复盘默认使用 `rich`，社交分享或战绩卡默认使用 `minimal`；用户说“丰富一点/信息图”或“简洁一点/适合发朋友圈”时按意图切换。
 
-用户要求趋势、月报、年报、训练战绩卡、海报、分享图、发小红书或上传健身照片时，读取 `references/visual-report.md` 与 `references/share-cards.md`。分析报告至少生成趋势、频率/热力、部位分布和主动作表现中的可视化图表；具备写入工具时把 SVG 资源和 HTML 面板放入报告目录，并在 Markdown 中使用相对路径。分享图支持 1:1、9:16、3:4：用户明确指定比例时只生成该比例，未指定且任务无法安全推断时询问。
+用户要求趋势、月报、年报、训练战绩卡、海报、分享图、发小红书或上传健身照片时，读取`references/visual-report.md`与`references/share-cards.md`。分析报告至少生成趋势、频率/热力、部位分布和主动作表现中的可视化图表；具备写入工具时把SVG资源和HTML面板放入报告目录，并在Markdown中使用相对路径。分享图支持1:1、9:16、3:4：用户明确指定比例时只生成该比例，未指定且任务无法安全推断时询问。
 
-优先使用 `scripts/render-visual-assets.js` 生成确定性的 SVG 图表和分享卡片；需要PNG时使用 `scripts/render-share-card.py`（依赖Pillow）。用户上传照片时，先运行 `scripts/extract-style.py` 提取色彩、明暗、纹理、构图、边缘节奏和留白位置，再用 `references/visuals.js` 的 `getDesignModeOptions` 返回设计模式，并用 `createStyleToken` 生成 My Visual DNA。照片模式必须至少使用两种派生操作（裁切、拼贴、抽象面板、纹理复刻、图表叠加或非对称排版），不得退回“照片外框+圆角指标卡”单一模板。可用 `--mode abstract-collage|training-editorial|material-poster|data-atlas` 指定模式；无照片时使用 `data-atlas`，并先提供 `getColorOptions` 的五套配色（酸性夜场、钴蓝珊瑚、紫外荧光、纸张黑墨、熔岩钢板）供用户选择。可用 `--list-palettes` 查看配色，`--palette <id>` 生成指定主题。数据、日期、重量、次数等文字必须由本地渲染器叠加，不能让图像模型直接生成；有图像生成工具时只将其用于照片氛围、材质或艺术化增强，失败时回退为本地照片排版。分析报告默认不嵌入原图，只有用户明确要求照片分享图时才保留照片像素。不得复制 Logo、水印、品牌字体或具体作品构图，不得把 API Key、训练 ID写入报告或仓库。
+照片创作先运行`scripts/extract-style.py`得到Visual DNA2.0，再用`scripts/compile-visual-brief.js`完成输入路由、母题映射、3个配方推荐和派生层Prompt编译。配方包括原图×运动速写、训练漫画分镜、双色训练小志、健身符号实验室、极简身体轨迹和多图训练故事板。使用图像生成工具时，只生成不含文字、数字、图表、Logo和虚假成绩的派生艺术层；原图、真实训练数据和中文排版始终由本地合成器保留。使用`scripts/render-visual-composition.py`导出新视觉PNG；旧版`scripts/render-visual-assets.js`与`scripts/render-share-card.py`保留兼容。
+
+无照片时，根据用户意图在信息丰富的`data-atlas`和抽象数据艺术`training-rings|muscle-constellation|strength-terrain|action-fingerprint`之间选择。所有母题必须能追溯到照片事实或训练数据字段；没有训练数据时不得制造默认年份、热力、PR或身体结论。分析报告默认不嵌入原图，只有用户明确要求照片分享图时才保留照片像素。不得复制Logo、水印、品牌字体或具体作品构图，不得把API Key、训练ID写入报告或仓库。

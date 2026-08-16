@@ -30,14 +30,27 @@ function isRestDay(record) {
   return record?.kind === 'rest_day' || /^(休息日|rest(?: day)?|off)$/i.test(String(record?.title || record?.name || '').trim());
 }
 
+function isTrackable(record) {
+  if (!record || isRestDay(record)) return false;
+  if (record.kind === 'resistance' || record.kind === 'aerobic') return true;
+  if ([record.sets, record.reps, record.total_reps, record.weight, record.volume, record.duration_min, record.distance_km, record.avg_hr].some((value) => value !== undefined && value !== null && value !== '')) return true;
+  const text = `${record.title || ''} ${record.name || ''} ${record.raw_text || ''}`;
+  return /(跑步|慢跑|快走|走路|骑行|单车|自行车|游泳|划船|椭圆机|登山|爬楼|有氧|hiit|间歇跑|cycling|running|walking|swim|rowing|elliptical|cardio|力量|无氧|阻力|杠铃|哑铃|深蹲|卧推|硬拉|推举|拉力器)/i.test(text);
+}
+
 function numericVolume(record) {
   const value = numeric(record?.volume);
   return /lb|磅/i.test(String(record?.volume_unit || '')) ? value * 0.45359237 : value;
 }
 
 function analyzeTrainingRange(input = {}) {
-  const records = (Array.isArray(input.records) ? input.records : []).filter((record) => !isRestDay(record) && validDate(record.record_date));
   const dates = (Array.isArray(input.dates) ? input.dates : []).filter((value) => validDate(value));
+  const rangeStart = dates[0];
+  const rangeEnd = dates[dates.length - 1];
+  const records = (Array.isArray(input.records) ? input.records : []).filter((record) => {
+    const date = validDate(record?.record_date);
+    return Boolean(date && isTrackable(record) && (!rangeStart || date >= rangeStart) && (!rangeEnd || date <= rangeEnd));
+  });
   const trainingDates = new Set(records.map((record) => record.record_date).filter(Boolean));
   const weeklyMap = new Map();
   const dailyMap = new Map();

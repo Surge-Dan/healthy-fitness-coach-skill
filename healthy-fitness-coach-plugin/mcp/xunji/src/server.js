@@ -90,7 +90,7 @@ function createTrainingService({ cache = null, cacheFactory, dnaStore = null, cl
 
   const resultFromEntry = (date, entry, cacheHit, networkFetches) => {
     const filtered = filterModelFacingRecords(entry.records || []);
-    const records = filtered.filter((record) => !record.warnings?.includes('invalid_date') && (!record.record_date || record.record_date === date)).map((record) => ({ ...record, ...(record.record_date ? {} : { record_date: date }) }));
+    const records = filtered.filter((record) => !record.warnings?.includes('invalid_date') && (!record.record_date || record.record_date === date));
     const crossDate = filtered.length - records.length;
     return {
       date,
@@ -231,7 +231,7 @@ function createTrainingService({ cache = null, cacheFactory, dnaStore = null, cl
     return { range, trends, dashboard_html: renderTrainingDashboardHtml({ range, trends }), visual_assets: buildVisualReportAssets({ trends }) };
   }
 
-  async function getTrainingDNAUnlocked({ start_date, end_date, refresh_today = false, planned_sessions_per_week, profile } = {}) {
+  async function getTrainingDNAUnlocked({ start_date, end_date, refresh_today = false, planned_sessions_per_week, profile } = {}, credentialOverride = null) {
     const range = await getTrainingRange({ start_date, end_date, refresh_today });
     if (range.error) return range;
     const trends = analyzeTrainingRange({ ...range, planned_sessions_per_week, profile });
@@ -241,7 +241,7 @@ function createTrainingService({ cache = null, cacheFactory, dnaStore = null, cl
     let previousVersion;
     let changes = { changed_dimensions: [], changes: [] };
     try {
-      const credential = await credentialProvider();
+      const credential = credentialOverride || await credentialProvider();
       const store = await getDNAStore(credential);
       const previous = store ? await store.get() : null;
       const comparable = (value) => JSON.stringify({ data_range: value?.data_range, data_quality: value?.data_quality, metrics: value?.metrics, dimensions: value?.dimensions, unknowns: value?.unknowns, warnings: value?.warnings });
@@ -265,9 +265,11 @@ function createTrainingService({ cache = null, cacheFactory, dnaStore = null, cl
   }
 
   async function getTrainingDNA(args = {}) {
-    const lockKey = `${args.start_date}:${args.end_date}`;
+    let credential = null;
+    try { credential = await credentialProvider(); } catch (_) { /* getTrainingDNAUnlocked will return the public error */ }
+    const lockKey = credential ? `account:${credentialFingerprint(credential)}` : 'account:unknown';
     const previous = dnaPending.get(lockKey) || Promise.resolve();
-    const operation = previous.catch(() => {}).then(() => getTrainingDNAUnlocked(args));
+    const operation = previous.catch(() => {}).then(() => getTrainingDNAUnlocked(args, credential));
     dnaPending.set(lockKey, operation);
     try { return await operation; } finally { if (dnaPending.get(lockKey) === operation) dnaPending.delete(lockKey); }
   }

@@ -108,6 +108,7 @@ function parseTrainingRecords(rawRecords) {
     const official = parseOfficialXunjiRow(raw_text);
     const id = tokenValue(raw_text, 'id');
     const train_time = tokenValue(raw_text, 'train_time');
+    const train_time_date = train_time ? normalizeCompactDate(train_time.slice(0, 10)) : undefined;
     const name = tokenValue(raw_text, 'name');
     const data_source = sourceValue(raw_text);
     const notes = extractNotes(raw_text);
@@ -118,12 +119,12 @@ function parseTrainingRecords(rawRecords) {
     const weight = raw_text.match(/(?:@|重量[:：]?)\s*(\d+(?:\.\d+)?)\s*(kg|公斤|lb|lbs)/i);
     if (weight && Number(weight[1]) >= 500) warnings.push('extreme_weight');
     if (/^\d{4}-\d{2}-\d{2}|^\d{6}/.test(raw_text) && !official.record_date) warnings.push('invalid_date');
-    const parse_status = official.record_date
-      ? (official.id && official.title ? 'complete' : 'partial')
+    const parse_status = (official.record_date || train_time_date)
+      ? ((official.id && official.title) || (id && train_time_date && name) ? 'complete' : 'partial')
       : (!known || (/train_time:/i.test(raw_text) && !train_time) ? 'raw_only' : (id && (train_time || name) ? 'complete' : 'partial'));
     return {
       raw_text,
-      ...(official.record_date ? { record_date: official.record_date } : {}),
+      ...(official.record_date || train_time_date ? { record_date: official.record_date || train_time_date } : {}),
       ...(official.id || id ? { id: official.id || id } : {}),
       ...(official.train_time || train_time ? { train_time: official.train_time || train_time } : {}),
       ...(official.title ? { title: official.title, name: official.name } : (name ? { name } : {})),

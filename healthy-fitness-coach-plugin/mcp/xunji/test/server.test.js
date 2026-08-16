@@ -103,6 +103,18 @@ test('day results expose fetched time and requested-date provenance on records',
   assert.match(result.records[0].raw_text, /^id: trace-1/);
 });
 
+test('day results never relabel a date-less record as the requested date', async () => {
+  const service = createTrainingService({
+    cache: memoryCache(),
+    credentialProvider: async () => 'FAKE_TEST_CREDENTIAL',
+    client: { async fetchDay() { return { records: ['id: no-date train_time: 2026-08-01 08:00 name: Press'] }; } }
+  });
+
+  const result = await service.getTrainingDay({ date: '2026-08-02' });
+  assert.deepEqual(result.records, []);
+  assert.ok(result.warnings.some((warning) => warning.includes('cross_date_records_dropped')));
+});
+
 test('range results keep successful days grouped and return a partial result after one failure', async () => {
   const service = createTrainingService({
     cache: memoryCache(),
