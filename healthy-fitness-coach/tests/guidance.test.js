@@ -42,3 +42,19 @@ test('guidance labels incomplete data instead of overstating adherence', () => {
   assert.equal(result.data_quality, 'partial');
   assert.ok(result.judgments.some((judgment) => judgment.code === 'insufficient_data'));
 });
+
+test('guidance caution avoids progression until pain is reassessed', () => {
+  const result = buildTrainingGuidance({
+    goal: 'hypertrophy',
+    pain: ['shoulder pain'],
+    frequency_per_week: 4,
+    trends: { training_days: 4, record_count: 12, total_sets: 36, missing_dates: [] }
+  });
+  const actionCodes = result.actions.map((action) => action.code);
+  assert.equal(result.safety.level, 'caution');
+  assert.ok(actionCodes.includes('reduce_load_and_range'));
+  assert.ok(actionCodes.includes('choose_pain_free_variant'));
+  assert.ok(!actionCodes.includes('progressive_overload'));
+  assert.ok(!actionCodes.includes('minimum_effective_dose'));
+  assert.ok(result.next_validation.some((item) => item.code === 'reassess_in_24_to_48_hours'));
+});

@@ -92,6 +92,22 @@ test('render-share-card keeps rich empty reports valid and accepts UTF-8 BOM inp
   rmSync(root, { recursive: true, force: true });
 });
 
+test('rich PNG heatmap marks cross-year ranges instead of silently truncating them', () => {
+  const script = [
+    "import importlib.util",
+    "spec=importlib.util.spec_from_file_location('renderer','scripts/render-share-card.py')",
+    "module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module)",
+    "class Draw:",
+    "  def __init__(self): self.labels=[]",
+    "  def rounded_rectangle(self,*args,**kwargs): pass",
+    "  def text(self,*args,**kwargs): self.labels.append(str(args[1]))",
+    "d=Draw(); module.draw_year_heatmap(d, ['2025-12-31','2026-01-01'], [], (0,0,100,100), '#FFFFFF', '#000000', '2025-12-01', '2026-01-01'); print('|'.join(d.labels))"
+  ].join('\n');
+  const result = spawnSync('python', ['-c', script], { cwd: join(__dirname, '..'), encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /CROSS-YEAR/);
+});
+
 test('visual composition renderer creates distinct photo art and data-art PNG outputs', () => {
   const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-compiled-png-'));
   const firstPhoto = join(root, 'one.ppm');

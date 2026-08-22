@@ -4,7 +4,7 @@ const MESSAGES = {
   missing_credentials: ['Training access has not been configured.', 'Run the local credential setup script, then retry.'],
   invalid_credentials: ['Training access was rejected.', 'Replace the local credential and retry.'],
   invalid_date: ['The requested date is invalid.', 'Use a calendar date in YYYY-MM-DD format.'],
-  range_too_large: ['The requested date range is too large.', 'Request no more than 90 calendar days.'],
+  range_too_large: ['The requested date range is too large.', 'Request no more than 5 years; longer ranges are rejected, and accepted ranges are fetched in chunks of at most 90 days.'],
   rate_limited: ['This date was refreshed too recently.', 'Wait before refreshing this date again.'],
   network_error: ['The training service could not be reached.', 'Check the connection and retry later.'],
   invalid_response: ['The training service returned an unusable response.', 'Retry later; contact support if it continues.'],

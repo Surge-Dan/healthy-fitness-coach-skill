@@ -117,6 +117,14 @@ def draw_year_heatmap(draw, training_dates, daily_stats, box, accent, text, star
     values = [float(item.get("volume", 0) or item.get("sets", 0) or item.get("record_count", 0) or 0) for item in stats.values()]
     maximum = max([1.0, *values])
     x0, y0, width, height = box
+    start_text = str(start_value or "")[:10]
+    end_text = str(end_value or "")[:10]
+    if (re.fullmatch(r"\d{4}-\d{2}-\d{2}", start_text)
+            and re.fullmatch(r"\d{4}-\d{2}-\d{2}", end_text)
+            and start_text[:4] != end_text[:4]):
+        draw.rounded_rectangle((x0, y0, x0 + width, y0 + height), radius=16, outline=accent + "66", width=2)
+        draw.text((x0 + width / 2, y0 + height / 2), "CROSS-YEAR · 跨年范围请拆分为年度面板", font=font(max(14, int(width * 0.04))), fill=text + "CC", anchor="mm")
+        return
     first_value = str(start_value or (sorted(active)[0] if active else next(iter(stats), "")))[:10]
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", first_value):
         draw.text((x0 + width / 2, y0 + height / 2), "暂无训练日数据", font=font(max(14, int(width * 0.04))), fill=text + "A8", anchor="mm")

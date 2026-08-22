@@ -36,6 +36,10 @@ function buildTrainingGuidance(input = {}) {
   if (safety.level === 'stop') {
     actions.push({ code: 'seek_professional_assessment', priority: 'urgent', text: '停止自动训练处方，按危险信号寻求专业评估。' });
     nextValidation.push({ code: 'clear_safety_screen', text: '重新开始前确认症状已由专业人员评估。' });
+  } else if (safety.level === 'caution') {
+    actions.push({ code: 'reduce_load_and_range', priority: 'high', text: '先降低负荷和动作幅度，避开诱发疼痛的动作，不追求加重或增加训练量。' });
+    actions.push({ code: 'choose_pain_free_variant', priority: 'medium', text: '只保留无痛或明显更舒适的动作变式；若疼痛加重，停止该动作并寻求专业评估。' });
+    nextValidation.push({ code: 'reassess_in_24_to_48_hours', text: '观察24–48小时的疼痛、活动范围和日常功能，再决定是否逐步恢复。' });
   } else {
     const frequency = finite(input.frequency_per_week) ?? finite(input.planned_sessions_per_week) ?? 2;
     if (['hypertrophy', 'strength', 'upper_body', 'general_fitness'].some((term) => goal.includes(term))) {

@@ -18,6 +18,11 @@ function buildTrainingGuidance(input = {}) {
   const judgments = []; const actions = []; const nextValidation = [];
   if (dataQuality !== 'complete') judgments.push({ code: 'insufficient_data', confidence: 'low', text: '数据不完整，只能做方向性建议，不能判断长期效果。' });
   if (safety.level === 'stop') { actions.push({ code: 'seek_professional_assessment', priority: 'urgent', text: '停止自动训练处方，按危险信号寻求专业评估。' }); nextValidation.push({ code: 'clear_safety_screen', text: '重新开始前确认症状已由专业人员评估。' }); }
+  else if (safety.level === 'caution') {
+    actions.push({ code: 'reduce_load_and_range', priority: 'high', text: '先降低负荷和动作幅度，避开诱发疼痛的动作，不追求加重或增加训练量。' });
+    actions.push({ code: 'choose_pain_free_variant', priority: 'medium', text: '只保留无痛或明显更舒适的动作变式；若疼痛加重，停止该动作并寻求专业评估。' });
+    nextValidation.push({ code: 'reassess_in_24_to_48_hours', text: '观察24–48小时的疼痛、活动范围和日常功能，再决定是否逐步恢复。' });
+  }
   else {
     const frequency = finite(input.frequency_per_week) ?? finite(input.planned_sessions_per_week) ?? 2;
     if (['hypertrophy', 'strength', 'upper_body', 'general_fitness'].some((term) => goal.includes(term))) { if ((finite(trends.training_days) || 0) < 2 || frequency <= 2) actions.push({ code: 'minimum_effective_dose', priority: 'high', text: '先安排每周2次全身或上下肢交替训练，每次保留1–3次余力，连续记录4周。' }); actions.push({ code: 'progressive_overload', priority: 'medium', text: '在动作稳定且目标次数完成时，只增加一个变量：小幅加重、增加次数或增加一组。' }); nextValidation.push({ code: 'log_rpe_or_rir', text: '每个主动作记录RPE或RIR、完成情况和疼痛评分。' }); }
