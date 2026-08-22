@@ -90,7 +90,7 @@ function createTrainingService({ cache = null, cacheFactory, dnaStore = null, cl
 
   const resultFromEntry = (date, entry, cacheHit, networkFetches) => {
     const filtered = filterModelFacingRecords(entry.records || []);
-    const records = filtered.filter((record) => !record.warnings?.includes('invalid_date') && (!record.record_date || record.record_date === date));
+    const records = filtered.filter((record) => !record.warnings?.includes('invalid_date') && record.record_date === date);
     const crossDate = filtered.length - records.length;
     return {
       date,
@@ -114,7 +114,7 @@ function createTrainingService({ cache = null, cacheFactory, dnaStore = null, cl
         const decoded = response && Array.isArray(response.records) ? response : decodeXunjiResponse(response);
         const parsed = parseTrainingRecords(decoded.records);
         const filtered = filterModelFacingRecords(parsed);
-        const safeRecords = filtered.filter((record) => !record.warnings?.includes('invalid_date') && (!record.record_date || record.record_date === date));
+        const safeRecords = filtered.filter((record) => !record.warnings?.includes('invalid_date') && record.record_date === date);
         const warnings = [...filtered.warnings, ...parsed.flatMap((record) => record.warnings || []), ...(safeRecords.length !== filtered.length ? [`cross_date_records_dropped:${filtered.length - safeRecords.length}`] : [])];
         const entry = { fetched_at: now(), records: safeRecords, warnings };
         await store.set(date, entry);
@@ -128,10 +128,10 @@ function createTrainingService({ cache = null, cacheFactory, dnaStore = null, cl
     try { return await operation; } finally { pending.delete(pendingKey); }
   }
 
-  async function getTrainingDay({ date, refresh = false } = {}) {
+  async function getTrainingDay({ date, refresh = false, credentialOverride = null } = {}) {
     try {
       assertDate(date);
-      const credential = await credentialProvider();
+      const credential = credentialOverride || await credentialProvider();
       const store = await getCache(credential);
       const entry = await store.get(date);
       if (entry) {
@@ -142,6 +142,7 @@ function createTrainingService({ cache = null, cacheFactory, dnaStore = null, cl
         if (!refresh) return resultFromEntry(date, entry, true, 0);
         const refreshed = await fetchMissing(date, credential, store);
         if (refreshed.error) {
+          if (['missing_credentials', 'invalid_credentials', 'membership_required'].includes(refreshed.error.code)) return refreshed;
           const fallback = resultFromEntry(date, entry, true, 0);
           fallback.warnings = [...fallback.warnings, 'refresh_failed_using_cache'];
           return fallback;
@@ -154,14 +155,16 @@ function createTrainingService({ cache = null, cacheFactory, dnaStore = null, cl
     }
   }
 
-  async function getTrainingRange({ start_date, end_date, refresh_today = false } = {}) {
+  async function getTrainingRange({ start_date, end_date, refresh_today = false, credentialOverride = null } = {}) {
     let dates;
     try { dates = dateRangeChunks(start_date, end_date).flat(); } catch (error) { return { error: toPublicError(error) }; }
+    let credential;
+    try { credential = credentialOverride || await credentialProvider(); } catch (error) { return { error: toPublicError(error) }; }
     const aggregate = { cache_hits: 0, network_fetches: 0, dates, days: [], records: [], missing_dates: [], warnings: [], data_freshness: 'mixed', partial: false };
     let firstError = null;
     const todayDate = today ? today() : currentShanghaiDate(now());
     for (const date of dates) {
-      const day = await getTrainingDay({ date, refresh: refresh_today && date === todayDate });
+      const day = await getTrainingDay({ date, refresh: refresh_today && date === todayDate, credentialOverride: credential });
       if (day.error) {
         if (!firstError) firstError = day.error;
         aggregate.missing_dates.push(date);
@@ -209,15 +212,16 @@ function createTrainingService({ cache = null, cacheFactory, dnaStore = null, cl
       const decoded = response && Array.isArray(response.records) ? response : decodeXunjiResponse(response);
       const parsed = parseTrainingRecords(decoded.records);
       const filtered = filterModelFacingRecords(parsed);
-      if (parsed.some((record) => record.record_date && record.record_date !== validated.date)) throw Object.assign(new Error('cross-date server result'), { code: 'invalid_upsert' });
+      if (!parsed.length || parsed.some((record) => !record.record_date || record.record_date !== validated.date || record.warnings?.includes('invalid_date'))) throw Object.assign(new Error('invalid same-day server result'), { code: 'invalid_upsert' });
+      const safeRecords = filtered;
       const warnings = [...filtered.warnings, ...parsed.flatMap((record) => record.warnings || [])];
-      const entry = { fetched_at: now(), records: filtered, warnings, last_operation: 'upsert' };
+      const entry = { fetched_at: now(), records: safeRecords, warnings, last_operation: 'upsert' };
       await store.set(validated.date, entry);
       return {
         ...resultFromEntry(validated.date, entry, false, 1),
         writeback: true,
         upserted_records: validated.records.length,
-        server_records: decoded.records
+         server_records: safeRecords
       };
     } catch (error) {
       return { error: toPublicError(error) };
@@ -232,7 +236,9 @@ function createTrainingService({ cache = null, cacheFactory, dnaStore = null, cl
   }
 
   async function getTrainingDNAUnlocked({ start_date, end_date, refresh_today = false, planned_sessions_per_week, profile } = {}, credentialOverride = null) {
-    const range = await getTrainingRange({ start_date, end_date, refresh_today });
+    let credential;
+    try { credential = credentialOverride || await credentialProvider(); } catch (error) { return { error: toPublicError(error) }; }
+    const range = await getTrainingRange({ start_date, end_date, refresh_today, credentialOverride: credential });
     if (range.error) return range;
     const trends = analyzeTrainingRange({ ...range, planned_sessions_per_week, profile });
     const current = trends.training_dna;
@@ -241,7 +247,6 @@ function createTrainingService({ cache = null, cacheFactory, dnaStore = null, cl
     let previousVersion;
     let changes = { changed_dimensions: [], changes: [] };
     try {
-      const credential = credentialOverride || await credentialProvider();
       const store = await getDNAStore(credential);
       const previous = store ? await store.get() : null;
       const comparable = (value) => JSON.stringify({ data_range: value?.data_range, data_quality: value?.data_quality, metrics: value?.metrics, dimensions: value?.dimensions, unknowns: value?.unknowns, warnings: value?.warnings });
@@ -309,12 +314,12 @@ function createMcpServer(options = {}) {
   }, ({ records, confirm }) => result(service.upsertTrainingRecords({ records, confirm })));
   server.registerTool('xunji_get_training_trends', {
     description: 'Analyze cached Xunji training range trends.',
-    inputSchema: { start_date: z.string(), end_date: z.string(), refresh_today: z.boolean().optional(), planned_sessions_per_week: z.number().optional(), profile: z.record(z.string(), z.unknown()).optional() },
+    inputSchema: { start_date: z.string(), end_date: z.string(), refresh_today: z.boolean().optional(), planned_sessions_per_week: z.number().finite().nonnegative().max(14).optional(), profile: z.record(z.string(), z.unknown()).optional() },
     annotations: { readOnlyHint: true }
   }, ({ start_date, end_date, refresh_today, planned_sessions_per_week, profile }) => result(service.getTrainingTrends({ start_date, end_date, refresh_today, planned_sessions_per_week, profile })));
   server.registerTool('xunji_extract_training_dna', {
     description: 'Extract an evidence-bounded training DNA from cached Xunji records without writing or changing training data.',
-    inputSchema: { start_date: z.string(), end_date: z.string(), refresh_today: z.boolean().optional(), planned_sessions_per_week: z.number().optional(), profile: z.record(z.string(), z.unknown()).optional() },
+    inputSchema: { start_date: z.string(), end_date: z.string(), refresh_today: z.boolean().optional(), planned_sessions_per_week: z.number().finite().nonnegative().max(14).optional(), profile: z.record(z.string(), z.unknown()).optional() },
     annotations: { readOnlyHint: true }
   }, ({ start_date, end_date, refresh_today, planned_sessions_per_week, profile }) => result(service.getTrainingDNA({ start_date, end_date, refresh_today, planned_sessions_per_week, profile })));
   return { server, service };

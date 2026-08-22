@@ -107,6 +107,10 @@ Markdown 模式且具备写入工具时，默认在当前工作区的 `fitness-r
 
 没有训记Plugin时，可以使用 `scripts/extract-training-dna.js` 读取用户提供的JSON训练记录；它只做确定性标准化、指标计算和证据结构化，不替代模型对用户目标、偏好和安全边界的判断。
 
+### 训练闭环指导与总结
+
+训练建议必须按“事实→判断→行动→下一次验证”组织。事实来自用户档案或已读取记录；判断必须标注置信度；行动只改变少量可记录变量；验证字段至少包含完成情况、RPE/RIR、恢复或有氧时长中的相关项。周报、月报和年度总结统一输出训练天数、有效记录、组数/容量、有氧时长、部位覆盖、主动作表现和数据质量；缺失日期、未知记录、休息日和混合单位不会被填成估算值。
+
 只有用户要求当前研究、创作者/产品/API 更新、给出网页，或当前事实会改变结论时，才读 `references/web-research.md` 并按可用能力联网。优先公开已知页面与一手/官方来源；不可访问或登录受限时说明未验证部分、接受用户授权浏览器/截图/粘贴文本，绝不绕过登录、验证码、robots 或反爬限制。
 
 ## V4：可视化报告与视觉编译器
@@ -115,6 +119,6 @@ Markdown 模式且具备写入工具时，默认在当前工作区的 `fitness-r
 
 用户要求趋势、月报、年报、训练战绩卡、海报、分享图、发小红书或上传健身照片时，读取`references/visual-report.md`与`references/share-cards.md`。分析报告至少生成趋势、频率/热力、部位分布和主动作表现中的可视化图表；具备写入工具时把SVG资源和HTML面板放入报告目录，并在Markdown中使用相对路径。分享图支持1:1、9:16、3:4：用户明确指定比例时只生成该比例，未指定且任务无法安全推断时询问。
 
-照片创作先运行`scripts/extract-style.py`得到Visual DNA2.0，再用`scripts/compile-visual-brief.js`完成输入路由、母题映射、3个配方推荐和派生层Prompt编译。配方包括原图×运动速写、训练漫画分镜、双色训练小志、健身符号实验室、极简身体轨迹和多图训练故事板。使用图像生成工具时，只生成不含文字、数字、图表、Logo和虚假成绩的派生艺术层；原图、真实训练数据和中文排版始终由本地合成器保留。使用`scripts/render-visual-composition.py`导出新视觉PNG；旧版`scripts/render-visual-assets.js`与`scripts/render-share-card.py`保留兼容。
+照片创作先运行`scripts/extract-style.py`得到Visual DNA2.0，再用`scripts/compile-visual-brief.js`完成输入路由、母题映射、3个配方推荐和派生层Prompt编译。单图默认优先`星轨训练拼贴`，但不会套固定模板：渲染器会依据主体位置、留白方向、横竖构图和照片数量，在`撕裂纵向`、`爆炸放射`和`错位接触表`之间选择构图；标题、副标题和指标经过中文优先的安全区排版，自动换行并避让照片与装饰。其他配方包括原图×运动速写、训练漫画分镜、双色训练小志、健身符号实验室、极简身体轨迹和多图训练故事板。使用图像生成工具时，只生成不含文字、数字、图表、Logo和虚假成绩的派生艺术层；原图、真实训练数据和中文排版始终由本地合成器保留。使用`scripts/render-visual-composition.py`导出新视觉PNG；旧版`scripts/render-visual-assets.js`与`scripts/render-share-card.py`保留兼容。
 
 无照片时，根据用户意图在信息丰富的`data-atlas`和抽象数据艺术`training-rings|muscle-constellation|strength-terrain|action-fingerprint`之间选择。所有母题必须能追溯到照片事实或训练数据字段；没有训练数据时不得制造默认年份、热力、PR或身体结论。分析报告默认不嵌入原图，只有用户明确要求照片分享图时才保留照片像素。不得复制Logo、水印、品牌字体或具体作品构图，不得把API Key、训练ID写入报告或仓库。

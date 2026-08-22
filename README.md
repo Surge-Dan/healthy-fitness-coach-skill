@@ -134,6 +134,10 @@ Sohee Carpenter、Layne Norton、Alan Aragon、Danny Lennon/Sigma Nutrition。
 
 生成本地自包含HTML面板和可嵌入Markdown的SVG图表，展示训练天数、训练量、周频率、部位分布、主动作表现和全年训练热力图。
 
+### 🧭训练指导与训练总结
+
+趋势分析会同时给出一份可执行的闭环建议和一份结构化总结：先列出事实，再说明判断的置信度，接着只调整少量变量，最后给出下一次验证指标。总结会统一汇总训练天数、有效记录、组数/容量、有氧时长、部位覆盖、主动作轨迹和数据质量；缺失日期、休息日、未知记录和混合单位会显式标记，不会被补成看似精确的结论。
+
 ### 📚训练知识库
 
 内置25个中外专业来源蒸馏卡，并按证据层级区分指南、研究转译、专业团队和执行体验。知识库同时覆盖有氧基础、阈值/节奏、高强度间歇、阻力/无氧、力量、肌肥大、功率、混合训练、恢复疼痛、女性运动生理和运动营养。来源卡只提炼可复用原则，不复制个人课表；与指南或用户反馈冲突时，以安全边界、适用条件和连续训练数据为准。
@@ -198,6 +202,7 @@ node healthy-fitness-coach/scripts/extract-training-dna.js --input training-rang
 
 用户上传照片时，Skill会先在本地提取尺寸、比例、分区色板、明暗、纹理、边缘节奏、视觉重心和安全文字区，再结合照片中已观察到的器械、镜面、环形灯和动作关系，提供3个结构不同的设计配方：
 
+- **星轨训练拼贴**：默认的照片优先模式，会根据照片主体与留白自动选择撕裂纵向、爆炸放射或错位接触表，并用中文安全区排版、局部裁切、星标贴纸和手写轨迹组成社交分享图。
 - **原图×运动速写**：原图与手绘派生层并置，既保留本人，也形成二次创作。
 - **训练漫画分镜**：用一个主画面、局部裁切和运动轨迹重组训练瞬间。
 - **双色训练小志**：使用网点、套色偏移和纸张肌理形成独立小志。
@@ -291,7 +296,7 @@ python -m scripts.package_skill `
   C:\path\to\dist
 ```
 
-照片创作先使用`extract-style.py`和`compile-visual-brief.js`，最终PNG使用`render-visual-composition.py`；旧版报告卡仍可使用`render-share-card.py`。Python图像渲染依赖Pillow，所有个人图片和Manifest都应保存在`fitness-reports/`等本地输出目录，不要提交仓库。
+照片创作先使用`extract-style.py`和`compile-visual-brief.js`，最终PNG使用`render-visual-composition.py`；旧版报告卡仍可使用`render-share-card.py`。Python图像渲染依赖Pillow，首次使用PNG导出前运行`python -m pip install pillow`，或先运行`python -c "from PIL import Image; print(Image.__version__)"`检查依赖。所有个人图片和Manifest都应保存在`fitness-reports/`等本地输出目录，不要提交仓库。
 
 ## 贡献与反馈
 

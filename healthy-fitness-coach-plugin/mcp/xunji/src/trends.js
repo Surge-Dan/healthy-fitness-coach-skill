@@ -1,6 +1,8 @@
 'use strict';
 
 const { extractTrainingDNA, validDate } = require('./training-dna.js');
+const { buildTrainingGuidance } = require('./training-guidance.js');
+const { summarizeTrainingRange } = require('./training-summary.js');
 
 function parseDate(value) {
   const normalized = validDate(value);
@@ -23,7 +25,9 @@ function numeric(value) {
 
 function numericWeight(value) {
   const match = String(value ?? '').match(/-?\d+(?:\.\d+)?/);
-  return match ? Number(match[0]) : 0;
+  if (!match) return 0;
+  const amount = Number(match[0]);
+  return /lb|lbs|磅/i.test(String(value)) ? Number((amount * 0.45359237).toFixed(3)) : amount;
 }
 
 function isRestDay(record) {
@@ -44,7 +48,7 @@ function numericVolume(record) {
 }
 
 function analyzeTrainingRange(input = {}) {
-  const dates = (Array.isArray(input.dates) ? input.dates : []).filter((value) => validDate(value));
+  const dates = (Array.isArray(input.dates) ? input.dates : []).filter((value) => validDate(value)).sort();
   const rangeStart = dates[0];
   const rangeEnd = dates[dates.length - 1];
   const records = (Array.isArray(input.records) ? input.records : []).filter((record) => {
@@ -94,7 +98,7 @@ function analyzeTrainingRange(input = {}) {
       const value = weight > 0 ? weight : volume > 0 ? volume : 0;
       if (recordDate && value > 0) {
         const series = performance.get(name) || { name, values: [] };
-        series.values.push({ label: recordDate, value, exercise: name, value_type: weight > 0 ? 'weight' : 'volume' });
+        series.values.push({ label: recordDate, value, exercise: name, value_type: weight > 0 ? 'weight_kg' : 'volume_kg' });
         performance.set(name, series);
       }
     }
@@ -116,7 +120,7 @@ function analyzeTrainingRange(input = {}) {
     ? mainPerformance.values.sort((a, b) => a.label.localeCompare(b.label))
     : [];
 
-  return {
+  const result = {
     date_start: dates[0],
     date_end: dates[dates.length - 1],
     training_days: trainingDates.size,
@@ -130,6 +134,7 @@ function analyzeTrainingRange(input = {}) {
     exercise_frequency,
     exercise_performance_exercise: mainPerformance?.name,
     exercise_performance,
+    exercise_performance_value_type: mainPerformance ? (exercise_performance[0]?.value_type || 'unknown') : undefined,
     missing_dates: Array.isArray(input.missing_dates) ? input.missing_dates.slice() : [],
     parse_warnings: parseWarnings,
     data_freshness: input.data_freshness || 'unknown',
@@ -142,6 +147,9 @@ function analyzeTrainingRange(input = {}) {
       missingDates: Array.isArray(input.missing_dates) ? input.missing_dates : []
     })
   };
+  result.summary = summarizeTrainingRange(result);
+  result.guidance = buildTrainingGuidance({ goal: input.profile?.goal, profile: input.profile, frequency_per_week: input.planned_sessions_per_week, trends: result });
+  return result;
 }
 
 module.exports = { analyzeTrainingRange, weekStart };

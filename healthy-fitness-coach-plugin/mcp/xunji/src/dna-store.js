@@ -9,6 +9,7 @@ class FileDNAStore {
   constructor({ root, fingerprint }) {
     this.root = resolve(root);
     this.fingerprint = String(fingerprint);
+    if (!/^[a-f0-9]{64}$/.test(this.fingerprint)) throw connectorError('cache_error');
   }
 
   path() {

@@ -22,8 +22,9 @@ function frameImage(href, x, y, width, height, role, className = '') {
   return `<image class="${className}" data-role="${role}" href="${esc(safeHref)}" x="${x}" y="${y}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"/>`;
 }
 
-function base({ width, height, recipe, title, body, bg = '#111315', text = '#F6F1E8', accent = '#FF6A4D' }) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-recipe="${esc(recipe)}" role="img" aria-label="${esc(title)}"><title>${esc(title)}</title><rect width="100%" height="100%" fill="${bg}"/>${body}<text x="${Math.round(width * .07)}" y="${Math.round(height * .94)}" fill="${text}" fill-opacity=".58" font-family="Inter,Microsoft YaHei,Noto Sans CJK SC,sans-serif" font-size="${Math.round(width * .018)}" letter-spacing="3">HEALTHY FITNESS COACH</text><line x1="${Math.round(width * .07)}" y1="${Math.round(height * .91)}" x2="${Math.round(width * .93)}" y2="${Math.round(height * .91)}" stroke="${accent}" stroke-width="3"/></svg>`;
+function base({ width, height, recipe, title, body, bg = '#111315', text = '#F6F1E8', accent = '#FF6A4D', layout = '' }) {
+  const layoutAttr = layout ? ` data-layout="${esc(layout)}"` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-recipe="${esc(recipe)}"${layoutAttr} role="img" aria-label="${esc(title)}"><title>${esc(title)}</title><rect width="100%" height="100%" fill="${bg}"/>${body}<text x="${Math.round(width * .07)}" y="${Math.round(height * .94)}" fill="${text}" fill-opacity=".58" font-family="Inter,Microsoft YaHei,Noto Sans CJK SC,sans-serif" font-size="${Math.round(width * .018)}" letter-spacing="3">HEALTHY FITNESS COACH</text><line x1="${Math.round(width * .07)}" y1="${Math.round(height * .91)}" x2="${Math.round(width * .93)}" y2="${Math.round(height * .91)}" stroke="${accent}" stroke-width="3"/></svg>`;
 }
 
 function titleSvg(title, x, y, size, text = '#F6F1E8', anchor = 'start') {
@@ -54,6 +55,127 @@ function renderSketchDiptych(input, width, height) {
   const fallback = input.derivedImage ? '' : `<g class="local-sketch-fallback" fill="none" stroke="#F7EBDD" stroke-width="5" stroke-linecap="round" opacity=".72"><path d="M${pad + panelW + gap + panelW * .2} ${top + panelH * .72} Q${pad + panelW + gap + panelW * .48} ${top + panelH * .18} ${pad + panelW + gap + panelW * .78} ${top + panelH * .66}"/><path d="M${pad + panelW + gap + panelW * .3} ${top + panelH * .42} L${pad + panelW + gap + panelW * .7} ${top + panelH * .42}"/></g>`;
   const body = `${original}${derived}${fallback}<text x="${pad}" y="${Math.round(height * .075)}" fill="#FF6A4D" font-family="Inter,sans-serif" font-size="24" letter-spacing="5">ORIGINAL / DISTILLED</text>${titleSvg(input.title || '今日训练', pad, Math.round(height * .86), Math.round(width * .055))}${motifSvg(input.motifs, width, height, '#FF6A4D')}`;
   return base({ width, height, recipe: 'sketch-diptych', title: input.title, body });
+}
+
+function starPolygon(cx, cy, outer, inner, points = 8) {
+  const vertices = [];
+  for (let index = 0; index < points * 2; index += 1) {
+    const angle = -Math.PI / 2 + (Math.PI * index) / points;
+    const radius = index % 2 ? inner : outer;
+    vertices.push(`${(cx + Math.cos(angle) * radius).toFixed(1)},${(cy + Math.sin(angle) * radius).toFixed(1)}`);
+  }
+  return vertices.join(' ');
+}
+
+function collageSignals(input = {}) {
+  const image = input.visualDNA?.images?.[0] || input.visual_dna?.images?.[0] || input.imageAnalysis?.[0] || input.image_analysis?.[0] || {};
+  return {
+    orientation: String(image.orientation || '').toLowerCase(),
+    focal: String(image.focal_region || image.focal || '').toLowerCase(),
+    negative: String(image.negative_space || image.negative || '').toLowerCase(),
+    luminance: String(image.luminance || '').toLowerCase(),
+    contrast: String(image.contrast || '').toLowerCase()
+  };
+}
+
+function chooseCollageLayout(input = {}) {
+  if (['torn-vertical', 'burst-poster', 'contact-offset'].includes(input.collageLayout)) return input.collageLayout;
+  const signals = collageSignals(input);
+  if ((input.photos || []).length > 1) return 'contact-offset';
+  if (signals.orientation === 'landscape' && (signals.negative.includes('top') || signals.focal.includes('left'))) return 'burst-poster';
+  return 'torn-vertical';
+}
+
+function wrapType(text, maxChars) {
+  const chars = [...String(text || '')];
+  if (!chars.length) return [];
+  const lines = [];
+  for (let index = 0; index < chars.length; index += maxChars) lines.push(chars.slice(index, index + maxChars).join(''));
+  return lines.slice(0, 3);
+}
+
+function renderTypeLockup({ title, subtitle, x, y, maxWidth, color = '#171717', muted = '#6D665D', size = 92 }) {
+  const titleLines = wrapType(title || '今天也在变强', Math.max(5, Math.floor(maxWidth / (size * .9))));
+  const lineGap = Math.round(size * 1.04);
+  const titleSvg = titleLines.map((line, index) => `<text class="type-title${index === 0 ? ' hand-note' : ''}" x="${x}" y="${y + index * lineGap}" fill="${color}" font-family="Noto Serif CJK SC,Source Han Serif SC,SimSun,serif" font-size="${size}" font-weight="600">${esc(line)}</text>`).join('');
+  const subtitleY = y + titleLines.length * lineGap + Math.round(size * .35);
+  const subtitleLines = wrapType(subtitle || '把出现，变成自己的节奏', Math.max(10, Math.floor(maxWidth / 28)));
+  const subtitleSvg = subtitleLines.map((line, index) => `<text class="type-subtitle" x="${x}" y="${subtitleY + index * 34}" fill="${muted}" font-family="Microsoft YaHei,Noto Sans CJK SC,sans-serif" font-size="24">${esc(line)}</text>`).join('');
+  const boxHeight = subtitleY + Math.max(0, subtitleLines.length - 1) * 34 - y + 34;
+  return `<g class="type-lockup" data-type-safe-zone="${x},${y},${maxWidth},${boxHeight}">${titleSvg}${subtitleSvg}</g>`;
+}
+
+function renderBurstPoster(input, width, height) {
+  const pad = Math.round(width * .075);
+  const heroX = Math.round(width * .12);
+  const heroY = Math.round(height * .23);
+  const heroW = Math.round(width * .76);
+  const heroH = Math.round(height * .45);
+  const cx = width * .52;
+  const cy = height * .47;
+  const rays = Array.from({ length: 14 }, (_, index) => {
+    const angle = (Math.PI * 2 * index) / 14;
+    const x1 = cx + Math.cos(angle) * width * .22;
+    const y1 = cy + Math.sin(angle) * width * .22;
+    const x2 = cx + Math.cos(angle) * width * .40;
+    const y2 = cy + Math.sin(angle) * width * .40;
+    return `<line class="burst-lines" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#FF5A44" stroke-width="${index % 2 ? 7 : 3}" stroke-linecap="round" stroke-opacity=".75"/>`;
+  }).join('');
+  const image = `<g class="burst-photo" transform="rotate(-3 ${heroX + heroW / 2} ${heroY + heroH / 2})"><rect x="${heroX - 18}" y="${heroY - 18}" width="${heroW + 36}" height="${heroH + 36}" fill="#F7F0E4"/><rect class="burst-torn-edge" x="${heroX - 5}" y="${heroY - 5}" width="${heroW + 10}" height="${heroH + 10}" fill="#171717" fill-opacity=".12"/>${frameImage(input.photos?.[0], heroX, heroY, heroW, heroH, 'original-photo', 'burst-photo-image')}</g>`;
+  const lockup = renderTypeLockup({ title: input.title || '今天也在变强', subtitle: input.subtitle || '把出现，变成自己的节奏', x: pad, y: Math.round(height * .10), maxWidth: width * .7, size: Math.round(width * .055) });
+  const sticker = `<polygon class="burst-sticker" points="${starPolygon(width * .83, height * .78, width * .055, width * .022, 10)}" fill="#F3C94F" stroke="#171717" stroke-width="4"/>`;
+  const metrics = (input.metrics || []).slice(0, 3).map((metric, index) => `<g class="training-stamp"><text x="${pad + index * width * .28}" y="${height * .80}" fill="#6D665D" font-family="Microsoft YaHei,Noto Sans CJK SC,sans-serif" font-size="18">${esc(metric.label)}</text><text x="${pad + index * width * .28}" y="${height * .84}" fill="#171717" font-family="Noto Serif CJK SC,SimSun,serif" font-size="42">${esc(metric.value)}</text></g>`).join('');
+  const body = `<g class="burst-poster"><text x="${pad}" y="${height * .055}" fill="#2553A7" font-family="Inter,Microsoft YaHei,sans-serif" font-size="22" letter-spacing="4">TRAINING / SIGNAL</text>${lockup}${rays}${image}${metrics}${sticker}<path class="burst-arrow" d="M${width * .10} ${height * .72} C${width * .22} ${height * .68},${width * .28} ${height * .68},${width * .38} ${height * .70}" fill="none" stroke="#171717" stroke-width="5" stroke-dasharray="10 12"/><text x="${width - pad}" y="${height * .89}" text-anchor="end" fill="#171717" font-family="Inter,sans-serif" font-size="18" letter-spacing="3">KEEP SHOWING UP</text></g>`;
+  return base({ width, height, recipe: 'star-trail-collage', title: input.title, body, bg: '#F1E9D9', text: '#171717', accent: '#2553A7', layout: 'burst-poster' });
+}
+
+function renderContactOffset(input, width, height) {
+  const pad = Math.round(width * .075);
+  const photos = (input.photos || []).slice(0, 4);
+  const cards = [
+    { x: width * .10, y: height * .23, w: width * .50, h: height * .36, r: -6 },
+    { x: width * .40, y: height * .37, w: width * .48, h: height * .35, r: 5 },
+    { x: width * .16, y: height * .62, w: width * .47, h: height * .26, r: 3 },
+    { x: width * .57, y: height * .66, w: width * .30, h: height * .19, r: -4 }
+  ].slice(0, Math.max(2, photos.length));
+  const cardsSvg = cards.map((card, index) => {
+    const source = photos[index] || photos[0];
+    const tape = `<rect class="washi-tape" x="${card.x + card.w * .38}" y="${card.y - 18}" width="${card.w * .24}" height="32" fill="${index % 2 ? '#2553A7' : '#FF5A44'}" fill-opacity=".78" transform="rotate(${card.r - 8} ${card.x + card.w * .5} ${card.y})"/>`;
+    return `<g class="contact-card" transform="rotate(${card.r} ${card.x + card.w / 2} ${card.y + card.h / 2})"><rect x="${card.x - 16}" y="${card.y - 16}" width="${card.w + 32}" height="${card.h + 32}" fill="#F7F0E4"/>${frameImage(source, card.x, card.y, card.w, card.h, 'original-photo', 'contact-photo')}${tape}<text x="${card.x + 18}" y="${card.y + card.h - 18}" fill="#F7F0E4" font-family="Inter,sans-serif" font-size="16" letter-spacing="3">0${index + 1} / TRAINING</text></g>`;
+  }).join('');
+  const lockup = renderTypeLockup({ title: input.title || '本周训练片段', subtitle: input.subtitle || '把每一次出现，拼成自己的轨迹', x: pad, y: Math.round(height * .095), maxWidth: width * .70, size: Math.round(width * .052) });
+  const body = `<g class="contact-offset"><text x="${width - pad}" y="${height * .055}" text-anchor="end" fill="#2553A7" font-family="Inter,sans-serif" font-size="20" letter-spacing="4">CONTACT / STUDY</text>${lockup}${cardsSvg}<path d="M${width * .10} ${height * .88} C${width * .32} ${height * .84},${width * .60} ${height * .91},${width * .90} ${height * .86}" fill="none" stroke="#171717" stroke-width="4" stroke-dasharray="10 12"/><polygon class="star-sticker" points="${starPolygon(width * .86, height * .22, 28, 12)}" fill="#F3C94F" stroke="#171717" stroke-width="3"/></g>`;
+  return base({ width, height, recipe: 'star-trail-collage', title: input.title, body, bg: '#F1E9D9', text: '#171717', accent: '#FF5A44', layout: 'contact-offset' });
+}
+
+function renderStarTrailCollage(input, width, height) {
+  const layout = chooseCollageLayout(input);
+  if (layout === 'burst-poster') return renderBurstPoster(input, width, height);
+  if (layout === 'contact-offset') return renderContactOffset(input, width, height);
+  const photos = input.photos || [];
+  const pad = Math.round(width * .075);
+  const heroX = Math.round(width * .08);
+  const heroY = Math.round(height * .17);
+  const heroW = Math.round(width * .68);
+  const heroH = Math.round(height * .55);
+  const insetW = Math.round(width * .23);
+  const insetH = Math.round(height * .19);
+  const insetX = Math.round(width * .72);
+  const title = input.title || '今天也在变强';
+  const subtitle = input.subtitle || '把出现，变成自己的节奏';
+  const hero = `<g class="star-trail-hero" transform="rotate(-2 ${heroX + heroW / 2} ${heroY + heroH / 2})"><rect x="${heroX - 18}" y="${heroY - 18}" width="${heroW + 36}" height="${heroH + 36}" fill="#F7F0E4"/><path class="torn-edge" d="M${heroX - 18} ${heroY + heroH * .1} L${heroX - 6} ${heroY - 20} L${heroX + heroW * .16} ${heroY - 8} L${heroX + heroW * .32} ${heroY - 21} L${heroX + heroW * .53} ${heroY - 6} L${heroX + heroW * .76} ${heroY - 19} L${heroX + heroW + 20} ${heroY - 4} L${heroX + heroW + 10} ${heroY + heroH * .22}" fill="#F7F0E4"/>${frameImage(photos[0], heroX, heroY, heroW, heroH, 'original-photo', 'star-trail-photo')}</g>`;
+  const insets = [0, 1].map((index) => {
+    const y = Math.round(height * (.18 + index * .23));
+    const x = insetX + (index ? 12 : 0);
+    const rotation = index ? 4 : -5;
+    return `<g class="star-trail-inset" transform="rotate(${rotation} ${x + insetW / 2} ${y + insetH / 2})"><rect x="${x - 12}" y="${y - 12}" width="${insetW + 24}" height="${insetH + 24}" rx="8" fill="#F7F0E4"/><rect x="${x - 3}" y="${y - 3}" width="${insetW + 6}" height="${insetH + 6}" fill="#1C2433" fill-opacity=".12"/>${frameImage(photos[index] || photos[0], x, y, insetW, insetH, 'original-photo', 'star-trail-inset-photo')}</g>`;
+  }).join('');
+  const stars = [[.78, .09, 30, '#FF5A44'], [.91, .31, 20, '#F3C94F'], [.17, .76, 25, '#2553A7'], [.73, .78, 18, '#FF5A44']]
+    .map(([x, y, size, fill], index) => `<polygon class="star-sticker star-sticker-${index + 1}" points="${starPolygon(width * x, height * y, size, size * .42)}" fill="${fill}" stroke="#171717" stroke-width="3"/>`).join('');
+  const metrics = (input.metrics || []).slice(0, 3).map((metric, index) => `<g class="training-stamp"><text x="${pad + index * width * .27}" y="${height * .80}" fill="#6D665D" font-family="Microsoft YaHei,Noto Sans CJK SC,sans-serif" font-size="18">${esc(metric.label)}</text><text x="${pad + index * width * .27}" y="${height * .84}" fill="#171717" font-family="Noto Serif CJK SC,SimSun,serif" font-size="42">${esc(metric.value)}</text></g>`).join('');
+  const lockup = renderTypeLockup({ title, subtitle, x: pad, y: Math.round(height * .735), maxWidth: width * .62, size: Math.round(width * .052) });
+  const body = `<g class="star-trail-collage"><text x="${pad}" y="${height * .095}" fill="#FF5A44" font-family="Inter,Microsoft YaHei,sans-serif" font-size="22" letter-spacing="4">TRAINING SCRAPBOOK / ${esc(input.date || 'TODAY')}</text>${hero}${insets}<path class="hand-arrow" d="M${width * .63} ${height * .72} C${width * .72} ${height * .66},${width * .78} ${height * .62},${width * .88} ${height * .57}" fill="none" stroke="#171717" stroke-width="5" stroke-linecap="round" stroke-dasharray="12 14"/><path class="hand-arrow-head" d="M${width * .86} ${height * .55} l${width * .04} ${height * .02} -${width * .025} ${height * .035}" fill="none" stroke="#171717" stroke-width="5" stroke-linecap="round"/>${lockup}${metrics}${stars}<text x="${width - pad}" y="${height * .88}" text-anchor="end" fill="#171717" font-family="Inter,sans-serif" font-size="18" letter-spacing="3">KEEP SHOWING UP</text></g>`;
+  return base({ width, height, recipe: 'star-trail-collage', title, body, bg: '#F1E9D9', text: '#171717', accent: '#FF5A44', layout: 'torn-vertical' });
 }
 
 function renderStoryboard(input, width, height) {
@@ -197,6 +319,7 @@ function renderCompiledVisualSvg(input = {}) {
   const [width, height] = CANVAS[ratio];
   const recipe = input.recipe || ((input.photos || []).length > 1 ? 'multi-photo-storyboard' : (input.photos || []).length ? 'sketch-diptych' : 'training-rings');
   if (recipe === 'sketch-diptych') return renderSketchDiptych(input, width, height);
+  if (recipe === 'star-trail-collage') return renderStarTrailCollage(input, width, height);
   if (recipe === 'multi-photo-storyboard') return renderStoryboard(input, width, height);
   if (recipe === 'motion-comic') return renderMotionComic(input, width, height);
   if (recipe === 'risograph-zine') return renderRisograph(input, width, height);

@@ -53,7 +53,7 @@ test('no-photo recipes use different SVG grammars rather than recoloring one lay
 });
 
 test('every public visual recipe renders its own declared composition', () => {
-  const photoRecipes = ['sketch-diptych', 'motion-comic', 'risograph-zine', 'symbol-lab', 'minimal-trajectory', 'multi-photo-storyboard'];
+  const photoRecipes = ['star-trail-collage', 'sketch-diptych', 'motion-comic', 'risograph-zine', 'symbol-lab', 'minimal-trajectory', 'multi-photo-storyboard'];
   const dataRecipes = ['data-atlas', 'training-rings', 'muscle-constellation', 'strength-terrain', 'action-fingerprint'];
   for (const recipe of photoRecipes) {
     const svg = renderCompiledVisualSvg({ ratio: '1:1', recipe, photos: ['one.jpg', 'two.jpg'], title: recipe, motifs: [{ id: 'halo-cycle' }] });
@@ -65,6 +65,49 @@ test('every public visual recipe renders its own declared composition', () => {
     assert.match(svg, new RegExp(`data-recipe="${recipe}"`));
     assert.doesNotMatch(svg, /data-role="original-photo"/);
   }
+});
+
+test('star-trail collage is a photo-first social composition with layered accents', () => {
+  const svg = renderCompiledVisualSvg({
+    ratio: '3:4',
+    recipe: 'star-trail-collage',
+    photos: ['hero.jpg'],
+    title: '今天也在变强',
+    metrics: [{ label: '训练天数', value: '74' }]
+  });
+  assert.match(svg, /data-recipe="star-trail-collage"/);
+  assert.match(svg, /class="star-trail-hero"/);
+  assert.match(svg, /class="star-trail-inset"/);
+  assert.match(svg, /class="star-sticker /);
+  assert.match(svg, /hand-note/);
+});
+
+test('star-trail collage adapts its collage grammar and typography to visual DNA', () => {
+  const torn = renderCompiledVisualSvg({
+    ratio: '3:4',
+    recipe: 'star-trail-collage',
+    photos: ['hero.jpg'],
+    title: '今天也在变强',
+    visualDNA: { images: [{ orientation: 'portrait', focal_region: 'center', negative_space: 'right', luminance: 'dark', contrast: 'high' }] }
+  });
+  const burst = renderCompiledVisualSvg({
+    ratio: '3:4',
+    recipe: 'star-trail-collage',
+    photos: ['hero.jpg'],
+    title: '胸肩训练完成',
+    visualDNA: { images: [{ orientation: 'landscape', focal_region: 'left', negative_space: 'top', luminance: 'bright', contrast: 'high' }] }
+  });
+  assert.match(torn, /data-layout="torn-vertical"/);
+  assert.match(burst, /data-layout="burst-poster"/);
+  assert.notEqual(torn, burst);
+  assert.match(torn, /class="type-lockup"/);
+  assert.match(torn, /data-type-safe-zone=/);
+  assert.match(torn, /font-family="Noto Serif CJK SC/);
+  assert.match(torn, /class="torn-edge|class="burst-lines/);
+  const contact = renderCompiledVisualSvg({ ratio: '3:4', recipe: 'star-trail-collage', photos: ['one.jpg', 'two.jpg', 'three.jpg'], title: '本周训练片段' });
+  assert.match(contact, /data-layout="contact-offset"/);
+  assert.equal((contact.match(/class="contact-card/g) || []).length, 3);
+  assert.match(contact, /class="washi-tape"/);
 });
 
 test('visual compiler CLI emits three recommendations and an auditable manifest', () => {
@@ -102,6 +145,6 @@ test('plugin visual compiler is independently runnable from the plugin root', ()
   assert.equal(manifest.recommendations.length, 3);
   const choices = spawnSync(process.execPath, ['scripts/compile-visual-brief.js', '--list-recipes'], { cwd: join(__dirname, '..', '..', 'healthy-fitness-coach-plugin'), encoding: 'utf8' });
   assert.equal(choices.status, 0, choices.stderr);
-  assert.equal(JSON.parse(choices.stdout).length, 11);
+  assert.equal(JSON.parse(choices.stdout).length, 12);
   rmSync(root, { recursive: true, force: true });
 });

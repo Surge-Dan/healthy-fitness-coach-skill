@@ -27,7 +27,7 @@ node quality-tests\run-visual-png-smoke.js
 # Skill格式与Python语法
 $env:PYTHONUTF8='1'
 python $env:USERPROFILE\.codex\skills\skill-creator\scripts\quick_validate.py healthy-fitness-coach
-python -m py_compile healthy-fitness-coach\scripts\*.py healthy-fitness-coach-plugin\scripts\*.py
+Get-ChildItem healthy-fitness-coach\scripts\*.py,healthy-fitness-coach-plugin\scripts\*.py | ForEach-Object { python -m py_compile $_.FullName }
 ```
 
 ## 质量指标
@@ -37,7 +37,8 @@ python -m py_compile healthy-fitness-coach\scripts\*.py healthy-fitness-coach-pl
 - 变异测试：关键阈值和主动作聚合变异必须被测试杀死，目标100%
 - 知识库完整性：来源卡编号连续且训练领域矩阵覆盖有氧、阻力/无氧、功率、间歇与混合训练
 - 长期训练系统：训练DNA参考、四份默认资产和三份按需模板必须存在，入口路由与事实/推断边界必须可审计
-- 视觉编译器：11个配方×3个比例的SVG全部可渲染，11个配方的PNG逐一冒烟，推荐的3个配方构图语法不同，Plugin与独立Skill副本一致
+- 视觉编译器：12个配方×3个比例的SVG全部可渲染，12个配方的PNG逐一冒烟，推荐的3个配方构图语法不同，Plugin与独立Skill副本一致
+- 训练闭环：指导输出必须包含事实、判断、行动和下一次验证；训练总结必须显式标记空数据、缺失日期和混合新鲜度
 - 覆盖率：使用Node内置V8覆盖率；当前门禁记录行、分支、函数覆盖率
 - 视觉QA：1:1、9:16、3:4均生成SVG/PNG；像素尺寸、SVG视窗边界、热力图对齐和空数据降级均校验
 - 安全检查：源码与Git跟踪文件不得出现真实API-Key、Bearer凭据、个人训练缓存或导出报告

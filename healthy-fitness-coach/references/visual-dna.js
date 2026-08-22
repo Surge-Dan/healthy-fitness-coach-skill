@@ -3,6 +3,7 @@
 const RATIO_PRESETS = new Set(['1:1', '3:4', '9:16']);
 
 const RECIPE_CATALOG = Object.freeze([
+  Object.freeze({ id: 'star-trail-collage', name: '星轨训练拼贴', input: ['single-photo', 'multi-photo', 'photo-data'], grammar: 'star-scrapbook-collage', requires_photo: true, derived_style: 'premium gym scrapbook with tactile collage, sticker stars and hand annotations', preservation: 'high', description: '让照片成为主角，用错位裁切、贴纸星标和手写轨迹做成可分享的训练拼贴。' }),
   Object.freeze({ id: 'sketch-diptych', name: '原图×运动速写', input: ['single-photo', 'photo-data'], grammar: 'split-diptych', requires_photo: true, derived_style: 'expressive ink and graphite sports sketch', preservation: 'high', description: '保留原图，同时把姿态、灯光和器械转译成手绘层。' }),
   Object.freeze({ id: 'motion-comic', name: '训练漫画分镜', input: ['single-photo', 'multi-photo', 'photo-data'], grammar: 'comic-sequence', requires_photo: true, derived_style: 'clean contemporary sports comic with motion strokes', preservation: 'high', description: '用局部裁切、分镜和速度线重组训练瞬间。' }),
   Object.freeze({ id: 'risograph-zine', name: '双色训练小志', input: ['single-photo', 'multi-photo', 'photo-data'], grammar: 'print-zine', requires_photo: true, derived_style: 'two-color risograph, paper grain, imperfect registration', preservation: 'medium', description: '用双色套印、网点与纸张肌理形成独立小志。' }),
@@ -125,6 +126,7 @@ function recommendVisualRecipes({ route = { kind: 'data-only' }, visualDNA = {},
     let value = 0;
     if (recipe.id === preferred) value += 100;
     if (route.kind === 'multi-photo' && recipe.id === 'multi-photo-storyboard') value += 50;
+    if (route.kind !== 'data-only' && recipe.id === 'star-trail-collage') value += 46;
     if (hasFact(facts, /mirror|reflection|镜面/i) && recipe.id === 'sketch-diptych') value += 25;
     if (hasFact(facts, /ring[_ -]?light|plate|环形灯|铃片/i) && recipe.id === 'symbol-lab') value += 22;
     if (texture === 'fine_grain' && recipe.id === 'risograph-zine') value += 18;

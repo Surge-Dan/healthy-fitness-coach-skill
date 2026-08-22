@@ -33,7 +33,7 @@ test('trend analysis aggregates sessions, volume, weekly frequency, and exercise
   assert.equal(result.exercise_frequency[0].name, '背部训练');
   assert.equal(result.parse_warnings, 1);
   assert.equal(result.exercise_performance_exercise, '背部训练');
-  assert.deepEqual(result.exercise_performance, [{ label: '2026-07-28', value: 1800, exercise: '背部训练', value_type: 'volume' }]);
+  assert.deepEqual(result.exercise_performance, [{ label: '2026-07-28', value: 1800, exercise: '背部训练', value_type: 'volume_kg' }]);
 });
 
 test('trend analysis exposes dated main-exercise performance without inventing values', () => {
@@ -47,9 +47,34 @@ test('trend analysis exposes dated main-exercise performance without inventing v
   });
   assert.equal(result.exercise_performance_exercise, '卧推');
   assert.deepEqual(result.exercise_performance.map(({ label, value, value_type }) => ({ label, value, value_type })), [
-    { label: '2026-08-01', value: 60, value_type: 'weight' },
-    { label: '2026-08-02', value: 62.5, value_type: 'weight' }
+    { label: '2026-08-01', value: 60, value_type: 'weight_kg' },
+    { label: '2026-08-02', value: 62.5, value_type: 'weight_kg' }
   ]);
+});
+
+test('trend analysis normalizes lb and kg before comparing main-exercise performance', () => {
+  const result = analyzeTrainingRange({
+    dates: ['2026-08-01', '2026-08-02'],
+    records: [
+      { record_date: '2026-08-01', title: '鍗ф帹', sets: 3, reps: 8, weight: '100lb' },
+      { record_date: '2026-08-02', title: '鍗ф帹', sets: 3, reps: 8, weight: '50kg' }
+    ]
+  });
+  assert.deepEqual(result.exercise_performance.map((item) => item.value), [45.359, 50]);
+  assert.equal(result.exercise_performance_value_type, 'weight_kg');
+});
+
+test('trend analysis sorts unsorted date inputs before filtering records', () => {
+  const result = analyzeTrainingRange({
+    dates: ['2026-08-03', '2026-08-01'],
+    records: [
+      { record_date: '2026-08-01', title: '鍗ф帹', sets: 3, reps: 8, volume: 100 },
+      { record_date: '2026-08-03', title: '鍗ф帹', sets: 3, reps: 8, volume: 120 }
+    ]
+  });
+  assert.equal(result.training_days, 2);
+  assert.equal(result.date_start, '2026-08-01');
+  assert.equal(result.date_end, '2026-08-03');
 });
 
 test('trend analysis reports an empty range without inventing metrics', () => {

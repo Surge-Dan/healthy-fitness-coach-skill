@@ -119,6 +119,15 @@ test('adherence counts calendar weeks and active completed sessions only', () =>
   assert.equal(result.metrics.adherence, 0.1);
 });
 
+test('invalid planned frequency does not produce a negative adherence score', () => {
+  const result = extractTrainingDNA({
+    dateStart: '2026-01-01', dateEnd: '2026-01-31', plannedSessionsPerWeek: -2,
+    records: [{ record_date: '2026-01-02', title: 'press', kind: 'resistance', sets: 3, reps: 8 }]
+  });
+  assert.equal(result.metrics.adherence, undefined);
+  assert.ok(result.warnings.some((warning) => warning.code === 'invalid_planned_frequency'));
+});
+
 test('does not estimate resistance volume when a row mixes kg and lb', () => {
   const result = extractTrainingDNA({
     dateStart: '2026-04-01', dateEnd: '2026-04-07',
@@ -142,4 +151,18 @@ test('does not count unknown rows as training sessions or training days', () => 
   assert.equal(result.metrics.sessions, 0);
   assert.equal(result.metrics.rest_days, 1);
   assert.ok(result.warnings.some((warning) => warning.code === 'unknown_training_kind'));
+});
+
+test('invalid aerobic and effort measurements are excluded instead of becoming training DNA', () => {
+  const result = normalizeTrainingRecords([
+    { record_date: '2026-04-04', title: '跑步', duration_min: -30, distance_km: -5, avg_hr: -100 },
+    { record_date: '2026-04-05', title: '卧推', sets: 3, reps: 8, weight: '60kg', rpe: 15, rir: -2 }
+  ]);
+
+  assert.ok(result.warnings.some((warning) => warning.code === 'invalid_measurement'));
+  assert.equal(result.sessions[0].duration_min, undefined);
+  assert.equal(result.sessions[0].distance_km, undefined);
+  assert.equal(result.sessions[0].avg_hr, undefined);
+  assert.equal(result.sessions[1].rpe, undefined);
+  assert.equal(result.sessions[1].rir, undefined);
 });

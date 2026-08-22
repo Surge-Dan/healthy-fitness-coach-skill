@@ -92,6 +92,187 @@ def render_storyboard(canvas, payload, colors):
     draw.arc((pad, int(height * 0.80), width - pad, int(height * 0.91)), 190, 346, fill=colors[2], width=max(5, int(width * 0.005)))
 
 
+def star_points(cx, cy, outer, inner, count=8):
+    points = []
+    for index in range(count * 2):
+        angle = -math.pi / 2 + math.pi * index / count
+        radius = inner if index % 2 else outer
+        points.append((cx + math.cos(angle) * radius, cy + math.sin(angle) * radius))
+    return points
+
+
+def paste_rotated_photo(canvas, path, box, angle, border, centering=(0.5, 0.45)):
+    x, y, width, height = box
+    image = fit(path, (width, height), centering)
+    layer = Image.new("RGBA", (width + 48, height + 48), (0, 0, 0, 0))
+    layer_draw = ImageDraw.Draw(layer, "RGBA")
+    layer_draw.rectangle((8, 8, width + 40, height + 40), fill=(247, 240, 228, 255), outline=(247, 240, 228, 255), width=4)
+    if image:
+        layer.paste(image, (24, 24))
+    else:
+        layer_draw.rectangle((24, 24, width + 24, height + 24), fill=(28, 36, 51, 42))
+    layer_draw.rectangle((24, 24, width + 24, height + 24), outline=border, width=max(2, width // 180))
+    rotated = layer.rotate(angle, resample=Image.Resampling.BICUBIC, expand=True)
+    canvas.alpha_composite(rotated, (int(x - (rotated.width - width) / 2), int(y - (rotated.height - height) / 2)))
+
+
+def collage_signals(payload):
+    dna = payload.get("visualDNA") or payload.get("visual_dna") or payload.get("imageAnalysis") or payload.get("image_analysis") or {}
+    images = dna.get("images", []) if isinstance(dna, dict) else []
+    image = images[0] if images and isinstance(images[0], dict) else {}
+    return {key: str(image.get(key, "")).lower() for key in ("orientation", "focal_region", "negative_space", "luminance", "contrast")}
+
+
+def choose_collage_layout(payload):
+    requested = payload.get("collageLayout") or payload.get("collage_layout")
+    if requested in {"torn-vertical", "burst-poster", "contact-offset"}:
+        return requested
+    if len(payload.get("photos", [])) > 1:
+        return "contact-offset"
+    signals = collage_signals(payload)
+    if signals["orientation"] == "landscape" and ("top" in signals["negative_space"] or "left" in signals["focal_region"]):
+        return "burst-poster"
+    return "torn-vertical"
+
+
+def wrap_text(draw, text, face, max_width):
+    chars = list(str(text or ""))
+    if not chars:
+        return []
+    lines, current = [], ""
+    for char in chars:
+        candidate = current + char
+        if current and draw.textbbox((0, 0), candidate, font=face)[2] > max_width:
+            lines.append(current)
+            current = char
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return lines[:3]
+
+
+def draw_type_lockup(draw, payload, x, y, max_width, width, color, muted):
+    size = max(42, int(width * 0.052))
+    title_face = font(size, serif=True)
+    subtitle_face = font(max(20, int(width * 0.021)))
+    title_lines = wrap_text(draw, payload.get("title", "今天也在变强"), title_face, max_width)
+    line_gap = int(size * 1.04)
+    for index, line in enumerate(title_lines):
+        draw.text((x, y + index * line_gap), line, font=title_face, fill=color)
+    subtitle_y = y + len(title_lines) * line_gap + int(size * 0.35)
+    subtitle_lines = wrap_text(draw, payload.get("subtitle", "把出现，变成自己的节奏"), subtitle_face, max_width)
+    for index, line in enumerate(subtitle_lines):
+        draw.text((x, subtitle_y + index * 34), line, font=subtitle_face, fill=muted)
+
+
+def render_burst_poster(canvas, payload, colors):
+    width, height = canvas.size
+    draw = ImageDraw.Draw(canvas, "RGBA")
+    pad = int(width * 0.075)
+    hero_x, hero_y = int(width * 0.12), int(height * 0.23)
+    hero_w, hero_h = int(width * 0.76), int(height * 0.45)
+    center_x, center_y = width * 0.52, height * 0.47
+    for index in range(14):
+        angle = math.pi * 2 * index / 14
+        start = (center_x + math.cos(angle) * width * 0.22, center_y + math.sin(angle) * width * 0.22)
+        end = (center_x + math.cos(angle) * width * 0.40, center_y + math.sin(angle) * width * 0.40)
+        draw.line((*start, *end), fill=colors[1][:-1] + (190,), width=7 if index % 2 else 3)
+    paste_rotated_photo(canvas, payload.get("photos", [None])[0], (hero_x, hero_y, hero_w, hero_h), -3.0, colors[3], centering=(0.5, 0.42))
+    draw.text((pad, int(height * 0.055)), "TRAINING / SIGNAL", font=font(max(18, int(width * 0.018)), bold=True), fill=colors[2])
+    draw_type_lockup(draw, payload, pad, int(height * 0.10), int(width * 0.70), width, colors[3], colors[3][:-1] + (180,))
+    for index, metric in enumerate(payload.get("metrics", [])[:3]):
+        x = pad + int(index * width * 0.28)
+        draw.text((x, int(height * 0.80)), str(metric.get("label", "")), font=font(max(16, int(width * 0.016))), fill=colors[3][:-1] + (160,))
+        draw.text((x, int(height * 0.84)), str(metric.get("value", "")), font=font(max(24, int(width * 0.035)), serif=True), fill=colors[3])
+    draw.polygon(star_points(width * 0.83, height * 0.78, width * 0.055, width * 0.022, 10), fill=colors[1], outline=colors[3])
+    draw.line((int(width * 0.10), int(height * 0.72), int(width * 0.38), int(height * 0.70)), fill=colors[3], width=5)
+
+
+def render_contact_offset(canvas, payload, colors):
+    width, height = canvas.size
+    draw = ImageDraw.Draw(canvas, "RGBA")
+    pad = int(width * 0.075)
+    photos = payload.get("photos", [])[:4]
+    specs = [
+        (width * .10, height * .23, width * .50, height * .36, -6),
+        (width * .40, height * .37, width * .48, height * .35, 5),
+        (width * .16, height * .62, width * .47, height * .26, 3),
+        (width * .57, height * .66, width * .30, height * .19, -4),
+    ][:max(2, len(photos))]
+    draw.text((width - pad, int(height * .055)), "CONTACT / STUDY", anchor="ra", font=font(max(18, int(width * .016)), bold=True), fill=colors[2])
+    draw_type_lockup(draw, payload, pad, int(height * .095), int(width * .70), width, colors[3], colors[3][:-1] + (180,))
+    labels = []
+    for index, (x, y, panel_w, panel_h, angle) in enumerate(specs):
+        source = photos[index] if index < len(photos) else (photos[0] if photos else None)
+        paste_rotated_photo(canvas, source, (int(x), int(y), int(panel_w), int(panel_h)), angle, colors[3], centering=(0.5, 0.45))
+        tape_color = colors[2] if index % 2 else colors[1]
+        draw.rectangle((int(x + panel_w * .38), int(y - 10), int(x + panel_w * .62), int(y + 22)), fill=tape_color[:-1] + (198,))
+        labels.append((int(x + 48), int(y + 42), f"0{index + 1} / TRAINING"))
+    label_face = font(max(12, int(width * .012)), bold=True)
+    for x, y, label in labels:
+        box = draw.textbbox((x, y), label, font=label_face)
+        draw.rounded_rectangle((box[0] - 8, box[1] - 5, box[2] + 8, box[3] + 5), radius=5, fill=colors[3][:-1] + (178,))
+        draw.text((x, y), label, font=label_face, fill=colors[0])
+    draw.line((int(width * .10), int(height * .88), int(width * .90), int(height * .86)), fill=colors[3], width=4)
+    draw.polygon(star_points(width * .86, height * .22, 28, 12), fill=colors[1], outline=colors[3])
+
+
+def render_star_trail_collage(canvas, payload, colors):
+    layout = choose_collage_layout(payload)
+    if layout == "burst-poster":
+        render_burst_poster(canvas, payload, colors)
+        return
+    if layout == "contact-offset":
+        render_contact_offset(canvas, payload, colors)
+        return
+    width, height = canvas.size
+    draw = ImageDraw.Draw(canvas, "RGBA")
+    photos = payload.get("photos", [])[:6]
+    pad = int(width * 0.075)
+    hero_x, hero_y = int(width * 0.08), int(height * 0.17)
+    hero_w, hero_h = int(width * 0.68), int(height * 0.55)
+    inset_x = int(width * 0.72)
+    inset_w, inset_h = int(width * 0.23), int(height * 0.19)
+
+    # A restrained paper field: the collage should feel tactile without becoming noisy.
+    for index in range(18):
+        x = int(width * 0.06 + (index * 97) % int(width * 0.88))
+        y = int(height * 0.10 + (index * 131) % int(height * 0.78))
+        draw.ellipse((x, y, x + 3, y + 3), fill=colors[2][:-1] + (34,))
+    draw.text((pad, int(height * 0.095)), f"TRAINING SCRAPBOOK / {payload.get('date', 'TODAY')}", font=font(max(18, int(width * 0.018)), bold=True), fill=colors[1])
+
+    # Offset torn-paper backing and the main photograph.
+    paper = [(hero_x - 22, hero_y + 26), (hero_x + 18, hero_y - 22), (hero_x + hero_w * .20, hero_y - 10), (hero_x + hero_w * .42, hero_y - 26), (hero_x + hero_w * .66, hero_y - 8), (hero_x + hero_w + 24, hero_y + 4), (hero_x + hero_w + 8, hero_y + hero_h * .28), (hero_x + hero_w + 22, hero_y + hero_h * .62), (hero_x + hero_w - 6, hero_y + hero_h + 20), (hero_x + hero_w * .70, hero_y + hero_h + 8), (hero_x + hero_w * .48, hero_y + hero_h + 25), (hero_x + hero_w * .22, hero_y + hero_h + 7), (hero_x - 20, hero_y + hero_h + 16)]
+    draw.polygon(paper, fill=colors[3])
+    paste_rotated_photo(canvas, photos[0] if photos else None, (hero_x, hero_y, hero_w, hero_h), -2.0, colors[3], centering=(0.48, 0.42))
+
+    # Two small proof-of-session crops create the scrapbook rhythm.
+    for index in range(2):
+        y = int(height * (0.18 + index * 0.23))
+        paste_rotated_photo(canvas, photos[index] if index < len(photos) else (photos[0] if photos else None), (inset_x + (12 if index else 0), y, inset_w, inset_h), -5 if index == 0 else 4, colors[3], centering=(0.34 + index * 0.25, 0.44))
+
+    # A hand-drawn route connects the main frame to the session details.
+    arrow = [(int(width * 0.63), int(height * 0.72)), (int(width * 0.71), int(height * 0.69)), (int(width * 0.77), int(height * 0.64)), (int(width * 0.88), int(height * 0.57))]
+    draw.line(arrow, fill=colors[3], width=max(4, int(width * 0.003)), joint="curve")
+    draw.line((arrow[-1][0] - 34, arrow[-1][1] - 8, arrow[-1][0], arrow[-1][1], arrow[-1][0] - 18, arrow[-1][1] + 30), fill=colors[3], width=max(4, int(width * 0.003)), joint="curve")
+
+    title = payload.get("title", "今天也在变强")
+    subtitle = payload.get("subtitle", "把出现，变成自己的节奏")
+    draw_type_lockup(draw, payload, pad, int(height * 0.735), int(width * 0.62), width, colors[3], colors[3][:-1] + (180,))
+
+    for index, metric in enumerate(payload.get("metrics", [])[:3]):
+        x = pad + int(index * width * 0.27)
+        draw.text((x, int(height * 0.80)), str(metric.get("label", "")), font=font(max(16, int(width * 0.016))), fill=colors[3][:-1] + (160,))
+        draw.text((x, int(height * 0.84)), str(metric.get("value", "")), font=font(max(24, int(width * 0.035)), serif=True), fill=colors[3])
+
+    # Stars are used as anchors, not random decoration.
+    star_specs = ((0.78, 0.09, 30, colors[1]), (0.91, 0.31, 20, colors[2]), (0.17, 0.76, 25, colors[2]), (0.73, 0.78, 18, colors[1]))
+    for x_ratio, y_ratio, size, fill in star_specs:
+        points = star_points(width * x_ratio, height * y_ratio, size, size * 0.42)
+        draw.polygon(points, fill=fill, outline=colors[3])
+
+
 def render_sketch_diptych(canvas, payload, colors):
     width, height = canvas.size
     draw = ImageDraw.Draw(canvas, "RGBA")
@@ -273,6 +454,7 @@ def main():
     width, height = CANVAS[args.ratio]
     recipe = payload.get("recipe", "sketch-diptych" if payload.get("photos") else "training-rings")
     themes = {
+        "star-trail-collage": ("#F1E9D9", "#FF5A44", "#2553A7", "#171717"),
         "risograph-zine": ("#F2E8D5", "#F2573F", "#2453A6", "#171717"),
         "multi-photo-storyboard": ("#181514", "#FFDF59", "#FF6A4D", "#F8F0E4"),
         "training-rings": ("#10141D", "#D7FF4B", "#7E8CFF", "#F6F7F2"),
@@ -284,7 +466,9 @@ def main():
     theme = themes.get(recipe, ("#111315", "#FF6A4D", "#75E6DA", "#F6F1E8"))
     colors = tuple(rgba(value) for value in theme)
     canvas = Image.new("RGBA", (width, height), colors[0])
-    if recipe in {"multi-photo-storyboard", "motion-comic"}:
+    if recipe == "star-trail-collage":
+        render_star_trail_collage(canvas, payload, colors)
+    elif recipe in {"multi-photo-storyboard", "motion-comic"}:
         render_storyboard(canvas, payload, colors)
     elif recipe == "risograph-zine":
         render_risograph(canvas, payload, colors)

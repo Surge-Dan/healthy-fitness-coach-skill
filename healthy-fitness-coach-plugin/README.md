@@ -32,6 +32,7 @@ npm --prefix .\mcp\xunji ci --omit=dev --ignore-scripts
 - 成功写回后，以训记返回的最新 `res` 作为最终结果并更新当天缓存。
 - 趋势工具返回本地自包含 HTML，可保存到工作区 `fitness-reports/`；不加载外部 CDN，也不上传用户数据。
 - `xunji_extract_training_dna`会分别分析阻力和有氧训练，返回八维DNA、数据质量、证据台账和版本变更；DNA版本保存在`%LOCALAPPDATA%\HealthyFitnessCoach\training-dna\`，按账号单向fingerprint隔离。
+- `xunji_get_training_trends`会在趋势数据旁返回`summary`和`guidance`：总结训练事实与数据质量，指导按“事实→判断→行动→验证”给出下一步，不会把稀疏数据包装成确定性结论。
 - 标记为 Garmin 的记录会在面向模型的输出前被过滤；不会新增云数据库。
 - 插件不会随源码或 `dist` 打包 `node_modules`、凭据、缓存、个人报告或真实训练数据。
 

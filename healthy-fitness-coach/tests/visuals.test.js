@@ -269,6 +269,33 @@ test('cross-year heatmaps do not silently discard the second year', () => {
   assert.match(svg, /data-cross-year="true"/);
 });
 
+test('rich reports replace an empty radar with a no-data label', () => {
+  const svg = renderShareCardSvg({
+    mode: 'data-atlas',
+    layout: 'rich',
+    ratio: '3:4',
+    title: '空数据',
+    bodyDistribution: []
+  });
+  assert.match(svg, /暂无足够部位数据/);
+  assert.match(svg, /data-radar="no-data"/);
+  assert.doesNotMatch(svg, /<polygon[^>]+points="[^,]+,[^,]+"[^>]*>/);
+});
+
+test('rich reports do not silently truncate a cross-year heatmap', () => {
+  const svg = renderShareCardSvg({
+    mode: 'data-atlas',
+    layout: 'rich',
+    ratio: '3:4',
+    title: '跨年报告',
+    trainingDates: ['2025-12-31', '2026-01-01'],
+    dateStart: '2025-07-01',
+    dateEnd: '2026-06-30'
+  });
+  assert.match(svg, /跨年范围请拆分为年度面板/);
+  assert.match(svg, /data-cross-year="true"/);
+});
+
 test('performance chart renders a no-data state without inventing progression', () => {
   const svg = renderPerformanceChartSvg({ title: '主动作表现', points: [] });
   assert.match(svg, /主动作表现/);
@@ -304,7 +331,8 @@ test('visual report builder returns reusable chart assets from trend data', () =
       exercise_frequency: [{ name: '肩', count: 4, last_date: '2026-07-28' }]
     }
   });
-  assert.deepEqual(assets.map((asset) => asset.name), ['weekly-frequency.svg', 'weekly-volume.svg', 'subject-distribution.svg', 'training-heatmap.svg', 'main-performance.svg']);
+  assert.deepEqual(assets.map((asset) => asset.name), ['weekly-frequency.svg', 'weekly-volume.svg', 'subject-distribution.svg', 'training-heatmap.svg', 'main-performance.svg', 'training-summary.svg']);
   assert.ok(assets.every((asset) => asset.svg.startsWith('<svg')));
   assert.match(assets.find((asset) => asset.name === 'training-heatmap.svg').svg, /data-heatmap="year"/);
+  assert.match(assets.find((asset) => asset.name === 'training-summary.svg').svg, /data-summary="training"/);
 });

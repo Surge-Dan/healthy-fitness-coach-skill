@@ -115,6 +115,19 @@ test('day results never relabel a date-less record as the requested date', async
   assert.ok(result.warnings.some((warning) => warning.includes('cross_date_records_dropped')));
 });
 
+test('day fetch drops records with no trustworthy date', async () => {
+  const service = createTrainingService({
+    cache: memoryCache(),
+    credentialProvider: async () => 'FAKE_TEST_CREDENTIAL',
+    client: { async fetchDay() { return { records: ['id: no-date,胸部训练,1.卧推,1组,60kg,10次'] }; } }
+  });
+
+  const result = await service.getTrainingDay({ date: '2026-08-02' });
+
+  assert.deepEqual(result.records, []);
+  assert.ok(result.warnings.some((warning) => warning.includes('cross_date_records_dropped')));
+});
+
 test('range results keep successful days grouped and return a partial result after one failure', async () => {
   const service = createTrainingService({
     cache: memoryCache(),
@@ -140,6 +153,22 @@ test('range results keep successful days grouped and return a partial result aft
   assert.ok(result.warnings.some((warning) => warning.includes('2026-08-02')));
 });
 
+test('range operation snapshots one credential for every requested day', async () => {
+  const credentials = ['SYNTHETIC_ACCOUNT_A', 'SYNTHETIC_ACCOUNT_B'];
+  const calls = [];
+  const service = createTrainingService({
+    cacheFactory: async () => memoryCache(),
+    credentialProvider: async () => credentials.shift(),
+    client: { async fetchDay(date, credential) { calls.push(`${date}:${credential}`); return { records: [] }; } }
+  });
+
+  const result = await service.getTrainingRange({ start_date: '2026-08-01', end_date: '2026-08-02' });
+
+  assert.equal(result.error, undefined);
+  assert.deepEqual(calls, ['2026-08-01:SYNTHETIC_ACCOUNT_A', '2026-08-02:SYNTHETIC_ACCOUNT_A']);
+  assert.deepEqual(credentials, ['SYNTHETIC_ACCOUNT_B']);
+});
+
 test('service rejects invalid dates and chunks annual ranges into safe requests', async () => {
   let calls = 0;
   const service = createTrainingService({ cache: memoryCache(), client: { async fetchDay() { calls += 1; return { records: [] }; } }, credentialProvider: async () => 'FAKE_TEST_CREDENTIAL' });
@@ -150,9 +179,21 @@ test('service rejects invalid dates and chunks annual ranges into safe requests'
   assert.equal(calls, 121);
 });
 
+test('service rejects an unbounded multi-year request before making network calls', async () => {
+  let calls = 0;
+  const service = createTrainingService({
+    cache: memoryCache(),
+    credentialProvider: async () => 'FAKE_TEST_CREDENTIAL',
+    client: { async fetchDay() { calls += 1; return { records: [] }; } }
+  });
+  const result = await service.getTrainingRange({ start_date: '2010-01-01', end_date: '2026-08-01' });
+  assert.equal(result.error.code, 'range_too_large');
+  assert.equal(calls, 0);
+});
+
 test('failed refresh preserves and returns the existing valid cache entry', async () => {
   const service = createTrainingService({
-    cache: memoryCache({ '2026-08-01': { fetched_at: 0, records: [{ id: 'cached-safe' }], warnings: [] } }),
+    cache: memoryCache({ '2026-08-01': { fetched_at: 0, records: [{ id: 'cached-safe', record_date: '2026-08-01' }], warnings: [] } }),
     client: { async fetchDay() { throw Object.assign(new Error('offline'), { code: 'network_error' }); } },
     credentialProvider: async () => 'FAKE_TEST_CREDENTIAL',
     now: () => 100_000
@@ -161,6 +202,18 @@ test('failed refresh preserves and returns the existing valid cache entry', asyn
   assert.equal(result.cache_hit, true);
   assert.equal(result.records[0].id, 'cached-safe');
   assert.ok(result.warnings.includes('refresh_failed_using_cache'));
+});
+
+test('refresh does not hide invalid credentials behind stale cache', async () => {
+  const service = createTrainingService({
+    cache: memoryCache({ '2026-08-01': { fetched_at: 0, records: [{ id: 'cached-safe', record_date: '2026-08-01' }], warnings: [] } }),
+    client: { async fetchDay() { throw Object.assign(new Error('rejected'), { code: 'invalid_credentials' }); } },
+    credentialProvider: async () => 'FAKE_TEST_CREDENTIAL',
+    now: () => 100_000
+  });
+  const result = await service.getTrainingDay({ date: '2026-08-01', refresh: true });
+  assert.equal(result.error.code, 'invalid_credentials');
+  assert.equal(result.records, undefined);
 });
 
 test('MCP server registers read, preview, write, trend, and training DNA tools', () => {
@@ -180,7 +233,7 @@ test('MCP server registers read, preview, write, trend, and training DNA tools',
 });
 
 test('service uses a lazily fingerprinted production cache before fetching', async () => {
-  const cache = memoryCache({ '2026-08-01': { fetched_at: 1, records: [{ id: 'disk-cache' }], warnings: [] } });
+  const cache = memoryCache({ '2026-08-01': { fetched_at: 1, records: [{ id: 'disk-cache', record_date: '2026-08-01' }], warnings: [] } });
   let fetches = 0;
   const service = createTrainingService({
     cacheFactory: async () => cache,
@@ -195,7 +248,7 @@ test('service uses a lazily fingerprinted production cache before fetching', asy
 
 test('service re-filters Garmin records from a cache hit before model output', async () => {
   const service = createTrainingService({
-    cache: memoryCache({ '2026-08-01': { fetched_at: 1, records: [{ id: 'tampered', data_source: 'GaRmIn' }, { id: 'safe', data_source: 'xunji' }], warnings: [] } }),
+    cache: memoryCache({ '2026-08-01': { fetched_at: 1, records: [{ id: 'tampered', record_date: '2026-08-01', data_source: 'GaRmIn' }, { id: 'safe', record_date: '2026-08-01', data_source: 'xunji' }], warnings: [] } }),
     client: { async fetchDay() { throw new Error('should not fetch'); } },
     credentialProvider: async () => 'FAKE_TEST_CREDENTIAL',
     now: () => 2
@@ -331,6 +384,41 @@ test('service rejects a cross-date write-back response before caching it', async
   assert.equal(writes, 0);
 });
 
+test('upsert never exposes Garmin rows even when the server returns them', async () => {
+  const service = createTrainingService({
+    cache: memoryCache(),
+    credentialProvider: async () => 'FAKE_TEST_CREDENTIAL',
+    client: {
+      async upsertRecords() {
+        return { records: [
+          '2026-08-01,id:safe,胸部训练,1.卧推,1组,60kg,10次,source:xunji',
+          '2026-08-01,id:garmin,有氧,2.跑步,5km,source:Garmin'
+        ] };
+      }
+    }
+  });
+
+  const result = await service.upsertTrainingRecords({
+    records: ['2026-08-01,胸部训练,1.卧推,1组,60kg,10次'],
+    confirm: true
+  });
+
+  assert.equal(result.error, undefined);
+  assert.deepEqual(result.server_records.map((record) => record.id), ['safe']);
+});
+
+test('service rejects date-less write-back rows and never returns raw unsafe server records', async () => {
+  let writes = 0;
+  const service = createTrainingService({
+    cache: { async get() { return null; }, async set() { writes += 1; } },
+    credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
+    client: { async upsertRecords() { return { records: ['id:missing-date,title'] }; } }
+  });
+  const result = await service.upsertTrainingRecords({ records: ['2026-08-01,id:1,title'], confirm: true });
+  assert.equal(result.error.code, 'invalid_upsert');
+  assert.equal(writes, 0);
+});
+
 test('service returns trend metrics alongside the cached training range', async () => {
   const service = createTrainingService({
     cache: memoryCache(),
@@ -345,6 +433,8 @@ test('service returns trend metrics alongside the cached training range', async 
   assert.match(result.dashboard_html, /<!doctype html>/i);
   assert.ok(Array.isArray(result.visual_assets));
   assert.ok(result.visual_assets.some((asset) => asset.name === 'training-heatmap.svg'));
+  assert.equal(result.trends.summary.data_quality.status, 'complete');
+  assert.ok(Array.isArray(result.trends.guidance.actions));
 });
 
 test('service persists versioned training DNA and returns an auditable diff', async () => {

@@ -18,8 +18,8 @@ const required = [
   'scripts/render-visual-composition.py'
 ];
 
-assert.equal(RECIPE_CATALOG.length, 11);
-assert.equal(new Set(RECIPE_CATALOG.map((recipe) => recipe.grammar)).size, 11);
+assert.equal(RECIPE_CATALOG.length, 12);
+assert.equal(new Set(RECIPE_CATALOG.map((recipe) => recipe.grammar)).size, 12);
 for (const ratio of ['1:1', '3:4', '9:16']) {
   for (const recipe of RECIPE_CATALOG) {
     const svg = renderCompiledVisualSvg({
@@ -47,5 +47,4 @@ for (const relative of required) {
   }
 }
 
-process.stdout.write('Visual system quality gate passed (11 recipes × 3 ratios, traceable recommendations, canonical/plugin sync).\n');
-
+process.stdout.write('Visual system quality gate passed (12 recipes × 3 ratios, traceable recommendations, canonical/plugin sync).\n');

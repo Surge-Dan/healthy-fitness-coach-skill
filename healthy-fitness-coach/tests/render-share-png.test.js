@@ -42,6 +42,41 @@ test('render-share-card supports independent poster modes', () => {
   rmSync(root, { recursive: true, force: true });
 });
 
+test('visual composition renderer exports star-trail collage as a distinct photo-first recipe', () => {
+  const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-star-trail-'));
+  const input = join(root, 'input.json');
+  const output = join(root, 'star-trail.png');
+  writeFileSync(input, JSON.stringify({
+    recipe: 'star-trail-collage',
+    title: '今天也在变强',
+    subtitle: '把出现，变成自己的节奏',
+    photos: ['D:/WeChat/xwechat_files/wxid_ro1t5w4qycz622_8905/temp/RWTemp/2026-08/e0f90f6dbb3adbab619492252e923472/27e989c2d993387103706a49fd55c22d.png'],
+    metrics: [{ label: '训练天数', value: '74' }]
+  }));
+  const result = spawnSync('python', ['scripts/render-visual-composition.py', '--input', input, '--output', output, '--ratio', '3:4'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(readFileSync(output).length > 10000);
+});
+
+test('visual composition PNG adapts collage geometry from visual DNA', () => {
+  const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-adaptive-collage-'));
+  const image = join(root, 'photo.ppm');
+  const tornInput = join(root, 'torn.json');
+  const burstInput = join(root, 'burst.json');
+  const tornOutput = join(root, 'torn.png');
+  const burstOutput = join(root, 'burst.png');
+  writeFileSync(image, 'P3\n4 4\n255\n255 90 70 255 90 70 20 30 40 20 30 40\n255 90 70 255 90 70 20 30 40 20 30 40\n20 30 40 20 30 40 255 90 70 255 90 70\n20 30 40 20 30 40 255 90 70 255 90 70\n');
+  const common = { recipe: 'star-trail-collage', title: '今日训练', photos: [image] };
+  writeFileSync(tornInput, JSON.stringify({ ...common, visualDNA: { images: [{ orientation: 'portrait', focal_region: 'center', negative_space: 'right' }] } }));
+  writeFileSync(burstInput, JSON.stringify({ ...common, visualDNA: { images: [{ orientation: 'landscape', focal_region: 'left', negative_space: 'top' }] } }));
+  const torn = spawnSync('python', ['scripts/render-visual-composition.py', '--input', tornInput, '--output', tornOutput, '--ratio', '3:4'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
+  const burst = spawnSync('python', ['scripts/render-visual-composition.py', '--input', burstInput, '--output', burstOutput, '--ratio', '3:4'], { cwd: join(__dirname, '..'), encoding: 'utf8' });
+  assert.equal(torn.status, 0, torn.stderr);
+  assert.equal(burst.status, 0, burst.stderr);
+  assert.notDeepEqual(readFileSync(tornOutput), readFileSync(burstOutput));
+  rmSync(root, { recursive: true, force: true });
+});
+
 test('render-share-card keeps rich empty reports valid and accepts UTF-8 BOM input', () => {
   const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-rich-empty-'));
   const input = join(root, 'input.json');

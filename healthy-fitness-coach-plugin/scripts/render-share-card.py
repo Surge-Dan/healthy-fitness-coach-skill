@@ -357,31 +357,32 @@ def render_rich_infographic(image, share, palette, fonts, training_dates, body_d
     draw.rounded_rectangle((pad, lower_top, int(width * 0.48), lower_bottom), radius=24, fill=text + "08", outline=text + "28", width=2)
     draw.rounded_rectangle((int(width * 0.53), lower_top, width - pad, lower_bottom), radius=24, fill=text + "08", outline=text + "28", width=2)
     draw.text((pad + 28, lower_top + 26), "部位 / 动作分布", font=fonts[2], fill=muted)
-    items = list(body_distribution or [])[:6] or [{"label": "暂无数据", "value": 0}]
+    items = [item for item in list(body_distribution or [])[:6] if isinstance(item, dict) and float(item.get("value", 0) or 0) > 0]
     cx, cy = int(width * 0.265), lower_top + int((lower_bottom - lower_top) * 0.58)
     radius = int(width * 0.14)
     if len(items) < 3:
-        items = (items * 3)[:3]
-    count = len(items)
-    points_for = lambda scale: [(
-        cx + int(__import__("math").cos(-__import__("math").pi / 2 + __import__("math").tau * index / count) * radius * scale),
-        cy + int(__import__("math").sin(-__import__("math").pi / 2 + __import__("math").tau * index / count) * radius * scale)
-    ) for index in range(count)]
-    for scale in (0.33, 0.66, 1):
-        draw.polygon(points_for(scale), outline=text + "28")
-    for index in range(count):
-        point = points_for(1)[index]
-        draw.line((cx, cy, point[0], point[1]), fill=text + "20", width=2)
-    max_value = max([1.0, *[float(item.get("value", 0) or 0) for item in items]])
-    shape = []
-    for index, item in enumerate(items):
-        scale = max(0.08, float(item.get("value", 0) or 0) / max_value)
-        shape.append(points_for(scale)[index])
-    draw.polygon(shape, fill=accent + "44", outline=accent)
-    for index, item in enumerate(items):
-        label_point = points_for(1.18)[index]
-        label = str(item.get("label", ""))[:6]
-        draw.text((label_point[0] - draw.textlength(label, font=fonts[0]) / 2, label_point[1] - 10), label, font=fonts[0], fill=muted)
+        draw.text((cx, cy), "暂无足够部位数据", font=fonts[2], fill=muted, anchor="mm")
+    else:
+        count = len(items)
+        points_for = lambda scale: [(
+            cx + int(__import__("math").cos(-__import__("math").pi / 2 + __import__("math").tau * index / count) * radius * scale),
+            cy + int(__import__("math").sin(-__import__("math").pi / 2 + __import__("math").tau * index / count) * radius * scale)
+        ) for index in range(count)]
+        for scale in (0.33, 0.66, 1):
+            draw.polygon(points_for(scale), outline=text + "28")
+        for index in range(count):
+            point = points_for(1)[index]
+            draw.line((cx, cy, point[0], point[1]), fill=text + "20", width=2)
+        max_value = max([1.0, *[float(item.get("value", 0) or 0) for item in items]])
+        shape = []
+        for index, item in enumerate(items):
+            scale = max(0.08, float(item.get("value", 0) or 0) / max_value)
+            shape.append(points_for(scale)[index])
+        draw.polygon(shape, fill=accent + "44", outline=accent)
+        for index, item in enumerate(items):
+            label_point = points_for(1.18)[index]
+            label = str(item.get("label", ""))[:6]
+            draw.text((label_point[0] - draw.textlength(label, font=fonts[0]) / 2, label_point[1] - 10), label, font=fonts[0], fill=muted)
     draw.text((int(width * 0.53) + 28, lower_top + 26), "训练热力", font=fonts[2], fill=muted)
     heatmap_x = int(width * 0.53)
     heatmap_width = width - pad - heatmap_x

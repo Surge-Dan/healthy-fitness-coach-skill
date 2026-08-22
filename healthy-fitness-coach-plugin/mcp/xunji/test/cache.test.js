@@ -7,6 +7,7 @@ const { join } = require('node:path');
 const test = require('node:test');
 
 const { FileCache, credentialFingerprint } = require('../src/cache.js');
+const VALID_FINGERPRINT = 'a'.repeat(64);
 
 test('file cache uses a one-way credential fingerprint and atomic date entries', async () => {
   const root = await mkdtemp(join(tmpdir(), 'xunji-cache-test-'));
@@ -29,7 +30,7 @@ test('file cache uses a one-way credential fingerprint and atomic date entries',
 test('cache rejects invalid dates and malformed entries before writes', async () => {
   const root = await mkdtemp(join(tmpdir(), 'xunji-cache-test-'));
   try {
-    const cache = new FileCache({ root, fingerprint: 'abc' });
+    const cache = new FileCache({ root, fingerprint: VALID_FINGERPRINT });
     await assert.rejects(cache.set('2026-02-30', { fetched_at: 1, records: [] }), { code: 'invalid_date' });
     await assert.rejects(cache.set('2026-08-01', { records: 'not-array' }), { code: 'cache_error' });
   } finally {
@@ -40,7 +41,7 @@ test('cache rejects invalid dates and malformed entries before writes', async ()
 test('corrupt cache reads are cache_error rather than a network-miss signal', async () => {
   const root = await mkdtemp(join(tmpdir(), 'xunji-cache-test-'));
   try {
-    const cache = new FileCache({ root, fingerprint: 'abc' });
+    const cache = new FileCache({ root, fingerprint: VALID_FINGERPRINT });
     await cache.set('2026-08-01', { fetched_at: 1, records: [], warnings: [] });
     await writeFile(cache.pathFor('2026-08-01'), '{corrupt', 'utf8');
     await assert.rejects(cache.get('2026-08-01'), { code: 'cache_error' });
@@ -52,7 +53,7 @@ test('corrupt cache reads are cache_error rather than a network-miss signal', as
 test('concurrent writes use collision-safe temporary names', async () => {
   const root = await mkdtemp(join(tmpdir(), 'xunji-cache-test-'));
   try {
-    const cache = new FileCache({ root, fingerprint: 'abc' });
+    const cache = new FileCache({ root, fingerprint: VALID_FINGERPRINT });
     await Promise.all(Array.from({ length: 20 }, (_, index) => cache.set('2026-08-01', { fetched_at: index, records: [], warnings: [] })));
     assert.ok(Number.isInteger((await cache.get('2026-08-01')).fetched_at));
   } finally {
@@ -63,9 +64,18 @@ test('concurrent writes use collision-safe temporary names', async () => {
 test('cache retains safe operation metadata without credentials', async () => {
   const root = await mkdtemp(join(tmpdir(), 'xunji-cache-test-'));
   try {
-    const cache = new FileCache({ root, fingerprint: 'abc' });
+    const cache = new FileCache({ root, fingerprint: VALID_FINGERPRINT });
     await cache.set('2026-08-01', { fetched_at: 1, records: [], warnings: [], last_operation: 'upsert' });
     assert.equal((await cache.get('2026-08-01')).last_operation, 'upsert');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('cache rejects a fingerprint that could escape its account namespace', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'xunji-cache-test-'));
+  try {
+    assert.throws(() => new FileCache({ root, fingerprint: '../outside' }), { code: 'cache_error' });
   } finally {
     await rm(root, { recursive: true, force: true });
   }
