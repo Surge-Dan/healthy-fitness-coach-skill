@@ -38,12 +38,12 @@ test('routes each supported training task to an auditable decision', () => {
   const cases = [
     ['knowledge_question', { instruction: 'What is progressive overload?' }, 'conversation', 'none'],
     ['safety_routing', { instruction: 'I have chest pain during a set.' }, 'conversation', 'none'],
-    ['training_plan', { taskType: 'training_plan', profile: COMPLETE_PROFILE }, 'markdown', 'single_markdown'],
+    ['training_plan', { taskType: 'training_plan', profile: COMPLETE_PROFILE }, 'markdown', 'multi_asset_bundle'],
     ['today_workout', { taskType: 'today_workout', profile: {} }, 'conversation', 'none'],
-    ['training_review', { taskType: 'training_review', records: [{ date: '2026-08-30' }] }, 'markdown', 'single_markdown'],
-    ['training_system', { taskType: 'training_system', profile: COMPLETE_PROFILE }, 'markdown', 'system_bundle'],
-    ['xunji_analysis', { taskType: 'xunji_analysis', records: [{ date: '2026-08-30' }] }, 'markdown', 'analysis_bundle'],
-    ['share_output', { taskType: 'share_output', currentState: { source_assets: ['progress.jpg'] } }, 'conversation', 'share_card']
+    ['training_review', { taskType: 'training_review', records: [{ date: '2026-08-30' }] }, 'markdown', 'multi_asset_bundle'],
+    ['training_system', { taskType: 'training_system', profile: COMPLETE_PROFILE }, 'markdown', 'multi_asset_bundle'],
+    ['xunji_analysis', { taskType: 'xunji_analysis', records: [{ date: '2026-08-30' }] }, 'markdown', 'single_markdown'],
+    ['share_output', { taskType: 'share_output', currentState: { source_assets: ['progress.jpg'] } }, 'conversation', 'multi_asset_bundle']
   ];
 
   for (const [expectedTask, input, expectedInteraction, expectedArtifactMode] of cases) {
@@ -226,6 +226,29 @@ test('uses the Xunji planner defaults and adds dashboard assets only on an expli
   assert.equal(dashboardDecision.paths[0], join(outputDirectory, 'XUNJI_ANALYSIS_INDEX.md'));
 
   rmSync(join(outputDirectory, '..'), { recursive: true, force: true });
+});
+
+test('derives artifact mode from the final plan, review, and default Xunji asset shapes', () => {
+  const plan = buildWorkflowDecision({ taskType: 'training_plan', profile: COMPLETE_PROFILE });
+  assert.deepEqual(plan.artifacts, ['ATHLETE_PROFILE.md', 'CURRENT_PROGRAM.md']);
+  assert.equal(plan.index, 'TRAINING_PLAN_INDEX.md');
+  assert.equal(plan.artifact_mode, 'multi_asset_bundle');
+
+  const review = buildWorkflowDecision({
+    taskType: 'training_review',
+    records: [{ date: '2026-08-30' }]
+  });
+  assert.deepEqual(review.artifacts, ['WEEKLY_REVIEW.md', 'DECISION_LOG.md']);
+  assert.equal(review.index, 'TRAINING_REVIEW_INDEX.md');
+  assert.equal(review.artifact_mode, 'multi_asset_bundle');
+
+  const xunji = buildWorkflowDecision({
+    taskType: 'xunji_analysis',
+    records: [{ date: '2026-08-30' }]
+  });
+  assert.deepEqual(xunji.artifacts, ['TRAINING_ANALYSIS.md']);
+  assert.equal(xunji.index, null);
+  assert.equal(xunji.artifact_mode, 'single_markdown');
 });
 
 test('marks dashboard deliveries as dashboard artifacts for every planned task', () => {

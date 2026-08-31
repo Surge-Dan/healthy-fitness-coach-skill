@@ -28,7 +28,7 @@
 }
 ```
 
-`interaction_mode`、`artifacts`、`index` 与 `paths` 直接来自 `planOutputAssets`，它以最终 `task_type` 和原始用户指令规划交付物。对话、Markdown 和 dashboard 的显式命令仍然有效；只有安全路由不可被覆盖。`artifact_mode` 是计划中的交付物类型，不代表文件已经写入。
+`interaction_mode`、`artifacts`、`index` 与 `paths` 直接来自 `planOutputAssets`，它以最终 `task_type` 和原始用户指令规划交付物。对话、Markdown 和 dashboard 的显式命令仍然有效；只有安全路由不可被覆盖。`artifact_mode` 也只按最终计划推导：空资产为 `none`，dashboard 为 `dashboard`，含索引或多个资产为 `multi_asset_bundle`，单个 Markdown 为 `single_markdown`，单图片为 `single_image`。
 
 ## 信息状态
 

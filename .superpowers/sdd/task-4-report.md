@@ -104,3 +104,30 @@
 - RED：`node --test tests/training-orchestrator.test.js`，17 项中 15 项通过、2 项失败；失败符合预期：今日保存仍为 `none`，训练计划 dashboard 仍为 `single_markdown`。
 - GREEN：`node --test tests/training-orchestrator.test.js tests/output-routing.test.js`，25/25 通过；`git diff --check` 通过。
 - 复审结论：先前 Important 已关闭，无 Critical/Important 遗留。
+
+## 审查 P2 资产形态修复（2026-08-31）
+
+### STATUS
+
+已修复。`artifact_mode` 不再从旧任务分类推断，而是只由最终 `assetPlan` 的资产形态确定；未触碰 `dist`。
+
+### 变更
+
+- `references/training-orchestrator.js`：删除旧的 `defaultArtifact` 映射。统一规则为：dashboard=`dashboard`，空资产=`none`，含索引或多资产=`multi_asset_bundle`，单 Markdown=`single_markdown`，单图片=`single_image`，其余单资产=`single_asset`。
+- `tests/training-orchestrator.test.js`：更新全任务决策契约，并新增计划、复盘、默认训记分析的精确资产/索引/`artifact_mode` 断言。
+- `references/training-orchestration.md`：同步说明最终计划驱动的交付形态规则。
+
+### RED / GREEN
+
+- RED：`node --test tests/training-orchestrator.test.js`，18 项中 16 项通过、2 项失败；计划仍返回 `single_markdown` 而非 `multi_asset_bundle`，符合 P2 预期。
+- GREEN：`node --test tests/training-orchestrator.test.js tests/output-routing.test.js`，26/26 通过；`git diff --check` 通过。
+
+### 提交与自审
+
+- `task-4: derive artifact modes from output plans`（该报告随提交一并修订；以最终 HEAD 为准）。
+- `artifact_mode` 现与 `artifacts`、`index`、`paths` 表述同一最终交付形态，避免下游按旧任务名走错误写入、渲染或提示分支。
+- 红旗仍在规划前分类为 `safety_routing`；空资产规则因此继续保持安全分流无交付物。
+
+### concerns
+
+- 当前任务资产表中没有单图片交付；`single_image` 为后续单图片资产提供确定性语义，现有分享输出因包含图片和事实说明而正确归为 `multi_asset_bundle`。

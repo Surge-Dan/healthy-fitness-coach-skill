@@ -116,22 +116,13 @@ function classificationReason(input, taskType) {
   return taskType === 'knowledge_question' ? 'simple_knowledge_question' : 'instruction_classification';
 }
 
-function defaultArtifact(taskType) {
-  switch (taskType) {
-    case 'training_plan': return { mode: 'single_markdown', artifacts: ['TRAINING_PLAN.md'] };
-    case 'training_review': return { mode: 'single_markdown', artifacts: ['TRAINING_REVIEW.md'] };
-    case 'training_system': return { mode: 'system_bundle', artifacts: ['ATHLETE_PROFILE.md', 'TRAINING_DNA.md', 'CURRENT_PROGRAM.md', 'DECISION_LOG.md'] };
-    case 'xunji_analysis': return { mode: 'analysis_bundle', artifacts: ['TRAINING_DNA.md', 'DECISION_LOG.md'] };
-    case 'share_output': return { mode: 'share_card', artifacts: ['SHARE_CARD.png'] };
-    default: return { mode: 'none', artifacts: [] };
-  }
-}
-
-function artifactModeForPlan(taskType, assetPlan) {
+function artifactModeForPlan(assetPlan) {
   if (assetPlan.mode === 'dashboard') return 'dashboard';
   if (assetPlan.artifacts.length === 0) return 'none';
-  const defaultMode = defaultArtifact(taskType).mode;
-  return defaultMode === 'none' ? 'single_markdown' : defaultMode;
+  if (assetPlan.index || assetPlan.artifacts.length > 1) return 'multi_asset_bundle';
+  if (/\.md$/iu.test(assetPlan.artifacts[0])) return 'single_markdown';
+  if (/\.(?:png|jpe?g|webp|gif|svg)$/iu.test(assetPlan.artifacts[0])) return 'single_image';
+  return 'single_asset';
 }
 
 function buildWorkflowDecision(input = {}) {
@@ -151,7 +142,7 @@ function buildWorkflowDecision(input = {}) {
     outputDirectory: input.outputDirectory,
     existingPaths: input.existingPaths
   });
-  const artifact_mode = artifactModeForPlan(task_type, assetPlan);
+  const artifact_mode = artifactModeForPlan(assetPlan);
   const reason_codes = [classificationReason(input, task_type), assetPlan.reason];
   if (information.state === 'assume') reason_codes.push('safe_execution_assumption');
   if (information.missing_fields.length > 0) reason_codes.push('structural_information_missing');
