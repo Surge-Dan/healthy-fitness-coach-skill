@@ -88,3 +88,35 @@ node quality-tests\run-training-system.js
 ### 修复提交哈希
 
 - `3ed9b62` (`test: harden training baseline audit gates`)
+
+## 二次复审修复（manifest 内容与前缀型 API Key）
+
+### 修复内容
+
+- 完整快照安全扫描现在使用递归得到的**全部**实际文件，明确包含 `snapshot-manifest.json`；每个实际文件都经过路径和内容拒绝，再以“实际文件（不含 manifest 本身）= manifest.files”验证可审计清单。
+- 秘密标识符检测不再依赖 `\bapi` 的左侧词边界，支持 `OPENAI_API_KEY=...`、其他大写前缀加下划线的 API Key/secret/access token/private key 变量名。
+- 新增负向断言：将 `OPENAI_API_KEY=sk-example-12345678` 作为 manifest 内容传给安全断言，必须被拒绝；因此前缀变量识别与 manifest 内容扫描都由同一确定性门禁覆盖。
+
+### 修复 RED
+
+命令：
+
+```powershell
+node quality-tests\run-training-os-baseline.js
+```
+
+输出摘要：失败，`Missing expected exception: 秘密门禁必须拒绝 manifest 中的前缀型 API Key 环境变量`。这复现了旧 `\b` 词边界无法命中 `OPENAI_API_KEY` 的缺口。
+
+### 修复 GREEN
+
+命令：
+
+```powershell
+node quality-tests\run-training-os-baseline.js
+```
+
+输出摘要：`PASS training-os baseline: 62 snapshot files; 12 legacy evals + 6 redesign evals`。
+
+### 修复提交哈希
+
+- `02c0331` (`test: scan baseline manifest for secrets`)
