@@ -67,3 +67,23 @@
 - `node --test <healthy-fitness-coach/tests/*.test.js>`（PowerShell 显式文件列表）：98/98 通过。
 - `node --check healthy-fitness-coach/references/athlete-state.js` 与 `git diff --check`：通过。
 - 修复提交：`3f9a2bfcc35667460b1d8b4e78aaf4ff24ebf296 task-3: isolate athlete state containers`。
+
+## 复审 Critical 修复（2026-08-31）
+
+### STATUS
+
+已处理复审 C1 与 C2。
+
+### 修复内容
+
+- 证据状态不再递归接受任意嵌套对象或依赖敏感词黑名单。训练记录、表现和恢复结果现在各自只接收明确的扁平允许字段；`account_number`、`credit_card`、`ssn`、`social_security_number`、`driver_license` 和任何未列字段都不会进入结果。
+- 已持久化档案接收 `persisted: false` 更新时，合并结果的 `persisted` 强制为 `false`、`storage_scope` 为 `current_turn_only`。旧字段仍保留其字段级同意记录，但该候选容器不能作为持久化写入对象。
+
+### RED / GREEN
+
+- RED：新增账户数据绕过与拒绝持久化合并用例；旧实现 14 项中 3 项失败。
+- GREEN：目标测试 14/14 通过；语法与 `git diff --check` 通过。
+
+### 提交
+
+- `43da611ed2379360bb038886e7bc347190127aee task-3: enforce evidence schema and consent scope`。
