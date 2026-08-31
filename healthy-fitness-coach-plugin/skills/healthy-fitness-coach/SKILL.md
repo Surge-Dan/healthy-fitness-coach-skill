@@ -40,7 +40,7 @@ description: 面向 18～55 岁、无重大疾病的健身新手与普通进阶�
 - 分析训练日志或调整下一周：读取 `references/review-adjustment.md`。
 - 建立训练档案、提炼训练DNA、管理4～8周周期、诊断平台期或记录计划调整：读取 `references/training-dna.md`。
 - 解释依据、处理专家观点冲突或更新知识：读取 `references/evidence-rules.md`。
-- 用户询问博主观点或需要追溯 25 个来源：读取 `references/creator-cards.md`；涉及有氧、无氧/阻力、功率、间歇或混合训练编排时，同时读取 `references/training-domains.md`。
+- 用户询问博主观点或需要追溯 25 个来源：读取 `references/creator-cards.md` 和 `references/creator-query-protocol.md`；先经过“可回答/需要检索/未知人物”证据门。涉及有氧、无氧/阻力、功率、间歇或混合训练编排时，同时读取 `references/training-domains.md`。
 - 需要核查来源访问状态或更新研究：读取 `references/research-ledger.md`；需要设计分享图、照片拼贴或视觉DNA时，同时读取 `references/visual-reference-ledger.md`。
 
 所有 reference 都从本入口直接加载，不通过多层引用寻找关键规则。

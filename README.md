@@ -68,7 +68,7 @@ Healthy Fitness Coach不是只服务于“健身房撸铁”。它按训练目�
 
 ## 知识来源与蒸馏方法
 
-Skill当前维护25个中外专业来源卡。它们不是“名人推荐榜”，也不是把任何人的完整课表复制进来，而是提炼每个来源在特定领域中可复用的决策原则，并记录适用条件、证据等级、商业披露和风险边界。
+Skill当前维护25个中外专业来源卡和71条公开链接。它们不是“名人推荐榜”，也不是把任何人的完整课表复制进来，而是提炼每个来源在特定领域中可复用的决策原则，并记录适用条件、证据等级、商业披露和风险边界。人物专属问题还会经过证据门：卡片支持的内容直接回答，涉及最新观点或卡片外细节时先核查，无法确认就明确说明资料不足。
 
 ### 中文创作者与执行体验
 
@@ -100,9 +100,9 @@ Sohee Carpenter、Layne Norton、Alan Aragon、Danny Lennon/Sigma Nutrition。
 
 主要贡献：能量平衡、蛋白质、饮食依从性、补剂边界、研究质量和不确定性表达。优先建立可持续饮食和趋势反馈，不用极端断食、补剂堆叠或单一食物神话替代基本功。
 
-最终裁决顺序是：健康指南与安全边界→原始研究和系统综述→专业团队与研究转译→创作者执行经验。来源卡的完整记录见[`creator-cards.md`](healthy-fitness-coach/references/creator-cards.md)，研究访问状态和证据边界见[`research-ledger.md`](healthy-fitness-coach/references/research-ledger.md)，有氧/阻力/功率/间歇/混合训练的编排规则见[`training-domains.md`](healthy-fitness-coach/references/training-domains.md)。
+最终裁决顺序是：健康指南与安全边界→原始研究和系统综述→专业团队与研究转译→创作者执行经验。来源卡的完整记录见[`creator-cards.md`](healthy-fitness-coach/references/creator-cards.md)，人物专属问题的回答边界见[`creator-query-protocol.md`](healthy-fitness-coach/references/creator-query-protocol.md)，研究访问状态和证据边界见[`research-ledger.md`](healthy-fitness-coach/references/research-ledger.md)，有氧/阻力/功率/间歇/混合训练的编排规则见[`training-domains.md`](healthy-fitness-coach/references/training-domains.md)。
 
-这里的四段是“证据裁决顺序”，不是四步就能完成的自动蒸馏流程。知识库维护会经过来源收集、原则提取、交叉验证与安全过滤、场景化应用和用户反馈复盘；创作者内容只作为执行体验和解释素材，不能越过指南、研究和安全边界。
+这里的四段是“证据裁决顺序”，不是四步就能完成的自动蒸馏流程。知识库维护会经过来源收集、原则提取、交叉验证与安全过滤、场景化应用和用户反馈复盘；创作者内容只作为执行体验和解释素材，不能越过指南、研究和安全边界。人物问题会先判断为卡片范围内可回答、需要实时检索或当前未知，不把来源映射包装成对任何创作者全部内容的穷尽式研究。
 
 ## Skill如何工作
 

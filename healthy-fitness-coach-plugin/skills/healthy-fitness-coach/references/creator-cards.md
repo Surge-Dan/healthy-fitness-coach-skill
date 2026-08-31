@@ -2,6 +2,10 @@
 
 这些卡片用于内部决策与溯源，不用于用人物名气说服用户。每张卡只保留可复用原则，并受 `references/evidence-rules.md` 的四层权重约束。
 
+## 覆盖说明
+
+本账本当前包含25张来源卡、71条公开链接，覆盖训练启动、动作执行、阻力/无氧、肌肥大、力量、有氧/耐力、疼痛回归、营养和行为改变。18张卡至少包含官网、论文或团队页面；7张卡目前主要来自平台公开页，只能支持卡片中已明确记录的执行经验。人物专属问题必须先读取 `references/creator-query-protocol.md`，不能把这份账本描述成对任何创作者全部内容的穷尽式蒸馏。
+
 ## 1. 谭成义
 
 - 来源：[Bilibili 内容列表](https://www.bilibili.com/list/521903482/?bvid=BV1w9kKBfEsi&oid=115903450586712)、[安全高效长期进步](https://www.bilibili.com/video/BV1W1BFBKEdR/)、[增肌减脂与营养](https://www.bilibili.com/video/BV1cTSsBbEJy/)，复核于 2026-07-28。
