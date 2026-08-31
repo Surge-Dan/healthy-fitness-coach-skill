@@ -28,7 +28,12 @@ const CURRENT_STATE_FIELDS = [
 ];
 
 const UNKNOWN_MARKERS = new Set(['unknown', 'n/a', 'not provided', '未知', '不清楚', '未提供']);
-const SENSITIVE_FIELD_PATTERN = /(?:api[_-]?key|token|authorization|password|secret|e-?mail|phone|contact|address|bank|id[_-]?number|passport|credential|身份证(?:号|号码)?|手机(?:号|号码)?|电话(?:号码)?|邮箱|电子邮件|住址|地址|账号|帐户|账户|密码|密钥|令牌|授权|银行卡|银行账户|联系方式|护照|姓名)/iu;
+const LIST_FIELDS = new Set(['available_equipment', 'temporary_equipment', 'long_term_preferences']);
+const EVIDENCE_RECORD_SCHEMA = {
+  training_records: new Set(['date', 'kind', 'name', 'completed', 'duration_min', 'sets', 'reps', 'load_kg', 'distance_km', 'rir', 'rpe', 'source_record_id']),
+  performance: new Set(['date', 'exercise', 'metric', 'value', 'unit', 'trend']),
+  recovery_results: new Set(['date', 'sleep_hours', 'stress', 'fatigue', 'pain', 'readiness', 'symptom_trend'])
+};
 
 function hasExplicitValue(value) {
   if (value === undefined || value === null) return false;
@@ -39,29 +44,41 @@ function hasExplicitValue(value) {
   return true;
 }
 
-function sanitizeValue(value) {
+function sanitizeScalar(value) {
   if (typeof value === 'string') return hasExplicitValue(value) ? value.trim() : undefined;
   if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
   if (typeof value === 'boolean') return value;
-  if (Array.isArray(value)) {
-    const sanitized = value.map(sanitizeValue).filter((entry) => entry !== undefined);
-    return sanitized.length > 0 ? sanitized : undefined;
-  }
-  if (value && typeof value === 'object') {
-    const sanitized = {};
-    for (const [key, entry] of Object.entries(value)) {
-      if (SENSITIVE_FIELD_PATTERN.test(key)) continue;
-      const cleanEntry = sanitizeValue(entry);
-      if (cleanEntry !== undefined) sanitized[key] = cleanEntry;
-    }
-    return Object.keys(sanitized).length > 0 ? sanitized : undefined;
-  }
   return undefined;
 }
 
+function sanitizeSimpleValue(field, value) {
+  if (!LIST_FIELDS.has(field)) return sanitizeScalar(value);
+  if (!Array.isArray(value)) return sanitizeScalar(value);
+  const sanitized = value.map(sanitizeScalar).filter((entry) => entry !== undefined);
+  return sanitized.length > 0 ? sanitized : undefined;
+}
+
+function sanitizeEvidenceRecord(record, allowedFields) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return undefined;
+  const sanitized = {};
+  for (const field of allowedFields) {
+    const value = sanitizeScalar(record[field]);
+    if (value !== undefined) sanitized[field] = value;
+  }
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
+function sanitizeEvidenceValue(field, value) {
+  if (field === 'completion_rate') return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  const allowedFields = EVIDENCE_RECORD_SCHEMA[field];
+  if (!allowedFields || !Array.isArray(value)) return undefined;
+  const sanitized = value.map((record) => sanitizeEvidenceRecord(record, allowedFields)).filter((record) => record !== undefined);
+  return sanitized.length > 0 ? sanitized : undefined;
+}
+
 function metadataFrom(input) {
-  const source = sanitizeValue(input.source);
-  const date = sanitizeValue(input.date);
+  const source = sanitizeScalar(input.source);
+  const date = sanitizeScalar(input.date);
   return {
     source: source === undefined ? 'unknown' : source,
     date: date === undefined ? 'unknown' : date,
@@ -78,8 +95,8 @@ function provenanceForField(input, field, fallback) {
     ? input.field_provenance[field]
     : null;
   const supplied = fieldProvenance && typeof fieldProvenance === 'object' ? fieldProvenance : {};
-  const source = sanitizeValue(supplied.source);
-  const date = sanitizeValue(supplied.date);
+  const source = sanitizeScalar(supplied.source);
+  const date = sanitizeScalar(supplied.date);
   return {
     source: source === undefined ? fallback.source : source,
     date: date === undefined ? fallback.date : date,
@@ -87,13 +104,13 @@ function provenanceForField(input, field, fallback) {
   };
 }
 
-function normalizedFields(input, fields, aliases = {}) {
+function normalizedFields(input, fields, aliases = {}, sanitizer = sanitizeSimpleValue) {
   const metadata = metadataFrom(input);
   const values = {};
   const field_provenance = {};
   for (const field of fields) {
-    let cleanValue = sanitizeValue(input[field]);
-    if (cleanValue === undefined && aliases[field]) cleanValue = sanitizeValue(input[aliases[field]]);
+    let cleanValue = sanitizer(field, input[field]);
+    if (cleanValue === undefined && aliases[field]) cleanValue = sanitizer(field, input[aliases[field]]);
     if (cleanValue === undefined) continue;
     values[field] = cleanValue;
     field_provenance[field] = provenanceForField(input, field, metadata);
@@ -113,9 +130,9 @@ function normalizedResult(fields, values, fieldProvenance, metadata) {
   };
 }
 
-function normalizeContainer(input, fields, aliases) {
+function normalizeContainer(input, fields, aliases, sanitizer) {
   const source = input && typeof input === 'object' ? input : {};
-  const normalized = normalizedFields(source, fields, aliases);
+  const normalized = normalizedFields(source, fields, aliases, sanitizer);
   return normalizedResult(fields, normalized.values, normalized.field_provenance, normalized.metadata);
 }
 
@@ -128,7 +145,7 @@ function normalizeCurrentState(input = {}) {
 }
 
 function normalizeEvidenceState(input = {}) {
-  return normalizeContainer(input, EVIDENCE_FIELDS);
+  return normalizeContainer(input, EVIDENCE_FIELDS, {}, sanitizeEvidenceValue);
 }
 
 function mergeAthleteProfile(previous = {}, update = {}) {
@@ -140,16 +157,24 @@ function mergeAthleteProfile(previous = {}, update = {}) {
   for (const field of STABLE_PROFILE_FIELDS) {
     if (Object.hasOwn(patch, field)) {
       values[field] = patch[field];
-      fieldProvenance[field] = patch.field_provenance[field];
+      fieldProvenance[field] = {
+        ...patch.field_provenance[field],
+        persisted: patch.field_provenance[field].persisted === 'unknown' && Object.hasOwn(prior.field_provenance, field)
+          ? prior.field_provenance[field].persisted
+          : patch.field_provenance[field].persisted
+      };
     } else if (Object.hasOwn(prior, field)) {
       values[field] = prior[field];
       fieldProvenance[field] = prior.field_provenance[field];
     }
   }
 
-  const metadata = Object.keys(prior.field_provenance).length > 0
-    ? { source: prior.source, date: prior.date, persisted: prior.persisted }
-    : { source: patch.source, date: patch.date, persisted: patch.persisted };
+  const persistence = Object.values(fieldProvenance).map((provenance) => provenance.persisted);
+  const metadata = {
+    source: Object.keys(prior.field_provenance).length > 0 ? prior.source : patch.source,
+    date: Object.keys(prior.field_provenance).length > 0 ? prior.date : patch.date,
+    persisted: persistence.includes(false) ? false : persistence.length > 0 && persistence.every((intent) => intent === true) ? true : 'unknown'
+  };
   return normalizedResult(STABLE_PROFILE_FIELDS, values, fieldProvenance, metadata);
 }
 

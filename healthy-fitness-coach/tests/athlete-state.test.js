@@ -136,11 +136,11 @@ test('rejects sensitive and unrelated fields from both profile and current state
 test('removes sensitive nested properties from whitelisted evidence values', () => {
   const evidence = normalizeEvidenceState({
     training_records: [{ date: '2026-08-30', completed: true, email: 'person@example.com' }],
-    performance: { squat: '100kg', api_key: 'secret' }
+    performance: [{ date: '2026-08-30', exercise: 'squat', value: 100, unit: 'kg', api_key: 'secret' }]
   });
 
   assert.deepEqual(evidence.training_records, [{ date: '2026-08-30', completed: true }]);
-  assert.deepEqual(evidence.performance, { squat: '100kg' });
+  assert.deepEqual(evidence.performance, [{ date: '2026-08-30', exercise: 'squat', value: 100, unit: 'kg' }]);
 });
 
 test('keeps stable, current and evidence state in separate normalized containers', () => {
@@ -207,7 +207,8 @@ test('preserves unchanged field provenance while auditing only the updated profi
   assert.deepEqual(next.field_provenance.training_days_per_week, { source: 'intake', date: '2026-08-01', persisted: true });
   assert.equal(next.source, 'intake');
   assert.equal(next.date, '2026-08-01');
-  assert.equal(next.persisted, true);
+  assert.equal(next.persisted, false);
+  assert.equal(next.storage_scope, 'current_turn_only');
   assert.deepEqual(profileChangeSet(previous, next), [
     {
       field: 'goal',
@@ -225,6 +226,48 @@ test('maps current-state available_equipment into temporary_equipment only', () 
   assert.deepEqual(currentState.temporary_equipment, ['hotel dumbbells']);
   assert.equal(Object.hasOwn(currentState, 'available_equipment'), false);
   assert.ok(currentState.unknown_fields.includes('available_time_min'));
+});
+
+test('keeps only explicit nested evidence schema fields and rejects account-data bypasses', () => {
+  const evidence = normalizeEvidenceState({
+    training_records: [{
+      date: '2026-08-30',
+      completed: true,
+      duration_min: 45,
+      account_number: '123456',
+      credit_card: '4111111111111111',
+      nested: { ssn: '123-45-6789' }
+    }],
+    performance: [{
+      date: '2026-08-30',
+      exercise: 'squat',
+      value: 100,
+      unit: 'kg',
+      driver_license: 'D1234567'
+    }],
+    recovery_results: [{ date: '2026-08-31', fatigue: 'low', social_security_number: '123-45-6789' }]
+  });
+
+  assert.deepEqual(evidence.training_records, [{ date: '2026-08-30', completed: true, duration_min: 45 }]);
+  assert.deepEqual(evidence.performance, [{ date: '2026-08-30', exercise: 'squat', value: 100, unit: 'kg' }]);
+  assert.deepEqual(evidence.recovery_results, [{ date: '2026-08-31', fatigue: 'low' }]);
+});
+
+test('returns an all-temporary merge candidate when any update rejects persistence', () => {
+  const previous = normalizeAthleteProfile({
+    goal: 'build strength',
+    training_days_per_week: 3,
+    persisted: true
+  });
+  const candidate = mergeAthleteProfile(previous, {
+    goal: 'improve cardio',
+    persisted: false
+  });
+
+  assert.equal(candidate.persisted, false);
+  assert.equal(candidate.storage_scope, 'current_turn_only');
+  assert.equal(candidate.field_provenance.training_days_per_week.persisted, true);
+  assert.equal(candidate.field_provenance.goal.persisted, false);
 });
 
 test('keeps refused persistence as temporary current-turn state', () => {
