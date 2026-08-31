@@ -91,3 +91,35 @@ node --test healthy-fitness-coach/tests/training-orchestrator.test.js
 
 - 本次将仅提交 `training-orchestrator.js`、`training-orchestrator.test.js` 和本报告；不包含 `dist/` 的现存改动。
 - 已保留纯函数/CommonJS 约束；嵌套来源按固定顺序扁平化，决策仍无 I/O 或外部依赖。
+
+## 解释型计划问句修复（3443674 后）
+
+### 变更
+
+- 在红旗和显式 `taskType` 判定之后、训练意图匹配之前，识别“训练计划怎么制定”“训练计划包含哪些内容”等解释型问句并路由到 `knowledge_question`。
+- 保留“给我制定训练计划”等直接交付请求的 `training_plan` 路由。
+
+### RED 证据
+
+命令：
+
+```powershell
+node --test healthy-fitness-coach/tests/training-orchestrator.test.js
+```
+
+摘要：退出码 `1`；新增“训练计划怎么制定？”用例实际得到 `training_plan`，期望 `knowledge_question`，证明该边界在修复前未覆盖。
+
+### GREEN 证据
+
+命令：
+
+```powershell
+node --test healthy-fitness-coach/tests/training-orchestrator.test.js
+```
+
+摘要：`13` 个子测试全部通过，`0` 失败。两种解释型问句均无必填画像、无缺口、无资产；直接“给我制定训练计划”仍进入计划路由。
+
+### 提交与自审
+
+- 本次只提交编排实现、回归测试和本报告；不包含 `dist/` 的现存改动。
+- 红旗和显式 `taskType` 优先级保持在解释型问句之前，未改变安全覆盖语义。

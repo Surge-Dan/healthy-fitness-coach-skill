@@ -34,6 +34,8 @@ const INSTRUCTION_TASKS = [
 ];
 
 const RED_FLAG_PATTERN = /(?:胸痛|胸部压迫感|呼吸困难|异常气短|晕厥|昏厥|明显头晕|异常心悸|突发.*(?:疼痛|麻木|无力)|剧烈.*(?:疼痛|头痛)|近期手术|急性外伤|妊娠|产后|chest\s*pain|shortness\s+of\s+breath|faint(?:ing)?|severe\s+pain|numbness)/iu;
+const EXPLANATORY_PLAN_QUESTION_PATTERN = /(?:(?:训练计划|计划|方案).{0,12}(?:怎么制定|如何制定|包含哪些(?:内容)?|哪些内容|是什么|有哪些原则)|(?:怎么制定|如何制定|包含哪些(?:内容)?|哪些内容|是什么|有哪些原则).{0,12}(?:训练计划|计划|方案))/iu;
+const DIRECT_PLAN_REQUEST_PATTERN = /(?:给我|帮我|为我|请).{0,6}(?:制定|做|设计|生成|安排)/iu;
 
 function normalizeTaskType(value) {
   const taskType = String(value || '').trim().toLowerCase();
@@ -75,6 +77,9 @@ function classifyTrainingTask(input = {}) {
   if (explicitTask) return explicitTask;
 
   const instruction = String(input.instruction || input.userInstruction || '');
+  if (EXPLANATORY_PLAN_QUESTION_PATTERN.test(instruction) && !DIRECT_PLAN_REQUEST_PATTERN.test(instruction)) {
+    return 'knowledge_question';
+  }
   for (const [taskType, pattern] of INSTRUCTION_TASKS) {
     if (pattern.test(instruction)) return taskType;
   }

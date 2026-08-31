@@ -118,6 +118,18 @@ test('classifies explicit hypertrophy, multi-week and next-week requests as plan
   assert.equal(classifyTrainingTask({ instruction: '增肌训练有哪些基本原则？' }), 'knowledge_question');
 });
 
+test('keeps explanatory training-plan questions as knowledge while honoring a direct plan request', () => {
+  for (const instruction of ['训练计划怎么制定？', '训练计划包含哪些内容？']) {
+    const decision = buildWorkflowDecision({ instruction });
+    assert.equal(decision.task_type, 'knowledge_question');
+    assert.deepEqual(decision.required_fields, []);
+    assert.deepEqual(decision.missing_fields, []);
+    assert.equal(decision.artifact_mode, 'none');
+    assert.deepEqual(decision.artifacts, []);
+  }
+  assert.equal(classifyTrainingTask({ instruction: '给我制定训练计划' }), 'training_plan');
+});
+
 test('uses existing complete plan fields without repeating questions', () => {
   const decision = buildWorkflowDecision({ taskType: 'training_plan', profile: COMPLETE_PROFILE });
   assert.deepEqual(decision.missing_fields, []);
