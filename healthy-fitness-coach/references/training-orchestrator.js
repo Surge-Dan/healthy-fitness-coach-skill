@@ -30,10 +30,10 @@ const INSTRUCTION_TASKS = [
   ['xunji_analysis', /(?:训记|xunji|训练数据分析)/iu],
   ['training_review', /(?:训练复盘|周复盘|月复盘|训练回顾|review)/iu],
   ['today_workout', /(?:今天.*(?:练|训练)|今日.*(?:练|训练)|today.*workout)/iu],
-  ['training_plan', /(?:训练计划|计划.*训练|program(?:me)?\b)/iu]
+  ['training_plan', /(?:训练计划|计划.*训练|(?:给我|帮我|为我|请).{0,6}(?:制定|做|设计|生成|安排).{0,20}(?:计划|方案|训练)|(?:制定|做|设计|生成).{0,20}(?:计划|方案)|(?:安排|规划|排).{0,12}(?:下周|下星期|下个星期|未来).{0,12}(?:训练|锻炼)|program(?:me)?\b)/iu]
 ];
 
-const RED_FLAG_PATTERN = /(?:胸痛|呼吸困难|晕厥|昏厥|突发.*(?:疼痛|麻木|无力)|剧烈.*(?:疼痛|头痛)|chest\s*pain|shortness\s+of\s+breath|faint(?:ing)?|severe\s+pain|numbness)/iu;
+const RED_FLAG_PATTERN = /(?:胸痛|胸部压迫感|呼吸困难|异常气短|晕厥|昏厥|明显头晕|异常心悸|突发.*(?:疼痛|麻木|无力)|剧烈.*(?:疼痛|头痛)|近期手术|急性外伤|妊娠|产后|chest\s*pain|shortness\s+of\s+breath|faint(?:ing)?|severe\s+pain|numbness)/iu;
 
 function normalizeTaskType(value) {
   const taskType = String(value || '').trim().toLowerCase();
@@ -54,8 +54,17 @@ function isMeaningfulRedFlag(value) {
 
 function hasRedFlag(input = {}) {
   const state = input.currentState || input.current_state || {};
-  const flags = input.red_flags || input.redFlags || state.red_flags || state.redFlags;
-  const entries = Array.isArray(flags) ? flags : [flags];
+  const flagSources = [
+    input.red_flags,
+    input.redFlags,
+    input.safety?.red_flags,
+    input.safety?.redFlags,
+    state.red_flags,
+    state.redFlags,
+    state.safety?.red_flags,
+    state.safety?.redFlags
+  ];
+  const entries = flagSources.flatMap((flags) => Array.isArray(flags) ? flags : [flags]);
   return entries.some(isMeaningfulRedFlag) || RED_FLAG_PATTERN.test(String(input.instruction || input.userInstruction || ''));
 }
 

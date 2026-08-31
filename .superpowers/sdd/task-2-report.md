@@ -58,3 +58,36 @@ node --test healthy-fitness-coach/tests
 
 - 本层返回的是资产计划而不是文件写入结果；实际创建 Markdown、HTML 或 PNG 仍由后续执行层负责。
 - 红旗正则只负责确定性路由，不能替代完整的健康风险评估或医疗诊断。
+
+## 独立审查修复（34db393 后）
+
+### 变更
+
+- `hasRedFlag` 现统一读取顶层、`safety`、`currentState` 及 `currentState.safety` 的 `red_flags` / `redFlags`，并继续过滤空/`false` 条目。
+- 红旗文本识别补齐异常心悸、近期手术、急性外伤、妊娠和产后等现有安全筛查条件。
+- 训练计划指令补齐“给我制定一个增肌计划”“帮我做 8 周力量方案”“安排下周训练”等明确意图；普通“增肌训练有哪些基本原则？”仍为知识问答。
+
+### RED 证据
+
+命令：
+
+```powershell
+node --test healthy-fitness-coach/tests/training-orchestrator.test.js
+```
+
+摘要：退出码 `1`，新增嵌套 `safety.red_flags` 用例错误返回 `training_plan`（期望 `safety_routing`）；新增计划意图用例错误返回 `knowledge_question`（期望 `training_plan`）。
+
+### GREEN 证据
+
+命令：
+
+```powershell
+node --test healthy-fitness-coach/tests/training-orchestrator.test.js
+```
+
+摘要：`12` 个子测试全部通过，`0` 失败。嵌套红旗覆盖计划、显式报告和分享三条最终决策路径，且三类明确计划请求与知识问答反例均通过。
+
+### 提交与自审
+
+- 本次将仅提交 `training-orchestrator.js`、`training-orchestrator.test.js` 和本报告；不包含 `dist/` 的现存改动。
+- 已保留纯函数/CommonJS 约束；嵌套来源按固定顺序扁平化，决策仍无 I/O 或外部依赖。

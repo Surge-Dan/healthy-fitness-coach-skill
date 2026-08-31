@@ -80,6 +80,22 @@ test('red flags suppress report, share and plan artifacts in final workflow deci
   }
 });
 
+test('nested safety red flags override plan, explicit report and share routes', () => {
+  const cases = [
+    { taskType: 'training_plan', safety: { red_flags: ['chest_pain'] } },
+    { taskType: 'today_workout', instruction: '直接出报告', currentState: { safety: { red_flags: ['recent_surgery'] } } },
+    { taskType: 'share_output', currentState: { safety: { red_flags: ['acute_injury'] } } }
+  ];
+
+  for (const input of cases) {
+    const decision = buildWorkflowDecision(input);
+    assert.equal(decision.task_type, 'safety_routing');
+    assert.equal(decision.interaction_mode, 'conversation');
+    assert.equal(decision.artifact_mode, 'none');
+    assert.deepEqual(decision.artifacts, []);
+  }
+});
+
 test('ignores empty red-flag entries instead of creating a false safety route', () => {
   assert.equal(classifyTrainingTask({
     taskType: 'training_plan',
@@ -93,6 +109,13 @@ test('does not create profile questions or file artifacts for a simple knowledge
   assert.deepEqual(decision.missing_fields, []);
   assert.equal(decision.information_state, 'ready');
   assert.deepEqual(decision.artifacts, []);
+});
+
+test('classifies explicit hypertrophy, multi-week and next-week requests as plans without misclassifying a knowledge question', () => {
+  for (const instruction of ['给我制定一个增肌计划', '帮我做 8 周力量方案', '安排下周训练']) {
+    assert.equal(classifyTrainingTask({ instruction }), 'training_plan');
+  }
+  assert.equal(classifyTrainingTask({ instruction: '增肌训练有哪些基本原则？' }), 'knowledge_question');
 });
 
 test('uses existing complete plan fields without repeating questions', () => {
