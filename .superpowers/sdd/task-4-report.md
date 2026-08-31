@@ -61,3 +61,46 @@
 - `9ba6aa35cd8e40cf748e9f09110454ee275f7096 task-4: add universal delivery indexes`
 - 断言同时覆盖三个任务的索引名、索引路径在首位、索引物理文件冲突后的 `-2` 后缀，以及路径数量等于索引加全部资产。
 - 未触碰或暂存 `dist/healthy-fitness-coach.skill` 与 `dist/healthy-fitness-coach.zip`。
+
+## 审查 P1 编排器接入修复（2026-08-31）
+
+### STATUS
+
+已修复。`buildWorkflowDecision` 现在以红旗分类后的原始 `task_type` 和原始用户指令调用 `planOutputAssets`，并将其模式、资产、索引与非覆盖路径返回给调用方；未触碰 `dist`。
+
+### 变更
+
+- `references/training-orchestrator.js`：移除旧的别名路由和资产回退，改为消费 `planOutputAssets` 的 `mode`、`artifacts`、`index`、`paths`；红旗仍先分类为 `safety_routing`，由规划器返回无资产的对话分流。
+- `tests/training-orchestrator.test.js`：新增真实编排器集成覆盖：今日训练保存、计划/复盘/分享索引首位与 `-2` 冲突后缀、训记默认报告与显式趋势面板。
+- `references/training-orchestration.md`：补充最终决策的 `index`、`paths` 契约及其规划来源。
+
+### RED / GREEN
+
+- RED：`node --test tests/training-orchestrator.test.js`，16 项中 12 项通过、4 项失败；失败符合预期：缺少 `index` 字段、今日保存仍返回 `TRAINING_REPORT.md`、计划索引为 `undefined`、训记仍返回旧的 `TRAINING_DNA.md` 与 `DECISION_LOG.md`。
+- GREEN：`node --test tests/training-orchestrator.test.js tests/output-routing.test.js`，24/24 通过。
+
+### 验证
+
+- `node --test tests/training-orchestrator.test.js tests/output-routing.test.js`：24/24 通过。
+- `git diff --check`：通过。
+
+### 提交
+
+- `task-4: integrate output asset plans`（该报告随提交一并修订；以最终 HEAD 为准）。
+
+### 自审
+
+- 规划调用传入的是最终的原始任务名（不再映射为 `weekly_review`、`training_data_analysis` 等别名）以及原始用户指令，因此今日保存与各任务索引规则进入真实用户路径。
+- `outputDirectory` 和 `existingPaths` 透传给规划器；路径仍仅为候选计划，不会写入或覆盖文件。
+- 安全分类发生在规划前；红旗输入仍强制为 `safety_routing`、对话与空资产。
+
+### concerns
+
+- `artifact_mode` 保留既有的高层交付类别以维持向后兼容；精确资产与文件关系应以现在已接入的 `artifacts`、`index`、`paths` 为准。
+
+### 复审后修补
+
+- 独立复审发现显式 dashboard 会改变最终资产但旧 `artifact_mode` 仍保留计划/分享类别。已新增覆盖计划、复盘、训练系统、训记分析、分享输出的 dashboard 断言，并令 dashboard 统一返回 `artifact_mode: 'dashboard'`；今日保存的单 Markdown 也返回 `single_markdown`。
+- RED：`node --test tests/training-orchestrator.test.js`，17 项中 15 项通过、2 项失败；失败符合预期：今日保存仍为 `none`，训练计划 dashboard 仍为 `single_markdown`。
+- GREEN：`node --test tests/training-orchestrator.test.js tests/output-routing.test.js`，25/25 通过；`git diff --check` 通过。
+- 复审结论：先前 Important 已关闭，无 Critical/Important 遗留。

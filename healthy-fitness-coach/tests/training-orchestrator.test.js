@@ -1,6 +1,9 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { mkdtempSync, mkdirSync, rmSync, writeFileSync } = require('node:fs');
+const { tmpdir } = require('node:os');
+const { join } = require('node:path');
 const test = require('node:test');
 
 const {
@@ -18,6 +21,8 @@ const REQUIRED_DECISION_FIELDS = [
   'information_state',
   'artifact_mode',
   'artifacts',
+  'index',
+  'paths',
   'reason_codes'
 ];
 
@@ -157,6 +162,86 @@ test('reuses output-routing explicit commands unless safety has already won', ()
   });
   assert.equal(decision.interaction_mode, 'markdown');
   assert.ok(decision.reason_codes.includes('explicit_command'));
+});
+
+test('uses the output asset plan when today workout is explicitly saved', () => {
+  const outputDirectory = join(mkdtempSync(join(tmpdir(), 'healthy-fitness-today-workout-')), 'fitness-reports');
+  mkdirSync(outputDirectory);
+
+  const decision = buildWorkflowDecision({
+    taskType: 'today_workout',
+    instruction: '保存刚才内容',
+    outputDirectory
+  });
+
+  assert.equal(decision.interaction_mode, 'markdown');
+  assert.equal(decision.artifact_mode, 'single_markdown');
+  assert.deepEqual(decision.artifacts, ['TODAY_WORKOUT.md']);
+  assert.equal(decision.index, null);
+  assert.deepEqual(decision.paths, [join(outputDirectory, 'TODAY_WORKOUT.md')]);
+  rmSync(join(outputDirectory, '..'), { recursive: true, force: true });
+});
+
+test('places plan, review, and share indexes first with predictable conflict suffixes', () => {
+  const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-orchestrator-indexes-'));
+  const outputDirectory = join(root, 'fitness-reports');
+  mkdirSync(outputDirectory);
+  const cases = [
+    ['training_plan', 'TRAINING_PLAN_INDEX.md', { profile: COMPLETE_PROFILE }],
+    ['training_review', 'TRAINING_REVIEW_INDEX.md', { records: [{ date: '2026-08-30' }] }],
+    ['share_output', 'SHARE_OUTPUT_INDEX.md', { currentState: { source_assets: ['progress.jpg'] } }]
+  ];
+
+  for (const [taskType, index, input] of cases) {
+    writeFileSync(join(outputDirectory, index), 'existing');
+    const decision = buildWorkflowDecision({ taskType, outputDirectory, ...input });
+    assert.equal(decision.index, index, taskType);
+    assert.equal(decision.paths[0], join(outputDirectory, index.replace('.md', '-2.md')), taskType);
+    assert.equal(decision.paths.length, decision.artifacts.length + 1, taskType);
+  }
+
+  rmSync(root, { recursive: true, force: true });
+});
+
+test('uses the Xunji planner defaults and adds dashboard assets only on an explicit command', () => {
+  const outputDirectory = join(mkdtempSync(join(tmpdir(), 'healthy-fitness-xunji-')), 'fitness-reports');
+  mkdirSync(outputDirectory);
+  const records = [{ date: '2026-08-30' }];
+
+  const defaultDecision = buildWorkflowDecision({ taskType: 'xunji_analysis', records, outputDirectory });
+  assert.equal(defaultDecision.interaction_mode, 'markdown');
+  assert.deepEqual(defaultDecision.artifacts, ['TRAINING_ANALYSIS.md']);
+  assert.equal(defaultDecision.index, null);
+  assert.deepEqual(defaultDecision.paths, [join(outputDirectory, 'TRAINING_ANALYSIS.md')]);
+
+  const dashboardDecision = buildWorkflowDecision({
+    taskType: 'xunji_analysis',
+    instruction: '生成趋势面板',
+    records,
+    outputDirectory
+  });
+  assert.equal(dashboardDecision.interaction_mode, 'dashboard');
+  assert.deepEqual(dashboardDecision.artifacts, ['TRAINING_ANALYSIS.md', 'training-dashboard.html']);
+  assert.equal(dashboardDecision.index, 'XUNJI_ANALYSIS_INDEX.md');
+  assert.equal(dashboardDecision.paths[0], join(outputDirectory, 'XUNJI_ANALYSIS_INDEX.md'));
+
+  rmSync(join(outputDirectory, '..'), { recursive: true, force: true });
+});
+
+test('marks dashboard deliveries as dashboard artifacts for every planned task', () => {
+  const cases = [
+    ['training_plan', { profile: COMPLETE_PROFILE }],
+    ['training_review', { records: [{ date: '2026-08-30' }] }],
+    ['training_system', { profile: COMPLETE_PROFILE }],
+    ['xunji_analysis', { records: [{ date: '2026-08-30' }] }],
+    ['share_output', { currentState: { source_assets: ['progress.jpg'] } }]
+  ];
+
+  for (const [taskType, input] of cases) {
+    const decision = buildWorkflowDecision({ taskType, instruction: '生成趋势面板', ...input });
+    assert.equal(decision.interaction_mode, 'dashboard', taskType);
+    assert.equal(decision.artifact_mode, 'dashboard', taskType);
+  }
 });
 
 test('exposes stable field requirements and information-state evaluation', () => {

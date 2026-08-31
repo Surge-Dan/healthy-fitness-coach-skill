@@ -1,6 +1,6 @@
 'use strict';
 
-const { routeOutput } = require('./output-routing.js');
+const { planOutputAssets } = require('./output-routing.js');
 
 const SUPPORTED_TASKS = new Set([
   'knowledge_question',
@@ -127,20 +127,11 @@ function defaultArtifact(taskType) {
   }
 }
 
-function artifactsForRoute(taskType, interactionMode) {
-  if (interactionMode === 'dashboard') return { mode: 'dashboard', artifacts: ['training-dashboard.html'] };
-  const artifact = defaultArtifact(taskType);
-  if (interactionMode === 'markdown' && artifact.mode === 'none') return { mode: 'single_markdown', artifacts: ['TRAINING_REPORT.md'] };
-  return artifact;
-}
-
-function outputRoutingTask(taskType) {
-  const aliases = {
-    training_review: 'weekly_review',
-    training_system: 'reusable_plan',
-    xunji_analysis: 'training_data_analysis'
-  };
-  return aliases[taskType] || taskType;
+function artifactModeForPlan(taskType, assetPlan) {
+  if (assetPlan.mode === 'dashboard') return 'dashboard';
+  if (assetPlan.artifacts.length === 0) return 'none';
+  const defaultMode = defaultArtifact(taskType).mode;
+  return defaultMode === 'none' ? 'single_markdown' : defaultMode;
 }
 
 function buildWorkflowDecision(input = {}) {
@@ -154,24 +145,27 @@ function buildWorkflowDecision(input = {}) {
     source_assets: input.source_assets,
     sourceAssets: input.sourceAssets
   });
-  const safeRoute = task_type === 'safety_routing'
-    ? { mode: 'conversation', reason: 'safety_override', override: null }
-    : routeOutput({ taskType: outputRoutingTask(task_type), userInstruction: input.instruction || input.userInstruction });
-  const artifact = task_type === 'safety_routing'
-    ? { mode: 'none', artifacts: [] }
-    : artifactsForRoute(task_type, safeRoute.mode);
-  const reason_codes = [classificationReason(input, task_type), safeRoute.reason];
+  const assetPlan = planOutputAssets({
+    taskType: task_type,
+    userInstruction: input.instruction || input.userInstruction,
+    outputDirectory: input.outputDirectory,
+    existingPaths: input.existingPaths
+  });
+  const artifact_mode = artifactModeForPlan(task_type, assetPlan);
+  const reason_codes = [classificationReason(input, task_type), assetPlan.reason];
   if (information.state === 'assume') reason_codes.push('safe_execution_assumption');
   if (information.missing_fields.length > 0) reason_codes.push('structural_information_missing');
 
   return {
     task_type,
-    interaction_mode: safeRoute.mode,
+    interaction_mode: assetPlan.mode,
     required_fields: requiredFieldsForTask(task_type),
     missing_fields: information.missing_fields,
     information_state: information.state,
-    artifact_mode: artifact.mode,
-    artifacts: artifact.artifacts,
+    artifact_mode,
+    artifacts: assetPlan.artifacts,
+    index: assetPlan.index,
+    paths: assetPlan.paths,
     reason_codes: [...new Set(reason_codes)]
   };
 }
