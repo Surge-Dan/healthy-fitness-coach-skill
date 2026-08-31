@@ -33,7 +33,18 @@ function listSnapshotFiles(directory, relativeDirectory = '') {
 }
 
 const blockedSnapshotPath = /(^|\/)(?:\.cache|\.pytest_cache|node_modules|__pycache__|fitness-reports|personal-reports|user-reports|client-reports)(?:\/|$)|(^|\/)(?:personal|user|client|athlete)[-_ ]?(?:report|reports)(?:[-_.\/]|$)|\.(?:pyc|pyo|png|jpe?g|gif|webp|heic|heif|avif|tiff?)$/i;
-const blockedSnapshotContent = /\b(?:api[_ -]?key|secret|access[_ -]?token|private[_ -]?key)\b\s*(?:[:=]|is)\s*['"]?[A-Za-z0-9][A-Za-z0-9_./+=-]{7,}/i;
+const blockedSnapshotContent = /(?:^|[^A-Za-z0-9_])(?:[A-Za-z0-9]+_)*(?:api[_ -]?key|secret|access[_ -]?token|private[_ -]?key)\s*(?:[:=]|is)\s*['"]?[A-Za-z0-9][A-Za-z0-9_./+=-]{7,}/i;
+
+function assertSafeSnapshotFile(relativePath, contents) {
+  assert.ok(!blockedSnapshotPath.test(relativePath), `快照包含禁止的报告、缓存或照片文件：${relativePath}`);
+  assert.ok(!blockedSnapshotContent.test(contents), `快照包含疑似 API Key 或秘密：${relativePath}`);
+}
+
+assert.throws(
+  () => assertSafeSnapshotFile('snapshot-manifest.json', 'OPENAI_API_KEY=sk-example-12345678'),
+  /疑似 API Key 或秘密/,
+  '秘密门禁必须拒绝 manifest 中的前缀型 API Key 环境变量'
+);
 
 const current = readJson(evalPath);
 assert.equal(current.evals.length, 18, '评测总数必须是保留的12条加6条训练操作系统差异评测');
@@ -81,14 +92,18 @@ assert.ok(Array.isArray(manifest.files) && manifest.files.length > 0, '快照清
 
 const manifestFiles = manifest.files.map((entry) => entry.path).sort();
 assert.equal(new Set(manifestFiles).size, manifestFiles.length, '快照清单不得包含重复路径');
-const actualFiles = listSnapshotFiles(snapshotRoot).filter((entry) => entry !== 'snapshot-manifest.json').sort();
+const allSnapshotFiles = listSnapshotFiles(snapshotRoot).sort();
+assert.ok(allSnapshotFiles.includes('snapshot-manifest.json'), '完整快照安全扫描必须包含 manifest');
+for (const relativePath of allSnapshotFiles) {
+  const snapshotFile = path.join(snapshotRoot, relativePath);
+  assertSafeSnapshotFile(relativePath, fs.readFileSync(snapshotFile, 'utf8'));
+}
+const actualFiles = allSnapshotFiles.filter((entry) => entry !== 'snapshot-manifest.json');
 assert.deepEqual(actualFiles, manifestFiles, '快照实际文件必须与清单完全一致，禁止清单外文件');
 
 for (const entry of manifest.files) {
-  assert.ok(!blockedSnapshotPath.test(entry.path), `快照包含禁止的报告、缓存或照片文件：${entry.path}`);
   const snapshotFile = path.join(snapshotRoot, entry.path);
   assert.ok(fs.existsSync(snapshotFile), `快照缺少清单文件：${entry.path}`);
-  assert.ok(!blockedSnapshotContent.test(fs.readFileSync(snapshotFile, 'utf8')), `快照包含疑似 API Key 或秘密：${entry.path}`);
   assert.equal(sha256(snapshotFile), entry.sha256, `快照文件哈希不匹配：${entry.path}`);
   const baseContents = execFileSync('git', ['show', `${baseCommit}:healthy-fitness-coach/${entry.path}`], { cwd: root });
   assert.deepEqual(fs.readFileSync(snapshotFile), baseContents, `快照不是起点提交内容：${entry.path}`);
