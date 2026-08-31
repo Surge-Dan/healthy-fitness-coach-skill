@@ -1,5 +1,8 @@
 'use strict';
 
+const { existsSync } = require('node:fs');
+const { basename, join, parse } = require('node:path');
+
 const CONVERSATION_TASKS = new Set([
   'today_workout',
   'set_by_set_coaching',
@@ -11,6 +14,9 @@ const CONVERSATION_TASKS = new Set([
 
 const MARKDOWN_TASKS = new Set([
   'training_plan',
+  'training_review',
+  'training_system',
+  'xunji_analysis',
   'weekly_review',
   'monthly_review',
   'training_data_analysis',
@@ -18,6 +24,14 @@ const MARKDOWN_TASKS = new Set([
   'reusable_report',
   'user_profile'
 ]);
+
+const TASK_ASSETS = {
+  training_plan: ['ATHLETE_PROFILE.md', 'CURRENT_PROGRAM.md'],
+  training_review: ['WEEKLY_REVIEW.md', 'DECISION_LOG.md'],
+  training_system: ['ATHLETE_PROFILE.md', 'TRAINING_DNA.md', 'CURRENT_PROGRAM.md', 'DECISION_LOG.md'],
+  xunji_analysis: ['TRAINING_ANALYSIS.md'],
+  share_output: ['SHARE_CARD.png', 'SHARE_FACTS.md']
+};
 
 function normalizeText(value) {
   return String(value || '')
@@ -108,10 +122,64 @@ function explicitOverride(instruction) {
 }
 
 function routeOutput({ taskType, userInstruction } = {}) {
+  if (taskType === 'safety_routing') return { mode: 'conversation', reason: 'safety_override', override: null };
   const override = explicitOverride(userInstruction);
   if (override) return override;
   if (MARKDOWN_TASKS.has(taskType)) return { mode: 'markdown', reason: 'default_task_type', override: null };
   return { mode: 'conversation', reason: 'default_task_type', override: null };
 }
 
-module.exports = { routeOutput };
+function resolveNonOverwritingPath(filename, { outputDirectory = 'fitness-reports', existingPaths = new Set(), reservedPaths = new Set() } = {}) {
+  const existing = new Set(existingPaths);
+  const parsed = parse(filename);
+  let suffix = 1;
+  let candidate = join(outputDirectory, filename);
+  const collides = (path) => existing.has(path) || existing.has(basename(path)) || reservedPaths.has(path) || existsSync(path);
+  while (collides(candidate)) {
+    suffix += 1;
+    const candidateName = `${parsed.name}-${suffix}${parsed.ext}`;
+    candidate = join(outputDirectory, candidateName);
+  }
+  return candidate;
+}
+
+function planOutputAssets({ taskType, userInstruction, outputDirectory = 'fitness-reports', existingPaths = new Set() } = {}) {
+  const route = routeOutput({ taskType, userInstruction });
+  let artifacts = [];
+  let index = null;
+
+  if (taskType === 'today_workout' && route.override === 'save_prior_content') {
+    artifacts = ['TODAY_WORKOUT.md'];
+  } else if (taskType !== 'safety_routing' && route.mode === 'dashboard') {
+    artifacts = taskType === 'xunji_analysis'
+      ? [...TASK_ASSETS.xunji_analysis, 'training-dashboard.html']
+      : ['training-dashboard.html'];
+  } else if (taskType !== 'safety_routing' && taskType !== 'knowledge_question') {
+    artifacts = TASK_ASSETS[taskType] ? [...TASK_ASSETS[taskType]] : [];
+    if (taskType === 'training_system') index = 'TRAINING_SYSTEM_INDEX.md';
+  }
+
+  if (route.mode === 'conversation' && taskType !== 'share_output') {
+    artifacts = [];
+    index = null;
+  }
+
+  const reservedPaths = new Set();
+  const paths = [...(index ? [index] : []), ...artifacts].map((filename) => {
+    const path = resolveNonOverwritingPath(filename, { outputDirectory, existingPaths, reservedPaths });
+    reservedPaths.add(path);
+    return path;
+  });
+
+  return {
+    task_type: taskType || 'knowledge_question',
+    mode: route.mode,
+    reason: route.reason,
+    override: route.override,
+    artifacts,
+    index,
+    paths
+  };
+}
+
+module.exports = { routeOutput, planOutputAssets, resolveNonOverwritingPath };

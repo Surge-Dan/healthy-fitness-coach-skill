@@ -2,6 +2,8 @@
 
 先按 `output-routing.js` 的 `routeOutput({ taskType, userInstruction })` 确定输出。返回值始终是 `{ mode, reason, override }`，便于审计默认行为和显式命令。
 
+再调用 `planOutputAssets({ taskType, userInstruction, outputDirectory, existingPaths })` 取得确定性的资产计划。它只返回计划，不写入文件；返回的 `artifacts` 是交付物文件名，`paths` 是不会覆盖现有文件的候选路径。多文件计划还会以 `index` 指明索引文件，避免用户自行猜测资产关系。
+
 | 模式 | 适用场景 |
 | --- | --- |
 | `conversation` | 今日训练、逐组跟练、动作/姿势调整、即时症状或安全分流 |
@@ -23,6 +25,20 @@
 
 用户没有明确要求时沿用任务默认模式。只有多个产物都合理且需要用户选择时，才用一条简短对话提供三种模式，不阻断安全分流。
 
+## 训练任务资产契约
+
+| `taskType` | 默认模式 | 资产计划 |
+| --- | --- | --- |
+| `knowledge_question`、`safety_routing` | `conversation` | 无文件；安全分流不能被显式命令覆盖 |
+| `training_plan` | `markdown` | `ATHLETE_PROFILE.md`、`CURRENT_PROGRAM.md` |
+| `today_workout` | `conversation` | 仅在“保存刚才内容”时生成 `TODAY_WORKOUT.md` |
+| `training_review` | `markdown` | `WEEKLY_REVIEW.md`、`DECISION_LOG.md` |
+| `training_system` | `markdown` | 四个核心资产：`ATHLETE_PROFILE.md`、`TRAINING_DNA.md`、`CURRENT_PROGRAM.md`、`DECISION_LOG.md`；索引为 `TRAINING_SYSTEM_INDEX.md` |
+| `xunji_analysis` | `markdown` | `TRAINING_ANALYSIS.md`；显式趋势面板时追加 `training-dashboard.html` |
+| `share_output` | `conversation` | `SHARE_CARD.png`、`SHARE_FACTS.md` |
+
+模板位于 `assets/today-workout-template.md` 和 `assets/training-system-index-template.md`。它们只提供保存时的内容骨架，不代表系统已自动持久化健康数据。
+
 ## 趋势面板交付
 
 趋势模式调用 `xunji_get_training_trends`，把返回的 `dashboard_html` 保存到当前工作区 `fitness-reports/`。使用非 PII 文件名和碰撞后缀，不覆盖既有报告；没有写入工具时，直接返回 HTML 内容并说明未创建文件。
@@ -30,3 +46,5 @@
 ## Markdown 交付
 
 Markdown 模式且具备写入工具时，默认在 `fitness-reports/` 创建完整 `.md` 文件，使用 `references/report-artifact.js` 生成不覆盖的确定性路径；没有写入工具时直接返回完整 Markdown，并说明未创建文件。
+
+资产计划的路径也使用相同的非覆盖原则：先尝试原文件名，存在冲突时按 `-2`、`-3` 递增。调用者应在实际写入前保留计划中的 `paths`，而不是重新拼接文件名。

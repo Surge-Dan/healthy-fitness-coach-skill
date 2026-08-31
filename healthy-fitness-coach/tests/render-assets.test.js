@@ -7,6 +7,14 @@ const { join } = require('node:path');
 const { spawnSync } = require('node:child_process');
 const test = require('node:test');
 
+test('output asset templates contain the required handoff sections', () => {
+  const assets = join(__dirname, '..', 'assets');
+  assert.match(readFileSync(join(assets, 'today-workout-template.md'), 'utf8'), /训练前检查/);
+  assert.match(readFileSync(join(assets, 'today-workout-template.md'), 'utf8'), /完成记录/);
+  assert.match(readFileSync(join(assets, 'training-system-index-template.md'), 'utf8'), /资产索引/);
+  assert.match(readFileSync(join(assets, 'training-system-index-template.md'), 'utf8'), /更新条件/);
+});
+
 test('render-visual-assets CLI writes report SVGs and one selected share ratio', () => {
   const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-visuals-'));
   const input = join(root, 'input.json');
