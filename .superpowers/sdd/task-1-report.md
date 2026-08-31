@@ -51,3 +51,40 @@ node quality-tests\run-training-system.js
 ## concerns
 
 - `git diff --cached --check` 对快照内两个起点文件报告 EOF 空白行：`references/visual-prompt-compiler.js`、`tests/visual-dna.test.js`。它们是旧版 blob 的既有字节；为保持快照可审计且逐字节等同起点，未作修改。
+
+## 审查修复（I1、I2、M1）
+
+### 修复内容
+
+- I1：ID 15 的 prompt 现在明确给出年龄（28 岁）、每周训练天数（3 天）、单次训练时长（30 分钟）和动作限制（无），并把这些已知前提写入计划边界；该条仍为 `requires_follow_up: false`。
+- I2：基线门禁现在递归枚举快照实际文件，要求其（除清单自身）与 manifest 路径集合完全一致，拒绝符号链接与清单外文件。它同时拒绝 API Key/secret/access token/private key 的疑似赋值内容、`.cache`、`.pytest_cache`、`node_modules`、`__pycache__`、个人报告目录/文件名，以及 PNG、JPEG、GIF、WebP、HEIC、HEIF、AVIF、TIFF 等照片格式。
+- M1：上述实际文件枚举、路径拒绝与内容拒绝已由确定性校验覆盖；原报告对快照排除门禁的表述因此有对应实现证据。
+
+### 修复 RED
+
+命令：
+
+```powershell
+node quality-tests\run-training-os-baseline.js
+```
+
+输出摘要：失败，断言 `信息完整的新手计划必须给出年龄范围`；ID 15 的原 prompt 没有年龄输入。这是在新增完整输入与快照实际文件集门禁后、修复前得到的预期失败。
+
+### 修复 GREEN
+
+命令与输出摘要：
+
+```powershell
+node quality-tests\run-training-os-baseline.js
+# PASS training-os baseline: 62 snapshot files; 12 legacy evals + 6 redesign evals
+
+$env:PYTHONUTF8='1'; python "$env:USERPROFILE\.codex\skills\skill-creator\scripts\quick_validate.py" healthy-fitness-coach
+# Skill is valid!
+
+node quality-tests\run-training-system.js
+# Training system quality gate passed (8 assets, routing and evidence markers verified).
+```
+
+### 修复提交哈希
+
+- `3ed9b62` (`test: harden training baseline audit gates`)
