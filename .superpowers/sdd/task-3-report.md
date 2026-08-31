@@ -42,3 +42,28 @@
 ## concerns
 
 - 该模块仅表达数据契约和持久化意图；未来接入实际存储时，调用方仍必须在写入前执行用户同意校验，并将变更写入 `DECISION_LOG.md`。
+
+## 审查修复（2026-08-31）
+
+### STATUS
+
+已处理独立审查的 C1、C2、I1、I2 和 M1。
+
+### 修复内容
+
+- `normalizeAthleteProfile` 仅处理稳定字段；新增并导出 `normalizeEvidenceState`，使稳定、当前、证据三类状态互不进入或互相合并。
+- 嵌套净化改为先净化后判定：中英文敏感键、深层对象和数组元素中的敏感内容都会删除；净化后为空的字段重新列入 `unknown_fields`。
+- 每个已知稳定字段都有 `field_provenance`（来源、日期、持久化意图）；`profileChangeSet` 输出旧/新值及其各自溯源。局部更新保留未变化字段及档案原始元数据。
+- 当前状态只输出 `temporary_equipment`；旧输入 `available_equipment` 仅作兼容映射。
+
+### RED / GREEN
+
+- RED：先新增状态隔离、中文/英文嵌套敏感值、净化后未知、字段级溯源和器械映射用例；旧实现 12 项中 7 项失败。
+- GREEN：目标测试 12/12 通过；完整测试 98/98 通过。
+
+### 验证与提交
+
+- `node --test healthy-fitness-coach/tests/athlete-state.test.js`：12/12 通过。
+- `node --test <healthy-fitness-coach/tests/*.test.js>`（PowerShell 显式文件列表）：98/98 通过。
+- `node --check healthy-fitness-coach/references/athlete-state.js` 与 `git diff --check`：通过。
+- 修复提交：`3f9a2bfcc35667460b1d8b4e78aaf4ff24ebf296 task-3: isolate athlete state containers`。
