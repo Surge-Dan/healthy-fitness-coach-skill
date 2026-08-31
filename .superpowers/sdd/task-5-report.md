@@ -25,9 +25,16 @@ COMPLETE — 新增 CommonJS 纯函数规则编译器；输出仅为可解释的
 
 ## VERIFICATION
 
+### 初始实现阶段（历史记录）
+
 - 任务测试：`node --test healthy-fitness-coach\\tests\\program-rules.test.js` — 17/17 通过。
 - 全量测试：显式传入 `healthy-fitness-coach/tests/*.test.js` — 131/131 通过。
-- 独立审查：初审发现红旗、短时预算、频率、新手动作上限和极端表述边界；均已按 RED→GREEN 修复。复审结论：Ready to merge，无新增严重度问题。
+
+### 最终修复后（交付证据）
+
+- 任务测试：`node --test healthy-fitness-coach\\tests\\program-rules.test.js` — 19/19 通过。
+- 全量测试：显式传入 `healthy-fitness-coach/tests/*.test.js` — 133/133 通过。
+- 独立审查：初审发现红旗、短时预算、频率、新手动作上限和极端表述边界；均已按 RED→GREEN 修复。最终复核确认 P1 已关闭。
 
 ## COMMIT
 
