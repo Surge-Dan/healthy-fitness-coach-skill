@@ -1,0 +1,170 @@
+'use strict';
+
+const { routeOutput } = require('./output-routing.js');
+
+const SUPPORTED_TASKS = new Set([
+  'knowledge_question',
+  'safety_routing',
+  'training_plan',
+  'today_workout',
+  'training_review',
+  'training_system',
+  'xunji_analysis',
+  'share_output'
+]);
+
+const REQUIRED_FIELDS = {
+  knowledge_question: [],
+  safety_routing: [],
+  training_plan: ['goal', 'experience_level', 'training_days_per_week', 'available_equipment', 'injury_or_medical_constraints'],
+  today_workout: [],
+  training_review: ['records'],
+  training_system: ['goal', 'experience_level', 'training_days_per_week', 'available_equipment', 'injury_or_medical_constraints'],
+  xunji_analysis: ['records'],
+  share_output: ['source_assets']
+};
+
+const INSTRUCTION_TASKS = [
+  ['share_output', /(?:分享图|分享卡|海报|晒训练|share\s*(?:card|image|output)?)/iu],
+  ['training_system', /(?:训练系统|建立.*训练dna|建立.*训练体系|长期训练)/iu],
+  ['xunji_analysis', /(?:训记|xunji|训练数据分析)/iu],
+  ['training_review', /(?:训练复盘|周复盘|月复盘|训练回顾|review)/iu],
+  ['today_workout', /(?:今天.*(?:练|训练)|今日.*(?:练|训练)|today.*workout)/iu],
+  ['training_plan', /(?:训练计划|计划.*训练|program(?:me)?\b)/iu]
+];
+
+const RED_FLAG_PATTERN = /(?:胸痛|呼吸困难|晕厥|昏厥|突发.*(?:疼痛|麻木|无力)|剧烈.*(?:疼痛|头痛)|chest\s*pain|shortness\s+of\s+breath|faint(?:ing)?|severe\s+pain|numbness)/iu;
+
+function normalizeTaskType(value) {
+  const taskType = String(value || '').trim().toLowerCase();
+  return SUPPORTED_TASKS.has(taskType) ? taskType : null;
+}
+
+function hasValue(value) {
+  if (Array.isArray(value)) return value.length > 0;
+  if (value && typeof value === 'object') return Object.keys(value).length > 0;
+  return value !== undefined && value !== null && String(value).trim() !== '';
+}
+
+function isMeaningfulRedFlag(value) {
+  if (value === true) return true;
+  if (typeof value === 'string') return value.trim() !== '';
+  return Boolean(value && typeof value === 'object' && Object.keys(value).length > 0);
+}
+
+function hasRedFlag(input = {}) {
+  const state = input.currentState || input.current_state || {};
+  const flags = input.red_flags || input.redFlags || state.red_flags || state.redFlags;
+  const entries = Array.isArray(flags) ? flags : [flags];
+  return entries.some(isMeaningfulRedFlag) || RED_FLAG_PATTERN.test(String(input.instruction || input.userInstruction || ''));
+}
+
+function classifyTrainingTask(input = {}) {
+  if (hasRedFlag(input)) return 'safety_routing';
+
+  const explicitTask = normalizeTaskType(input.taskType || input.task_type);
+  if (explicitTask) return explicitTask;
+
+  const instruction = String(input.instruction || input.userInstruction || '');
+  for (const [taskType, pattern] of INSTRUCTION_TASKS) {
+    if (pattern.test(instruction)) return taskType;
+  }
+  return 'knowledge_question';
+}
+
+function requiredFieldsForTask(taskType) {
+  const normalized = normalizeTaskType(taskType) || 'knowledge_question';
+  return [...REQUIRED_FIELDS[normalized]];
+}
+
+function valueForField(field, { profile = {}, currentState = {}, records, source_assets, sourceAssets } = {}) {
+  if (field === 'records') return records;
+  if (field === 'source_assets') return source_assets || sourceAssets || currentState.source_assets || currentState.sourceAssets;
+  return currentState[field] !== undefined ? currentState[field] : profile[field];
+}
+
+function evaluateInformationState({ taskType, profile = {}, currentState = {}, records, source_assets, sourceAssets } = {}) {
+  const normalized = normalizeTaskType(taskType) || 'knowledge_question';
+  const fields = requiredFieldsForTask(normalized);
+  const missing_fields = fields.filter((field) => !hasValue(valueForField(field, { profile, currentState, records, source_assets, sourceAssets })));
+
+  if (normalized === 'today_workout' && missing_fields.length === 0) {
+    const hasExecutionContext = hasValue(profile.available_time_min) || hasValue(currentState.available_time_min)
+      || hasValue(profile.available_equipment) || hasValue(currentState.available_equipment);
+    return { state: hasExecutionContext ? 'ready' : 'assume', missing_fields };
+  }
+  return { state: missing_fields.length > 0 ? 'ask' : 'ready', missing_fields };
+}
+
+function classificationReason(input, taskType) {
+  if (taskType === 'safety_routing' && hasRedFlag(input)) return 'red_flag_detected';
+  if (normalizeTaskType(input.taskType || input.task_type)) return 'explicit_task_type';
+  return taskType === 'knowledge_question' ? 'simple_knowledge_question' : 'instruction_classification';
+}
+
+function defaultArtifact(taskType) {
+  switch (taskType) {
+    case 'training_plan': return { mode: 'single_markdown', artifacts: ['TRAINING_PLAN.md'] };
+    case 'training_review': return { mode: 'single_markdown', artifacts: ['TRAINING_REVIEW.md'] };
+    case 'training_system': return { mode: 'system_bundle', artifacts: ['ATHLETE_PROFILE.md', 'TRAINING_DNA.md', 'CURRENT_PROGRAM.md', 'DECISION_LOG.md'] };
+    case 'xunji_analysis': return { mode: 'analysis_bundle', artifacts: ['TRAINING_DNA.md', 'DECISION_LOG.md'] };
+    case 'share_output': return { mode: 'share_card', artifacts: ['SHARE_CARD.png'] };
+    default: return { mode: 'none', artifacts: [] };
+  }
+}
+
+function artifactsForRoute(taskType, interactionMode) {
+  if (interactionMode === 'dashboard') return { mode: 'dashboard', artifacts: ['training-dashboard.html'] };
+  const artifact = defaultArtifact(taskType);
+  if (interactionMode === 'markdown' && artifact.mode === 'none') return { mode: 'single_markdown', artifacts: ['TRAINING_REPORT.md'] };
+  return artifact;
+}
+
+function outputRoutingTask(taskType) {
+  const aliases = {
+    training_review: 'weekly_review',
+    training_system: 'reusable_plan',
+    xunji_analysis: 'training_data_analysis'
+  };
+  return aliases[taskType] || taskType;
+}
+
+function buildWorkflowDecision(input = {}) {
+  const task_type = classifyTrainingTask(input);
+  const currentState = input.currentState || input.current_state || {};
+  const information = evaluateInformationState({
+    taskType: task_type,
+    profile: input.profile || {},
+    currentState,
+    records: input.records,
+    source_assets: input.source_assets,
+    sourceAssets: input.sourceAssets
+  });
+  const safeRoute = task_type === 'safety_routing'
+    ? { mode: 'conversation', reason: 'safety_override', override: null }
+    : routeOutput({ taskType: outputRoutingTask(task_type), userInstruction: input.instruction || input.userInstruction });
+  const artifact = task_type === 'safety_routing'
+    ? { mode: 'none', artifacts: [] }
+    : artifactsForRoute(task_type, safeRoute.mode);
+  const reason_codes = [classificationReason(input, task_type), safeRoute.reason];
+  if (information.state === 'assume') reason_codes.push('safe_execution_assumption');
+  if (information.missing_fields.length > 0) reason_codes.push('structural_information_missing');
+
+  return {
+    task_type,
+    interaction_mode: safeRoute.mode,
+    required_fields: requiredFieldsForTask(task_type),
+    missing_fields: information.missing_fields,
+    information_state: information.state,
+    artifact_mode: artifact.mode,
+    artifacts: artifact.artifacts,
+    reason_codes: [...new Set(reason_codes)]
+  };
+}
+
+module.exports = {
+  classifyTrainingTask,
+  requiredFieldsForTask,
+  evaluateInformationState,
+  buildWorkflowDecision
+};
