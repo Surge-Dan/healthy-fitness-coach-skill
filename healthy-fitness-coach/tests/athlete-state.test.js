@@ -7,6 +7,7 @@ const {
   mergeAthleteProfile,
   normalizeAthleteProfile,
   normalizeCurrentState,
+  normalizeEvidenceState,
   profileChangeSet
 } = require('../references/athlete-state.js');
 
@@ -20,10 +21,6 @@ test('normalizes only explicit stable-profile values and labels unknowns', () =>
     available_equipment: ['barbell', 'bench'],
     injury_or_medical_constraints: 'none reported',
     long_term_preferences: ['track main lifts'],
-    training_records: [{ date: '2026-08-30', completed: true }],
-    completion_rate: 0.9,
-    performance: 'squat improving',
-    recovery_results: 'normal after 24 hours',
     source: 'user message',
     date: '2026-08-31',
     persisted: true
@@ -78,7 +75,13 @@ test('records an explicit replacement of a stable profile fact as a field change
   assert.equal(next.goal, 'improve cardio');
   assert.equal(next.training_days_per_week, 3);
   assert.deepEqual(profileChangeSet(previous, next), [
-    { field: 'goal', from: 'build strength', to: 'improve cardio' }
+    {
+      field: 'goal',
+      from: 'build strength',
+      to: 'improve cardio',
+      previous_provenance: { source: 'intake', date: '2026-08-01', persisted: true },
+      next_provenance: { source: 'follow-up', date: '2026-08-31', persisted: true }
+    }
   ]);
 });
 
@@ -131,13 +134,97 @@ test('rejects sensitive and unrelated fields from both profile and current state
 });
 
 test('removes sensitive nested properties from whitelisted evidence values', () => {
-  const profile = normalizeAthleteProfile({
+  const evidence = normalizeEvidenceState({
     training_records: [{ date: '2026-08-30', completed: true, email: 'person@example.com' }],
     performance: { squat: '100kg', api_key: 'secret' }
   });
 
-  assert.deepEqual(profile.training_records, [{ date: '2026-08-30', completed: true }]);
-  assert.deepEqual(profile.performance, { squat: '100kg' });
+  assert.deepEqual(evidence.training_records, [{ date: '2026-08-30', completed: true }]);
+  assert.deepEqual(evidence.performance, { squat: '100kg' });
+});
+
+test('keeps stable, current and evidence state in separate normalized containers', () => {
+  const profile = normalizeAthleteProfile({
+    goal: 'build strength',
+    fatigue: 'high',
+    training_records: [{ date: '2026-08-30' }]
+  });
+  const currentState = normalizeCurrentState({
+    fatigue: 'high',
+    goal: 'build strength',
+    completion_rate: 0.8
+  });
+  const evidence = normalizeEvidenceState({
+    training_records: [{ date: '2026-08-30' }],
+    completion_rate: 0.8,
+    goal: 'build strength'
+  });
+  const merged = mergeAthleteProfile(profile, {
+    training_records: [{ date: '2026-08-31' }],
+    recovery_results: 'normal'
+  });
+
+  assert.equal(Object.hasOwn(profile, 'training_records'), false);
+  assert.equal(Object.hasOwn(profile, 'fatigue'), false);
+  assert.equal(Object.hasOwn(currentState, 'goal'), false);
+  assert.equal(Object.hasOwn(currentState, 'completion_rate'), false);
+  assert.equal(Object.hasOwn(evidence, 'goal'), false);
+  assert.equal(Object.hasOwn(merged, 'training_records'), false);
+  assert.deepEqual(evidence.training_records, [{ date: '2026-08-30' }]);
+});
+
+test('drops nested Chinese and English sensitive values and returns emptied evidence fields to unknown', () => {
+  const evidence = normalizeEvidenceState({
+    training_records: [{ 手机号: '13800000000', nested: { 邮箱: 'person@example.com' } }],
+    performance: { 身份证号: '110101...', api_key: 'secret' },
+    recovery_results: [{ 住址: 'Beijing', 密码: 'secret' }]
+  });
+
+  assert.equal(Object.hasOwn(evidence, 'training_records'), false);
+  assert.equal(Object.hasOwn(evidence, 'performance'), false);
+  assert.equal(Object.hasOwn(evidence, 'recovery_results'), false);
+  assert.ok(evidence.unknown_fields.includes('training_records'));
+  assert.ok(evidence.unknown_fields.includes('performance'));
+  assert.ok(evidence.unknown_fields.includes('recovery_results'));
+});
+
+test('preserves unchanged field provenance while auditing only the updated profile field', () => {
+  const previous = normalizeAthleteProfile({
+    goal: 'build strength',
+    training_days_per_week: 3,
+    source: 'intake',
+    date: '2026-08-01',
+    persisted: true
+  });
+  const next = mergeAthleteProfile(previous, {
+    goal: 'improve cardio',
+    source: 'follow-up',
+    date: '2026-08-31',
+    persisted: false
+  });
+
+  assert.deepEqual(next.field_provenance.goal, { source: 'follow-up', date: '2026-08-31', persisted: false });
+  assert.deepEqual(next.field_provenance.training_days_per_week, { source: 'intake', date: '2026-08-01', persisted: true });
+  assert.equal(next.source, 'intake');
+  assert.equal(next.date, '2026-08-01');
+  assert.equal(next.persisted, true);
+  assert.deepEqual(profileChangeSet(previous, next), [
+    {
+      field: 'goal',
+      from: 'build strength',
+      to: 'improve cardio',
+      previous_provenance: { source: 'intake', date: '2026-08-01', persisted: true },
+      next_provenance: { source: 'follow-up', date: '2026-08-31', persisted: false }
+    }
+  ]);
+});
+
+test('maps current-state available_equipment into temporary_equipment only', () => {
+  const currentState = normalizeCurrentState({ available_equipment: ['hotel dumbbells'] });
+
+  assert.deepEqual(currentState.temporary_equipment, ['hotel dumbbells']);
+  assert.equal(Object.hasOwn(currentState, 'available_equipment'), false);
+  assert.ok(currentState.unknown_fields.includes('available_time_min'));
 });
 
 test('keeps refused persistence as temporary current-turn state', () => {

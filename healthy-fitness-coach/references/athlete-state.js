@@ -24,104 +24,155 @@ const CURRENT_STATE_FIELDS = [
   'fatigue',
   'pain',
   'available_time_min',
-  'temporary_equipment',
-  'available_equipment'
+  'temporary_equipment'
 ];
 
-const PROFILE_FIELDS = [...STABLE_PROFILE_FIELDS, ...EVIDENCE_FIELDS];
-const SENSITIVE_FIELD_PATTERN = /(?:api[_-]?key|token|authorization|password|secret|e-?mail|phone|contact|address|bank|id[_-]?number|passport|credential)/iu;
+const UNKNOWN_MARKERS = new Set(['unknown', 'n/a', 'not provided', '未知', '不清楚', '未提供']);
+const SENSITIVE_FIELD_PATTERN = /(?:api[_-]?key|token|authorization|password|secret|e-?mail|phone|contact|address|bank|id[_-]?number|passport|credential|身份证(?:号|号码)?|手机(?:号|号码)?|电话(?:号码)?|邮箱|电子邮件|住址|地址|账号|帐户|账户|密码|密钥|令牌|授权|银行卡|银行账户|联系方式|护照|姓名)/iu;
 
 function hasExplicitValue(value) {
   if (value === undefined || value === null) return false;
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    return normalized !== '' && !['unknown', 'n/a', 'not provided', '未知', '不清楚', '未提供'].includes(normalized);
-  }
+  if (typeof value === 'string') return !UNKNOWN_MARKERS.has(value.trim().toLowerCase()) && value.trim() !== '';
+  if (typeof value === 'number') return Number.isFinite(value);
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value === 'object') return Object.keys(value).length > 0;
   return true;
 }
 
-function cloneValue(value) {
-  if (Array.isArray(value)) return value.map(cloneValue);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value)
-      .filter(([key]) => !SENSITIVE_FIELD_PATTERN.test(key))
-      .map(([key, entry]) => [key, cloneValue(entry)]));
+function sanitizeValue(value) {
+  if (typeof value === 'string') return hasExplicitValue(value) ? value.trim() : undefined;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value === 'boolean') return value;
+  if (Array.isArray(value)) {
+    const sanitized = value.map(sanitizeValue).filter((entry) => entry !== undefined);
+    return sanitized.length > 0 ? sanitized : undefined;
   }
-  return value;
+  if (value && typeof value === 'object') {
+    const sanitized = {};
+    for (const [key, entry] of Object.entries(value)) {
+      if (SENSITIVE_FIELD_PATTERN.test(key)) continue;
+      const cleanEntry = sanitizeValue(entry);
+      if (cleanEntry !== undefined) sanitized[key] = cleanEntry;
+    }
+    return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+  }
+  return undefined;
 }
 
-function metadataFrom(input, fields) {
-  const persisted = typeof input.persisted === 'boolean' ? input.persisted : 'unknown';
+function metadataFrom(input) {
+  const source = sanitizeValue(input.source);
+  const date = sanitizeValue(input.date);
   return {
-    source: hasExplicitValue(input.source) ? cloneValue(input.source) : 'unknown',
-    date: hasExplicitValue(input.date) ? cloneValue(input.date) : 'unknown',
-    persisted,
-    unknown_fields: fields.filter((field) => !hasExplicitValue(input[field]))
+    source: source === undefined ? 'unknown' : source,
+    date: date === undefined ? 'unknown' : date,
+    persisted: typeof input.persisted === 'boolean' ? input.persisted : 'unknown'
   };
 }
 
-function normalizedFields(input, fields) {
-  const normalized = {};
+function storageScope(persisted) {
+  return persisted === true ? 'persistent' : persisted === false ? 'current_turn_only' : 'not_confirmed';
+}
+
+function provenanceForField(input, field, fallback) {
+  const fieldProvenance = input.field_provenance && typeof input.field_provenance === 'object'
+    ? input.field_provenance[field]
+    : null;
+  const supplied = fieldProvenance && typeof fieldProvenance === 'object' ? fieldProvenance : {};
+  const source = sanitizeValue(supplied.source);
+  const date = sanitizeValue(supplied.date);
+  return {
+    source: source === undefined ? fallback.source : source,
+    date: date === undefined ? fallback.date : date,
+    persisted: typeof supplied.persisted === 'boolean' ? supplied.persisted : fallback.persisted
+  };
+}
+
+function normalizedFields(input, fields, aliases = {}) {
+  const metadata = metadataFrom(input);
+  const values = {};
+  const field_provenance = {};
   for (const field of fields) {
-    if (hasExplicitValue(input[field])) normalized[field] = cloneValue(input[field]);
+    let cleanValue = sanitizeValue(input[field]);
+    if (cleanValue === undefined && aliases[field]) cleanValue = sanitizeValue(input[aliases[field]]);
+    if (cleanValue === undefined) continue;
+    values[field] = cleanValue;
+    field_provenance[field] = provenanceForField(input, field, metadata);
   }
-  return normalized;
+  return { values, field_provenance, metadata };
+}
+
+function normalizedResult(fields, values, fieldProvenance, metadata) {
+  return {
+    ...values,
+    source: metadata.source,
+    date: metadata.date,
+    persisted: metadata.persisted,
+    unknown_fields: fields.filter((field) => !Object.hasOwn(values, field)),
+    field_provenance: fieldProvenance,
+    storage_scope: storageScope(metadata.persisted)
+  };
+}
+
+function normalizeContainer(input, fields, aliases) {
+  const source = input && typeof input === 'object' ? input : {};
+  const normalized = normalizedFields(source, fields, aliases);
+  return normalizedResult(fields, normalized.values, normalized.field_provenance, normalized.metadata);
 }
 
 function normalizeAthleteProfile(input = {}) {
-  const source = input && typeof input === 'object' ? input : {};
-  return {
-    ...normalizedFields(source, PROFILE_FIELDS),
-    ...metadataFrom(source, PROFILE_FIELDS),
-    storage_scope: source.persisted === true ? 'persistent' : source.persisted === false ? 'current_turn_only' : 'not_confirmed'
-  };
+  return normalizeContainer(input, STABLE_PROFILE_FIELDS);
 }
 
 function normalizeCurrentState(input = {}) {
-  const source = input && typeof input === 'object' ? input : {};
-  return {
-    ...normalizedFields(source, CURRENT_STATE_FIELDS),
-    ...metadataFrom(source, CURRENT_STATE_FIELDS),
-    storage_scope: source.persisted === true ? 'persistent' : source.persisted === false ? 'current_turn_only' : 'not_confirmed'
-  };
+  return normalizeContainer(input, CURRENT_STATE_FIELDS, { temporary_equipment: 'available_equipment' });
 }
 
-function explicitMetadata(input, key) {
-  if (key === 'persisted') return typeof input.persisted === 'boolean';
-  return hasExplicitValue(input[key]);
+function normalizeEvidenceState(input = {}) {
+  return normalizeContainer(input, EVIDENCE_FIELDS);
 }
 
 function mergeAthleteProfile(previous = {}, update = {}) {
-  const prior = previous && typeof previous === 'object' ? previous : {};
-  const patch = update && typeof update === 'object' ? update : {};
-  const merged = {};
+  const prior = normalizeAthleteProfile(previous);
+  const patch = normalizeAthleteProfile(update);
+  const values = {};
+  const fieldProvenance = {};
 
-  for (const field of PROFILE_FIELDS) {
-    if (hasExplicitValue(patch[field])) merged[field] = cloneValue(patch[field]);
-    else if (hasExplicitValue(prior[field])) merged[field] = cloneValue(prior[field]);
+  for (const field of STABLE_PROFILE_FIELDS) {
+    if (Object.hasOwn(patch, field)) {
+      values[field] = patch[field];
+      fieldProvenance[field] = patch.field_provenance[field];
+    } else if (Object.hasOwn(prior, field)) {
+      values[field] = prior[field];
+      fieldProvenance[field] = prior.field_provenance[field];
+    }
   }
 
-  for (const key of ['source', 'date', 'persisted']) {
-    if (explicitMetadata(patch, key)) merged[key] = cloneValue(patch[key]);
-    else if (explicitMetadata(prior, key) && prior[key] !== 'unknown') merged[key] = cloneValue(prior[key]);
-  }
+  const metadata = Object.keys(prior.field_provenance).length > 0
+    ? { source: prior.source, date: prior.date, persisted: prior.persisted }
+    : { source: patch.source, date: patch.date, persisted: patch.persisted };
+  return normalizedResult(STABLE_PROFILE_FIELDS, values, fieldProvenance, metadata);
+}
 
-  return normalizeAthleteProfile(merged);
+function equivalent(valueA, valueB) {
+  return JSON.stringify(valueA) === JSON.stringify(valueB);
 }
 
 function profileChangeSet(previous = {}, next = {}) {
-  const prior = previous && typeof previous === 'object' ? previous : {};
-  const candidate = next && typeof next === 'object' ? next : {};
+  const prior = normalizeAthleteProfile(previous);
+  const candidate = normalizeAthleteProfile(next);
   const changes = [];
 
-  for (const field of PROFILE_FIELDS) {
-    const before = prior[field];
-    const after = candidate[field];
-    if (hasExplicitValue(before) && hasExplicitValue(after) && JSON.stringify(before) !== JSON.stringify(after)) {
-      changes.push({ field, from: cloneValue(before), to: cloneValue(after) });
-    }
+  for (const field of STABLE_PROFILE_FIELDS) {
+    const beforeKnown = Object.hasOwn(prior, field);
+    const afterKnown = Object.hasOwn(candidate, field);
+    if (beforeKnown === afterKnown && (!beforeKnown || equivalent(prior[field], candidate[field]))) continue;
+    changes.push({
+      field,
+      from: beforeKnown ? prior[field] : 'unknown',
+      to: afterKnown ? candidate[field] : 'unknown',
+      previous_provenance: beforeKnown ? prior.field_provenance[field] : null,
+      next_provenance: afterKnown ? candidate.field_provenance[field] : null
+    });
   }
   return changes;
 }
@@ -130,5 +181,6 @@ module.exports = {
   mergeAthleteProfile,
   normalizeAthleteProfile,
   normalizeCurrentState,
+  normalizeEvidenceState,
   profileChangeSet
 };
