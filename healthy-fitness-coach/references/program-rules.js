@@ -2,8 +2,12 @@
 
 const { normalizeAthleteProfile } = require('./athlete-state.js');
 
-const EXTREME_REQUEST_PATTERN = /(?:lose\s+\d+(?:\.\d+)?\s*(?:kg|lbs?)\s+in\s+(?:(?:a|one)\s+week|7\s+days?)|\d+\s*(?:kg|公斤|斤).{0,8}(?:一周|1周|七天)|(?:极端|快速|速成).{0,10}(?:减脂|减重|减肥)|(?:不吃|禁食).{0,10}(?:减(?:脂|重|肥)))/iu;
 const DANGER_PATTERN = /(?:chest\s*pain|shortness\s+of\s+breath|faint(?:ing)?|severe\s+pain|acute\s+(?:injury|trauma)|胸痛|呼吸困难|晕厥|剧烈疼痛|急性(?:外伤|损伤))/iu;
+const UNSAFE_METHOD_PATTERNS = [
+  ['crash_diet', /(?:crash\s+diet|extreme\s+diet|starvation|极端节食|不吃|禁食)/iu]
+];
+const COUNT_WORDS = { one: 1, two: 2, 一: 1, 两: 2, 二: 2 };
+const EXTREME_CHANGE_RATE_KG_PER_DAY = 0.25;
 
 function numberInRange(value, min, max) {
   return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
@@ -129,7 +133,40 @@ function movementModesForFocus(focus) {
   return fullBody;
 }
 
-function safetyBlockReason(input) {
+function inputSafetyText(input) {
+  return [
+    input.goal,
+    input.instruction,
+    input.userInstruction,
+    input.injury_or_medical_constraints
+  ].filter(Boolean).join(' ');
+}
+
+function parseCount(value) {
+  if (/^\d+$/u.test(value)) return Number(value);
+  return COUNT_WORDS[value.toLowerCase()] || null;
+}
+
+function parseTargetChange(text) {
+  const match = /(?:lose|drop|shed|减重|减脂|减肥|减|瘦)\s*(\d+(?:\.\d+)?)\s*(kg|kgs|kilograms?|lb|lbs|pounds?|公斤|斤)/iu.exec(text);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  const amountKg = /(?:lb|pound)/u.test(unit) ? amount * 0.453592 : (unit === '斤' ? amount * 0.5 : amount);
+  return { amount_kg: Number(amountKg.toFixed(3)) };
+}
+
+function parseTimeWindow(text) {
+  const match = /(\d+|one|two|一|两|二)\s*(days?|weeks?|months?|天|周|个月)/iu.exec(text);
+  if (!match) return null;
+  const count = parseCount(match[1]);
+  if (!count) return null;
+  if (/(?:week|周)/iu.test(match[2])) return { days: count * 7 };
+  if (/(?:month|个月)/iu.test(match[2])) return { days: count * 30 };
+  return { days: count };
+}
+
+function classifySafetyRisk(input = {}) {
   const redFlagValues = [
     input.red_flags,
     input.redFlags,
@@ -140,25 +177,77 @@ function safetyBlockReason(input) {
     input.current_state && input.current_state.red_flags,
     input.current_state && input.current_state.redFlags
   ].flatMap((value) => Array.isArray(value) ? value : [value]);
-  if (redFlagValues.some((value) => value === true || (typeof value === 'string' && value.trim() !== '') || (value && typeof value === 'object'))) return 'danger_flag';
-  const values = [
-    input.goal,
-    input.instruction,
-    input.userInstruction,
-    input.injury_or_medical_constraints,
-    ...redFlagValues
-  ].filter(Boolean).join(' ');
-  if (EXTREME_REQUEST_PATTERN.test(values)) return 'extreme_request';
-  if (DANGER_PATTERN.test(values)) return 'danger_flag';
-  return null;
+  const text = `${inputSafetyText(input)} ${redFlagValues.filter(Boolean).join(' ')}`;
+  const target_change = parseTargetChange(text);
+  const time_window = parseTimeWindow(text);
+  const unsafe_methods = UNSAFE_METHOD_PATTERNS
+    .filter(([, pattern]) => pattern.test(text))
+    .map(([code]) => code);
+  const reason_codes = [];
+  if (redFlagValues.some((value) => value === true || (typeof value === 'string' && value.trim() !== '') || (value && typeof value === 'object')) || DANGER_PATTERN.test(text)) {
+    reason_codes.push('danger_flag');
+  }
+  if (target_change && time_window && target_change.amount_kg / time_window.days >= EXTREME_CHANGE_RATE_KG_PER_DAY) reason_codes.push('extreme_change_rate');
+  if (unsafe_methods.length > 0) reason_codes.push('unsafe_weight_loss_method');
+  return {
+    classification: reason_codes.length > 0 ? 'blocked' : 'clear',
+    target_change,
+    time_window,
+    unsafe_methods,
+    reason_codes
+  };
+}
+
+function textOrUnknown(value) {
+  return value === undefined || value === null || value === '' ? '未提供' : String(value);
+}
+
+function buildCurrentProgramView(plan, profile) {
+  const firstSlot = plan.session_slots[0];
+  const rows = plan.session_slots.map((slot, index) => {
+    const content = slot.movement_slots.map((movement) => movement.movement_mode).join('、') || '待器械和限制确认';
+    return `| Day ${index + 1} | ${slot.focus} | ${content} | ${textOrUnknown(plan.session_budget.declared_minutes)} min | ${slot.minimum_version} |`;
+  });
+  const metrics = plan.cycle_metrics.map((metric) => `[${metric.domain}] ${metric.id}`);
+  return {
+    cycle_name: '未提供',
+    date_range: '未提供',
+    primary_goal: textOrUnknown(profile.goal),
+    secondary_goal: '未提供',
+    version: 'rules-compiler-v1',
+    program_status: plan.status,
+    structure_reason_codes: plan.reason_codes.join('、'),
+    missing_fields: plan.missing_fields.length > 0 ? plan.missing_fields.join('、') : '无',
+    weekly_schedule_rows: rows.join('\n') || '| 未提供 | 未提供 | 待补充编排信息 | 未提供 | 未提供 |',
+    movement_slots: plan.session_slots.map((slot) => `${slot.id}: ${slot.movement_slots.map((movement) => movement.movement_mode).join('、')}`).join('；') || '未提供',
+    equipment_filter: firstSlot ? firstSlot.equipment_filter.join('、') || '未提供' : '未提供',
+    constraint_filter: firstSlot ? firstSlot.constraint_filter : '未提供',
+    substitution_boundary: firstSlot ? firstSlot.substitution_boundary : '未提供',
+    progression_rules: plan.progression_rule,
+    regression_rules: plan.regression_rule,
+    metric_1: metrics[0] || '未提供',
+    metric_2: metrics[1] || '未提供',
+    metric_3: metrics[2] || '未提供',
+    keep: '按周期指标与恢复反应确认',
+    change: '按周期指标与恢复反应确认',
+    pause: '出现安全红旗或不可接受不适时暂停',
+    review_window: '周期结束时'
+  };
+}
+
+function renderCurrentProgram(plan, template) {
+  if (!plan || typeof plan !== 'object' || !plan.current_program) throw new TypeError('compiled plan with current_program is required');
+  if (typeof template !== 'string') throw new TypeError('CURRENT_PROGRAM template text is required');
+  return template.replace(/\{\{([a-z0-9_]+)\}\}/giu, (placeholder, key) => textOrUnknown(plan.current_program[key]));
 }
 
 function compileProgramRules(input = {}) {
-  const blockReason = safetyBlockReason(input);
-  if (blockReason) {
+  const safetyRisk = classifySafetyRisk(input);
+  if (safetyRisk.classification === 'blocked') {
     return {
       status: 'blocked',
-      reason_codes: ['safety_block', blockReason],
+      reason_codes: ['safety_block', ...safetyRisk.reason_codes],
+      safety_risk: safetyRisk,
       next_step: 'seek_appropriate_medical_or_qualified_professional_guidance_before_training_plan'
     };
   }
@@ -194,7 +283,7 @@ function compileProgramRules(input = {}) {
     reason_code: session.reason_code
   }));
 
-  return {
+  const result = {
     status: missingFields.length > 0 || requiresCustomStructure || infeasibleDuration ? 'needs_input' : 'ready',
     profile_fields_used: Object.keys(profile).filter((key) => !['source', 'date', 'persisted', 'unknown_fields', 'field_provenance', 'storage_scope'].includes(key)),
     missing_fields: [...new Set(missingFields)],
@@ -205,8 +294,10 @@ function compileProgramRules(input = {}) {
     cycle_metrics: selectCycleMetrics({ goal: profile.goal, trackingPreference: profile.long_term_preferences }),
     progression_rule: 'progress_repetitions_within_target_effort_before_small_load_or_difficulty_change',
     regression_rule: 'reduce_sets_or_intensity_when_recovery_or_technique_worsens_and_keep_the_minimum_version',
-    reason_codes: [...new Set(reasonCodes)]
+    reason_codes: [...new Set(reasonCodes)],
+    safety_risk: safetyRisk
   };
+  return { ...result, current_program: buildCurrentProgramView(result, profile) };
 }
 
 module.exports = {
@@ -214,5 +305,7 @@ module.exports = {
   buildSessionBudget,
   defaultIntensityRules,
   selectCycleMetrics,
-  compileProgramRules
+  classifySafetyRisk,
+  compileProgramRules,
+  renderCurrentProgram
 };

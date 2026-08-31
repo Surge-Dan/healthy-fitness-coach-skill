@@ -10,7 +10,9 @@ const {
   buildSessionBudget,
   defaultIntensityRules,
   selectCycleMetrics,
-  compileProgramRules
+  classifySafetyRisk,
+  compileProgramRules,
+  renderCurrentProgram
 } = require('../references/program-rules.js');
 
 test('selects full-body A/B for a two-day standardized profile', () => {
@@ -128,11 +130,65 @@ test('compiles structural slots, equipment filters, minimum version and adaptati
   assert.equal(plan.reason_codes.includes('sex_based_restriction'), false);
 });
 
-test('current program template can represent a four-day compiled structure', () => {
+test('classifies extreme loss from target change and time window across Chinese and English wording', () => {
+  for (const [goal, targetChange, timeWindow] of [
+    ['两周减10公斤', { amount_kg: 10 }, { days: 14 }],
+    ['lose 10 kg in 14 days', { amount_kg: 10 }, { days: 14 }],
+    ['drop 10 kg in 14 days', { amount_kg: 10 }, { days: 14 }],
+    ['lose 12 kg in one month', { amount_kg: 12 }, { days: 30 }]
+  ]) {
+    const risk = classifySafetyRisk({ goal });
+    const plan = compileProgramRules({
+      goal,
+      training_days_per_week: 3,
+      available_time_min: 45,
+      available_equipment: ['dumbbells'],
+      injury_or_medical_constraints: 'none reported'
+    });
+
+    assert.equal(risk.classification, 'blocked');
+    assert.deepEqual(risk.target_change, targetChange);
+    assert.deepEqual(risk.time_window, timeWindow);
+    assert.ok(risk.reason_codes.includes('extreme_change_rate'));
+    assert.equal(plan.status, 'blocked');
+    assert.deepEqual(plan.safety_risk, risk);
+  }
+});
+
+test('classifies crash dieting as an unsafe method even without a numeric target', () => {
+  const risk = classifySafetyRisk({ goal: 'crash diet for two weeks' });
+  const plan = compileProgramRules({ goal: 'crash diet for two weeks', training_days_per_week: 3 });
+
+  assert.equal(risk.classification, 'blocked');
+  assert.deepEqual(risk.time_window, { days: 14 });
+  assert.deepEqual(risk.unsafe_methods, ['crash_diet']);
+  assert.ok(risk.reason_codes.includes('unsafe_weight_loss_method'));
+  assert.equal(plan.status, 'blocked');
+});
+
+test('renders two-, three- and four-day compiler output into CURRENT_PROGRAM without unresolved daily placeholders', () => {
   const template = readFileSync(join(__dirname, '..', 'assets', 'current-program-template.md'), 'utf8');
 
-  assert.match(template, /\{\{day_4\}\}/u);
-  assert.match(template, /\{\{substitution_boundary\}\}/u);
+  for (const days of [2, 3, 4]) {
+    const plan = compileProgramRules({
+      goal: 'build strength',
+      experience_level: 'beginner',
+      training_days_per_week: days,
+      available_time_min: 30,
+      available_equipment: ['dumbbells', 'bench'],
+      injury_or_medical_constraints: 'none reported'
+    });
+    const markdown = renderCurrentProgram(plan, template);
+    const scheduleRows = markdown.match(/^\| Day \d+ \|/gmu) || [];
+
+    assert.equal(plan.current_program.weekly_schedule_rows.split('\n').length, days);
+    assert.equal(scheduleRows.length, days);
+    assert.equal(markdown.includes('{{day_'), false);
+    assert.equal(markdown.includes('{{type}}'), false);
+    assert.equal(markdown.includes('{{focus}}'), false);
+    assert.equal(markdown.includes('{{weekly_schedule_rows}}'), false);
+    assert.match(markdown, new RegExp(`\\| Day ${days} \\|`, 'u'));
+  }
 });
 
 test('safety-blocks extreme or danger-flagged requests without executable sessions', () => {
@@ -201,5 +257,7 @@ test('blocks equivalent extreme-loss timeline wording', () => {
   const plan = compileProgramRules({ goal: 'lose 20 lb in 7 days', training_days_per_week: 3 });
 
   assert.equal(plan.status, 'blocked');
-  assert.ok(plan.reason_codes.includes('extreme_request'));
+  assert.deepEqual(plan.safety_risk.target_change, { amount_kg: 9.072 });
+  assert.deepEqual(plan.safety_risk.time_window, { days: 7 });
+  assert.ok(plan.reason_codes.includes('extreme_change_rate'));
 });

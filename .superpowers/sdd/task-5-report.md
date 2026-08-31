@@ -43,3 +43,10 @@ COMPLETE — 新增 CommonJS 纯函数规则编译器；输出仅为可解释的
 
 - 5～7 天训练不是被默认拒绝，而是要求目标肌群、恢复和日程信息后走自定义结构；本编译器不擅自选分化。
 - 安全阻断是编排前门，不替代医疗评估或后续知识库对具体动作的限制筛选。
+
+## REVIEW REMEDIATION
+
+- 独立审查的两个 P1 均已关闭。
+- 安全门由措辞正则升级为 `classifySafetyRisk`：分别记录 `target_change`、`time_window`、`unsafe_methods` 和原因码；覆盖“两周减10公斤”、“lose 10 kg in 14 days”、“drop 10 kg in 14 days”、“lose 12 kg in one month”与“crash diet for two weeks”。达到极端变化速度或包含不安全手段时，在编排前阻断。
+- 编译结果新增 `current_program` 同构 view model，`renderCurrentProgram(plan, template)` 直接渲染实际 session 行；`CURRENT_PROGRAM` 周表改为 `{{weekly_schedule_rows}}`，2 / 3 / 4 天分别输出准确行数，无空余日或未解析逐日占位符。
+- 本轮 RED：新增分类与端到端渲染测试因接口不存在而失败；GREEN：目标测试 19/19、全量测试 133/133 通过。只读复核确认 P1 已关闭。

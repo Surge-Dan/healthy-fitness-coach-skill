@@ -16,10 +16,7 @@
 
 | 日程 | 训练类型 | 主要内容 | 时长 | 最低有效版本 |
 | --- | --- | --- | --- | --- |
-| {{day_1}} | {{type}} | {{focus}} | {{duration}} | {{minimum}} |
-| {{day_2}} | {{type}} | {{focus}} | {{duration}} | {{minimum}} |
-| {{day_3}} | {{type}} | {{focus}} | {{duration}} | {{minimum}} |
-| {{day_4}} | {{type}} | {{focus}} | {{duration}} | {{minimum}} |
+{{weekly_schedule_rows}}
 
 ## 每次训练规范
 
