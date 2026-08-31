@@ -17,12 +17,36 @@ function sha256(filePath) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
+function listSnapshotFiles(directory, relativeDirectory = '') {
+  const files = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const relativePath = path.posix.join(relativeDirectory, entry.name);
+    const fullPath = path.join(directory, entry.name);
+    assert.ok(!entry.isSymbolicLink(), `快照不得包含符号链接：${relativePath}`);
+    if (entry.isDirectory()) {
+      files.push(...listSnapshotFiles(fullPath, relativePath));
+    } else if (entry.isFile()) {
+      files.push(relativePath);
+    }
+  }
+  return files;
+}
+
+const blockedSnapshotPath = /(^|\/)(?:\.cache|\.pytest_cache|node_modules|__pycache__|fitness-reports|personal-reports|user-reports|client-reports)(?:\/|$)|(^|\/)(?:personal|user|client|athlete)[-_ ]?(?:report|reports)(?:[-_.\/]|$)|\.(?:pyc|pyo|png|jpe?g|gif|webp|heic|heif|avif|tiff?)$/i;
+const blockedSnapshotContent = /\b(?:api[_ -]?key|secret|access[_ -]?token|private[_ -]?key)\b\s*(?:[:=]|is)\s*['"]?[A-Za-z0-9][A-Za-z0-9_./+=-]{7,}/i;
+
 const current = readJson(evalPath);
 assert.equal(current.evals.length, 18, '评测总数必须是保留的12条加6条训练操作系统差异评测');
 assert.deepEqual(current.evals.slice(0, 12).map((item) => item.id), Array.from({ length: 12 }, (_, index) => index + 1), '原12条评测必须保留且顺序不变');
 
 const newCases = current.evals.slice(12);
 assert.deepEqual(newCases.map((item) => item.id), [13, 14, 15, 16, 17, 18], '新增评测必须使用连续ID 13至18');
+
+const completePlanCase = newCases.find((item) => item.id === 15);
+assert.match(completePlanCase.prompt, /\d+\s*岁/, '信息完整的新手计划必须给出年龄范围');
+assert.match(completePlanCase.prompt, /每周\s*\d+\s*天/, '信息完整的新手计划必须给出每周训练天数');
+assert.match(completePlanCase.prompt, /每次\s*\d+\s*分钟/, '信息完整的新手计划必须给出单次训练时长');
+assert.match(completePlanCase.prompt, /动作限制[：:]\s*(?:无|没有)/, '信息完整的新手计划必须明确动作限制');
 
 const requirements = new Map([
   [13, { followUp: false, markers: ['RIR', '不得强制建档'] }],
@@ -55,10 +79,16 @@ const manifest = readJson(manifestPath);
 assert.equal(manifest.source_commit, baseCommit, '快照必须锚定任务起点提交');
 assert.ok(Array.isArray(manifest.files) && manifest.files.length > 0, '快照清单不能为空');
 
+const manifestFiles = manifest.files.map((entry) => entry.path).sort();
+assert.equal(new Set(manifestFiles).size, manifestFiles.length, '快照清单不得包含重复路径');
+const actualFiles = listSnapshotFiles(snapshotRoot).filter((entry) => entry !== 'snapshot-manifest.json').sort();
+assert.deepEqual(actualFiles, manifestFiles, '快照实际文件必须与清单完全一致，禁止清单外文件');
+
 for (const entry of manifest.files) {
-  assert.ok(!/(^|\/)(fitness-reports|__pycache__)(\/|$)|\.(pyc|png|jpe?g)$/i.test(entry.path), `快照包含禁止的报告、缓存或照片文件：${entry.path}`);
+  assert.ok(!blockedSnapshotPath.test(entry.path), `快照包含禁止的报告、缓存或照片文件：${entry.path}`);
   const snapshotFile = path.join(snapshotRoot, entry.path);
   assert.ok(fs.existsSync(snapshotFile), `快照缺少清单文件：${entry.path}`);
+  assert.ok(!blockedSnapshotContent.test(fs.readFileSync(snapshotFile, 'utf8')), `快照包含疑似 API Key 或秘密：${entry.path}`);
   assert.equal(sha256(snapshotFile), entry.sha256, `快照文件哈希不匹配：${entry.path}`);
   const baseContents = execFileSync('git', ['show', `${baseCommit}:healthy-fitness-coach/${entry.path}`], { cwd: root });
   assert.deepEqual(fs.readFileSync(snapshotFile), baseContents, `快照不是起点提交内容：${entry.path}`);
