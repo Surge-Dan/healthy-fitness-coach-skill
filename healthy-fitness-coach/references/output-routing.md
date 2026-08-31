@@ -30,14 +30,14 @@
 | `taskType` | 默认模式 | 资产计划 |
 | --- | --- | --- |
 | `knowledge_question`、`safety_routing` | `conversation` | 无文件；安全分流不能被显式命令覆盖 |
-| `training_plan` | `markdown` | `ATHLETE_PROFILE.md`、`CURRENT_PROGRAM.md` |
+| `training_plan` | `markdown` | `ATHLETE_PROFILE.md`、`CURRENT_PROGRAM.md`；索引为 `TRAINING_PLAN_INDEX.md` |
 | `today_workout` | `conversation` | 仅在“保存刚才内容”时生成 `TODAY_WORKOUT.md` |
-| `training_review` | `markdown` | `WEEKLY_REVIEW.md`、`DECISION_LOG.md` |
+| `training_review` | `markdown` | `WEEKLY_REVIEW.md`、`DECISION_LOG.md`；索引为 `TRAINING_REVIEW_INDEX.md` |
 | `training_system` | `markdown` | 四个核心资产：`ATHLETE_PROFILE.md`、`TRAINING_DNA.md`、`CURRENT_PROGRAM.md`、`DECISION_LOG.md`；索引为 `TRAINING_SYSTEM_INDEX.md` |
-| `xunji_analysis` | `markdown` | `TRAINING_ANALYSIS.md`；显式趋势面板时追加 `training-dashboard.html` |
-| `share_output` | `conversation` | `SHARE_CARD.png`、`SHARE_FACTS.md` |
+| `xunji_analysis` | `markdown` | `TRAINING_ANALYSIS.md`；显式趋势面板时追加 `training-dashboard.html` 并使用 `XUNJI_ANALYSIS_INDEX.md` |
+| `share_output` | `conversation` | `SHARE_CARD.png`、`SHARE_FACTS.md`；索引为 `SHARE_OUTPUT_INDEX.md` |
 
-模板位于 `assets/today-workout-template.md` 和 `assets/training-system-index-template.md`。它们只提供保存时的内容骨架，不代表系统已自动持久化健康数据。
+任一计划最终包含两个或以上资产时，`index` 必定存在且其路径位于 `paths` 首位。索引可复用 `assets/training-system-index-template.md` 的内容结构；模板只提供保存时的内容骨架，不代表系统已自动持久化健康数据。
 
 ## 趋势面板交付
 

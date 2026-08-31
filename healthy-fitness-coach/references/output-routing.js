@@ -33,6 +33,14 @@ const TASK_ASSETS = {
   share_output: ['SHARE_CARD.png', 'SHARE_FACTS.md']
 };
 
+const TASK_INDEXES = {
+  training_plan: 'TRAINING_PLAN_INDEX.md',
+  training_review: 'TRAINING_REVIEW_INDEX.md',
+  training_system: 'TRAINING_SYSTEM_INDEX.md',
+  xunji_analysis: 'XUNJI_ANALYSIS_INDEX.md',
+  share_output: 'SHARE_OUTPUT_INDEX.md'
+};
+
 function normalizeText(value) {
   return String(value || '')
     .normalize('NFKC')
@@ -156,13 +164,13 @@ function planOutputAssets({ taskType, userInstruction, outputDirectory = 'fitnes
       : ['training-dashboard.html'];
   } else if (taskType !== 'safety_routing' && taskType !== 'knowledge_question') {
     artifacts = TASK_ASSETS[taskType] ? [...TASK_ASSETS[taskType]] : [];
-    if (taskType === 'training_system') index = 'TRAINING_SYSTEM_INDEX.md';
   }
 
   if (route.mode === 'conversation' && taskType !== 'share_output') {
     artifacts = [];
-    index = null;
   }
+
+  if (artifacts.length > 1) index = TASK_INDEXES[taskType] || 'DELIVERY_INDEX.md';
 
   const reservedPaths = new Set();
   const paths = [...(index ? [index] : []), ...artifacts].map((filename) => {

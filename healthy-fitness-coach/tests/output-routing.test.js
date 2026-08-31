@@ -45,6 +45,27 @@ test('plans deterministic task assets and includes an index for a multi-file sys
   assert.deepEqual(planOutputAssets({ taskType: 'share_output' }).artifacts, ['SHARE_CARD.png', 'SHARE_FACTS.md']);
 });
 
+test('adds a task-specific first index path for every multi-file delivery without overwriting it', () => {
+  const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-index-routing-'));
+  const outputDirectory = join(root, 'fitness-reports');
+  mkdirSync(outputDirectory);
+  const cases = [
+    ['training_plan', 'TRAINING_PLAN_INDEX.md'],
+    ['training_review', 'TRAINING_REVIEW_INDEX.md'],
+    ['share_output', 'SHARE_OUTPUT_INDEX.md']
+  ];
+
+  for (const [taskType, index] of cases) {
+    writeFileSync(join(outputDirectory, index), 'existing');
+    const plan = planOutputAssets({ taskType, outputDirectory });
+    assert.equal(plan.index, index, taskType);
+    assert.equal(plan.paths[0], join(outputDirectory, index.replace('.md', '-2.md')), taskType);
+    assert.equal(plan.paths.length, plan.artifacts.length + 1, taskType);
+  }
+
+  rmSync(root, { recursive: true, force: true });
+});
+
 test('keeps today workout conversational unless the user explicitly asks to save it', () => {
   assert.deepEqual(planOutputAssets({ taskType: 'today_workout' }).artifacts, []);
   const saved = planOutputAssets({ taskType: 'today_workout', userInstruction: '保存刚才内容' });
