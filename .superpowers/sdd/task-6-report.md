@@ -73,3 +73,27 @@ GREEN。针对 `task-6-review.md` 的 C1、I1、I2、I3 与适配器边界已完
 
 - 为修复 C1，本轮必要地更新了 `references/athlete-state.js` 的 current-state 白名单与安全字段清洗；未改动其他非任务6逻辑。
 - 安全字段只保留红旗及其 code，避免把未经审查的嵌套对象直接带入状态；复杂安全筛查仍应由上游标准化为红旗码。
+
+## 最终复审修订：安全词、数组 symptoms 与疼痛时间组合
+
+### STATUS
+
+GREEN。补齐安全筛查文档列出的自然语言红旗，并明确疼痛优先组合下最低任务的基线语义。
+
+### RED/GREEN 命令摘要
+
+- RED：新增安全词、否定胸痛、数组 symptoms、疼痛+时间最低任务语义测试；24 项中 20 项通过、4 项失败，失败与复审缺口一致。
+- GREEN：`node --test healthy-fitness-coach/tests/readiness-engine.test.js`，24/24 pass。
+- 全量：`node --test (Get-ChildItem 'healthy-fitness-coach/tests' -Filter '*.test.js').FullName`，157/157 pass。
+- `git diff --check`：通过。
+
+### 变更与自审
+
+- 红旗模式覆盖接近晕厥、大小便功能异常、明显畸形、无法负重、严重肿胀及对应英文表达；症状文本中的明确否定胸痛不会误判为红旗或疼痛。
+- `symptoms` 支持字符串和数组，数组项逐一进入普通疼痛/不适分支，并保留 24～48 小时复评。
+- 疼痛+时间不足仍固定只调整 `movement_variant`；`minimum_task_semantics` 明确最低任务是计划基线，不计作第二个调整变量。
+- 本轮代码提交：`8ae4db12b50c3c181639dbafc06e9d7be3ce871d`（`fix: close readiness safety language boundaries`）；报告提交随后精确暂存，dist 未触碰。
+
+### concerns
+
+- 当前自然语言否定处理针对安全/疼痛整句的常见表达；复杂多句语义仍应由上游安全筛查标准化为红旗码。
