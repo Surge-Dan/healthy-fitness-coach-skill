@@ -1,5 +1,7 @@
 'use strict';
 
+const { assessTodayReadiness } = require('./readiness-engine.js');
+
 function finite(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
@@ -61,4 +63,12 @@ function buildTrainingGuidance(input = {}) {
   return { goal, safety, data_quality: dataQuality, facts, judgments, actions, next_validation: nextValidation };
 }
 
-module.exports = { buildTrainingGuidance };
+function buildTodayReadinessGuidance(input = {}) {
+  return assessTodayReadiness({
+    ...input,
+    currentState: input.currentState || input.current_state || {},
+    program: input.currentProgram || input.current_program || input.program || {}
+  });
+}
+
+module.exports = { buildTrainingGuidance, buildTodayReadinessGuidance };
