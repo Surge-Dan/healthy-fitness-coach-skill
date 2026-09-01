@@ -23,8 +23,12 @@ const CURRENT_STATE_FIELDS = [
   'stress',
   'fatigue',
   'pain',
+  'symptoms',
   'available_time_min',
-  'temporary_equipment'
+  'temporary_equipment',
+  'red_flags',
+  'redFlags',
+  'safety'
 ];
 
 const UNKNOWN_MARKERS = new Set(['unknown', 'n/a', 'not provided', '未知', '不清楚', '未提供']);
@@ -56,6 +60,39 @@ function sanitizeSimpleValue(field, value) {
   if (!Array.isArray(value)) return sanitizeScalar(value);
   const sanitized = value.map(sanitizeScalar).filter((entry) => entry !== undefined);
   return sanitized.length > 0 ? sanitized : undefined;
+}
+
+function sanitizeSafetyFlags(value) {
+  if (Array.isArray(value)) {
+    const sanitized = value.map((entry) => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return sanitizeScalar(entry);
+      const code = sanitizeScalar(entry.code);
+      return code === undefined ? undefined : { code };
+    }).filter((entry) => entry !== undefined);
+    return sanitized.length > 0 ? sanitized : undefined;
+  }
+  if (value && typeof value === 'object') {
+    const code = sanitizeScalar(value.code);
+    return code === undefined ? undefined : { code };
+  }
+  return sanitizeScalar(value);
+}
+
+function sanitizeSafetyValue(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const sanitized = {};
+  for (const key of ['red_flags', 'redFlags']) {
+    if (Object.hasOwn(value, key)) {
+      const flags = sanitizeSafetyFlags(value[key]);
+      if (flags !== undefined) sanitized[key] = flags;
+    }
+  }
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
+function sanitizeCurrentStateValue(field, value) {
+  if (field === 'red_flags' || field === 'redFlags') return sanitizeSafetyFlags(value);
+  return field === 'safety' ? sanitizeSafetyValue(value) : sanitizeSimpleValue(field, value);
 }
 
 function sanitizeEvidenceRecord(record, allowedFields) {
@@ -141,7 +178,7 @@ function normalizeAthleteProfile(input = {}) {
 }
 
 function normalizeCurrentState(input = {}) {
-  return normalizeContainer(input, CURRENT_STATE_FIELDS, { temporary_equipment: 'available_equipment' });
+  return normalizeContainer(input, CURRENT_STATE_FIELDS, { temporary_equipment: 'available_equipment' }, sanitizeCurrentStateValue);
 }
 
 function normalizeEvidenceState(input = {}) {

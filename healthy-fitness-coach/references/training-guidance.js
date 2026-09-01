@@ -64,9 +64,14 @@ function buildTrainingGuidance(input = {}) {
 }
 
 function buildTodayReadinessGuidance(input = {}) {
+  const suppliedState = input.currentState || input.current_state || {};
+  const currentState = { ...suppliedState };
+  for (const field of ['pain', 'symptoms', 'red_flags', 'redFlags', 'safety']) {
+    if (!Object.hasOwn(currentState, field) && input[field] !== undefined) currentState[field] = input[field];
+  }
   return assessTodayReadiness({
     ...input,
-    currentState: input.currentState || input.current_state || {},
+    currentState,
     program: input.currentProgram || input.current_program || input.program || {}
   });
 }
