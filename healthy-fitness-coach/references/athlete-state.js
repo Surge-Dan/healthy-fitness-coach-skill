@@ -92,6 +92,10 @@ function sanitizeSafetyValue(value) {
 
 function sanitizeCurrentStateValue(field, value) {
   if (field === 'red_flags' || field === 'redFlags') return sanitizeSafetyFlags(value);
+  if (field === 'symptoms' && Array.isArray(value)) {
+    const sanitized = value.map(sanitizeScalar).filter((entry) => entry !== undefined);
+    return sanitized.length > 0 ? sanitized : undefined;
+  }
   return field === 'safety' ? sanitizeSafetyValue(value) : sanitizeSimpleValue(field, value);
 }
 

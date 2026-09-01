@@ -60,6 +60,21 @@ test('honors the camelCase redFlags alias in nested safety data', () => {
   assert.ok(result.reason_codes.includes('red_flag'));
 });
 
+test('stops for every natural-language red flag listed by safety screening', () => {
+  for (const symptoms of ['接近晕厥', '大小便功能异常', '明显畸形', '无法负重', '严重肿胀']) {
+    const result = assessTodayReadiness({ currentState: { symptoms }, program });
+
+    assert.equal(result.status, 'stop', symptoms);
+    assert.equal(result.minimum_task, null, symptoms);
+  }
+});
+
+test('does not treat an explicitly negative chest-pain answer as a red flag', () => {
+  const result = assessTodayReadiness({ currentState: { symptoms: '没有胸痛' }, program });
+
+  assert.equal(result.status, 'proceed');
+});
+
 test('keeps top-level red flag aliases when current state is normalized before readiness assessment', () => {
   for (const field of ['red_flags', 'redFlags']) {
     const currentState = normalizeCurrentState({ [field]: ['chest pain'] });
@@ -97,6 +112,18 @@ test('treats nonzero or unqualified pain reports as conservative pain feedback',
 test('routes an ordinary symptoms report through the conservative pain branch', () => {
   const result = assessTodayReadiness({
     currentState: { symptoms: 'shoulder tightness' },
+    program
+  });
+
+  assert.equal(result.status, 'regress');
+  assert.ok(result.reason_codes.includes('pain_feedback'));
+  assert.equal(result.adjustment.variable, 'movement_variant');
+  assert.ok(result.stop_conditions.some((item) => item.code === 'reassess_pain_in_24_to_48_hours'));
+});
+
+test('routes an array of ordinary symptoms through the conservative pain branch', () => {
+  const result = assessTodayReadiness({
+    currentState: { symptoms: ['肩部紧', '膝盖酸'] },
     program
   });
 
@@ -162,6 +189,20 @@ test('gives time compression priority over one poor sleep report', () => {
   assert.equal(result.adjustment.variable, 'session_scope');
   assert.equal(result.adjustment.primary_variables_changed, 1);
   assert.ok(result.minimum_task);
+});
+
+test('keeps pain as the sole adjustment while marking a time minimum as plan baseline', () => {
+  const result = assessTodayReadiness({
+    currentState: { pain: 'shoulder discomfort', available_time_min: 15 },
+    program
+  });
+
+  assert.equal(result.status, 'regress');
+  assert.ok(result.reason_codes.includes('pain_feedback'));
+  assert.equal(result.adjustment.variable, 'movement_variant');
+  assert.equal(result.adjustment.primary_variables_changed, 1);
+  assert.equal(result.minimum_task.instruction, 'keep_first_two_movement_slots_with_one_to_2_work_sets_each');
+  assert.equal(result.minimum_task_semantics, 'plan_baseline_not_additional_adjustment');
 });
 
 test('normalizes numeric strings for time and sleep instead of proceeding silently', () => {
