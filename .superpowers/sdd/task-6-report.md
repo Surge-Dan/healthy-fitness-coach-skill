@@ -36,7 +36,7 @@ GREEN。以有效起点 `be8ff9f` 为基准完成任务6；dist 中已有改动�
 
 ## 自审
 
-- CommonJS、无外部依赖；只改任务6的四个代码/文档文件。
+- CommonJS、无外部依赖；本轮首版改动覆盖任务6的四个代码/文档文件。
 - 红旗分支在所有普通训练判断之前；`stop.minimum_task === null`，且没有 `session` 或 `training_prescription` 字段。
 - 降级分支均标记 `primary_variables_changed: 1`，没有把多个变量合并调整。
 - 记录字段统一保留 `completed`、`rpe_or_rir`、`pain_or_aerobic_minutes`。
