@@ -47,3 +47,29 @@ GREEN。以有效起点 `be8ff9f` 为基准完成任务6；dist 中已有改动�
 - 红旗、疼痛、睡眠和疲劳的文本/数值识别是保守启发式，不是医学评估；未知或症状恶化仍应停止相关训练并获得合适评估。
 - 当前契约要求调用方传入已有计划的 `minimum_version`；若计划没有该字段，降级结果会明确返回 `minimum_task: null`，不会临时编造动作。
 - dist 尚未重新打包，符合本任务“不可触碰 dist”的约束；发布包需由后续任务单独处理。
+
+## 复审修订（C1/I1/I2/I3）
+
+### STATUS
+
+GREEN。针对 `task-6-review.md` 的 C1、I1、I2、I3 与适配器边界已完成修订。
+
+### RED/GREEN 命令摘要
+
+- RED：新增标准化后 `safety.red_flags`、顶层 `red_flags/redFlags`、普通 `symptoms`、高疲劳/睡眠差与时间组合、数字字符串及非法时间、适配器 symptoms 等测试；首轮 20 项中 14 项通过、6 项失败，均对应复审缺口。
+- 修复后目标测试：`node --test healthy-fitness-coach/tests/readiness-engine.test.js`，20/20 pass。
+- 全量回归：`node --test (Get-ChildItem 'healthy-fitness-coach/tests' -Filter '*.test.js').FullName`，153/153 pass。
+- `git diff --check`：通过。
+
+### 变更与自审
+
+- `normalizeCurrentState` 保留经过白名单清洗的 `safety.red_flags`、`safety.redFlags`、顶层 `red_flags/redFlags` 与 `symptoms`，避免标准化后安全信息丢失；红旗文本扩展至现有安全筛查表达。
+- `buildTodayReadinessGuidance` 将顶层 `pain`、`symptoms`、红旗别名和 `safety` 兼容映射到当前状态。
+- 固定优先级为红旗 → 疼痛/不适 → 未知训练日 → 时间不足 → 高疲劳 → 单晚睡眠差；组合状态仍只声明一个主调整变量，时间不足明确复用 `minimum_version`。
+- 可解析数字字符串（如 `'15'`、`'5'`）按数值处理；非法可用时间返回 `regress/current_state_unknown`，不会静默 `proceed`。
+- 本轮代码提交：`3ab067f304676fd29cd8924647eb6a8668db4942`（`fix: close readiness safety and input boundaries`）；报告与代码仅精确暂存任务相关文件，dist 未触碰。
+
+### concerns
+
+- 为修复 C1，本轮必要地更新了 `references/athlete-state.js` 的 current-state 白名单与安全字段清洗；未改动其他非任务6逻辑。
+- 安全字段只保留红旗及其 code，避免把未经审查的嵌套对象直接带入状态；复杂安全筛查仍应由上游标准化为红旗码。
