@@ -14,7 +14,7 @@
 
 当用户要“建立训练系统”“提炼训练DNA”“生成下一周期并保留决策记录”时，仍以 Markdown 为主，但可以一次交付一组互相关联的本地文件，而不是把所有内容塞进一份长报告。默认资产为 `ATHLETE_PROFILE.md`、`TRAINING_DNA.md`、`CURRENT_PROGRAM.md`、`DECISION_LOG.md`；动作库、流水账和周复盘按需追加。每个资产必须保留数据范围、生成日期、事实/推断边界和下一次更新条件，便于后续增量更新与审计。
 
-连接训记时，优先调用只读的 `xunji_extract_training_dna` 获取八维DNA、证据台账、未知项和版本变更；它只在本机按账号fingerprint保存DNA状态，不向训记写回任何分析结论。
+连接训记时，优先调用只读的 `xunji_extract_training_dna` 获取复盘 facts + decision，再消费八维DNA、证据台账、未知项和版本变更；它只在本机按账号fingerprint保存DNA状态，不向训记写回任何分析结论。不得让原始训练行直接成为默认DNA证据。
 
 显式命令包括：
 

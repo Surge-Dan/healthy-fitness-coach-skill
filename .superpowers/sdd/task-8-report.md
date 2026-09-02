@@ -43,3 +43,5 @@ GREEN。基于起点提交 `a7716fe` 完成训练DNA复盘闭环；`dist/` 中�
 - hypothesis 按阻力/有氧证据筛选；升级、降级、撤销 changelog 均保留原因、窗口 ID 和来源记录 ID。
 
 修订后目标测试：`node --test healthy-fitness-coach/tests/training-dna.test.js healthy-fitness-coach/tests/training-dna-cli.test.js`，26/26 通过；全量回归：`node --test (Get-ChildItem 'healthy-fitness-coach/tests' -Filter '*.test.js').FullName`，184/184 通过；`git diff --check` 通过。
+
+产品路由文档同步更新：`SKILL.md`、`references/output-routing.md` 和 `references/xunji-integration.md` 现在明确 review-first；raw 仅为显式 legacy 兼容路径。

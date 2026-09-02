@@ -105,7 +105,7 @@ Markdown 模式且具备写入工具时，默认在当前工作区的 `fitness-r
 
 用户说“建立我的训练系统”“提炼我的训练DNA”“记住我的训练习惯”或要求长期多文件交付时，读取 `references/training-dna.md`。默认生成或更新 `ATHLETE_PROFILE.md`、`TRAINING_DNA.md`、`CURRENT_PROGRAM.md`、`DECISION_LOG.md`；只有用户需要动作库、训练流水账或完整周期包时，才额外生成 `EXERCISE_PLAYBOOK.md`、`PROGRESS_LEDGER.csv` 和 `WEEKLY_REVIEW.md`。每个文件注明生成日期、数据范围、未知项和下一次更新条件；不得把推断写成事实，也不得因为缺少数据制造进步、热力或偏好。
 
-没有训记Plugin时，可以使用 `scripts/extract-training-dna.js` 读取用户提供的JSON训练记录；它只做确定性标准化、指标计算和证据结构化，不替代模型对用户目标、偏好和安全边界的判断。
+没有训记Plugin时，默认使用 `scripts/extract-training-dna.js` 消费用户提供的复盘 facts + decision JSON；它只做确定性证据结构化，不替代模型对用户目标、偏好和安全边界的判断。原始训练记录只能显式传 `--legacy-raw`，并在结果中标记 legacy，不作为默认训练DNA上游。
 
 ### 训练闭环指导与总结
 
