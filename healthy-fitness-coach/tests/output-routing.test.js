@@ -79,6 +79,24 @@ test('adds dashboard to xunji analysis only for an explicit dashboard command', 
   assert.deepEqual(plan.artifacts, ['TRAINING_ANALYSIS.md', 'training-dashboard.html']);
 });
 
+test('recognizes the README composite Xunji command as a dashboard request', () => {
+  const plan = planOutputAssets({
+    taskType: 'xunji_analysis',
+    userInstruction: '分析最近4周训记，生成趋势面板'
+  });
+  assert.equal(plan.mode, 'dashboard');
+  assert.deepEqual(plan.artifacts, ['TRAINING_ANALYSIS.md', 'training-dashboard.html']);
+});
+
+test('does not turn a comma-separated trend question into a dashboard command', () => {
+  const plan = planOutputAssets({
+    taskType: 'xunji_analysis',
+    userInstruction: '趋势面板，是什么意思？'
+  });
+  assert.equal(plan.mode, 'markdown');
+  assert.deepEqual(plan.artifacts, ['TRAINING_ANALYSIS.md']);
+});
+
 test('lets an explicit dashboard command replace a plan bundle with its dashboard asset', () => {
   const plan = planOutputAssets({ taskType: 'training_plan', userInstruction: '生成趋势面板' });
   assert.equal(plan.mode, 'dashboard');

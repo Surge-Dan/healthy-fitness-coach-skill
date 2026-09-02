@@ -54,6 +54,7 @@ function splitClauses(instruction) {
   return normalizeText(instruction)
     .replace(/[?？]/gu, '?|')
     .replace(/[;；。！!\r\n]+/gu, '|')
+    .replace(/[,，]+/gu, '|')
     .replace(/(但是|不过|然后|之后|接着|随后|后来|现在|但)/gu, '|')
     .replace(/\b(then|but|however)\b/giu, '|')
     .split('|')
@@ -97,13 +98,13 @@ function stripEnglishAffirmativeDecorations(clause) {
   return value;
 }
 
-function explicitOverrideForClause(clause) {
+function explicitOverrideForClause(clause, { allowBareDashboard = true } = {}) {
   if (/[?？]|(?:吗|么|是否|如何|怎么)/u.test(clause) || /^(?:can|could|do|does|did|would|will|are|is)\s+you\b/iu.test(clause)) return null;
   if (/[\u4E00-\u9FFF]/u.test(clause)) {
     const value = stripChineseAffirmativeDecorations(clause);
     if (value === '直接出报告' || value === '直接输出报告') return 'direct_report';
     if (value === '进入跟练' || value === '开始跟练') return 'enter_tracking';
-    if (value === '生成趋势面板' || value === '查看训练趋势' || value === '趋势面板') return 'dashboard';
+    if (value === '生成趋势面板' || value === '查看训练趋势' || (allowBareDashboard && value === '趋势面板')) return 'dashboard';
     if (value === '保存刚才内容' || value === '把刚才内容保存下来') return 'save_prior_content';
     return null;
   }
@@ -117,8 +118,9 @@ function explicitOverrideForClause(clause) {
 
 function explicitOverride(instruction) {
   const matches = new Set();
-  for (const clause of splitClauses(instruction)) {
-    const override = explicitOverrideForClause(clause);
+  const clauses = splitClauses(instruction);
+  for (const clause of clauses) {
+    const override = explicitOverrideForClause(clause, { allowBareDashboard: clauses.length === 1 });
     if (override) matches.add(override);
   }
   const override = ['direct_report', 'enter_tracking', 'dashboard', 'save_prior_content'].find((candidate) => matches.has(candidate));

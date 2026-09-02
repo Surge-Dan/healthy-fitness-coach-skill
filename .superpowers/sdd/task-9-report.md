@@ -38,3 +38,20 @@
 
 - `node quality-tests/run-training-system.js` 当前按既有门禁失败：`healthy-fitness-coach-plugin/skills/healthy-fitness-coach/SKILL.md` 与独立 Skill 不同步。brief 明确“只改 4 个文件”，因此本任务没有修改插件副本；若发布门禁要求同步，应由上层任务明确授权并单独处理。
 - `run-training-system.js` 的同步断言之外，独立 Skill 格式、知识库门禁和 191 项现有测试均通过。
+
+## 审查修复（P1）
+
+- RED：新增完整 README 复合命令回归后，`node --test healthy-fitness-coach/tests/output-routing.test.js` 为 9 项中 8 项通过、1 项失败；失败为“分析最近4周训记，生成趋势面板”实际返回 `markdown` 而非 `dashboard`。
+- GREEN：`splitClauses` 现在切分中英文逗号；多 clause 时不把裸词“趋势面板”当作命令，避免“趋势面板，是什么意思？”误触发。路由测试 10/10 通过。
+- 同步 `references/output-routing.md`，说明复合命令格式与知识问答边界；README 示例保持原文并已能生成 `TRAINING_ANALYSIS.md` 与 `training-dashboard.html`。
+- 本次额外修改路由实现 `healthy-fitness-coach/references/output-routing.js` 与回归测试 `healthy-fitness-coach/tests/output-routing.test.js`，原因是审查 P1 要求修复真实路由并补完整示例测试；未修改 `dist/` 或插件副本。
+
+### P1 修复后的验证
+
+- `node --test healthy-fitness-coach/tests/output-routing.test.js`：10/10 通过。
+- `node --test healthy-fitness-coach/tests/*.test.js`（PowerShell 显式文件列表）：193/193 通过。
+- `node quality-tests/run-knowledge-base.js`：通过。
+- `python -X utf8 C:\Users\Daniel\.codex\skills\skill-creator\scripts\quick_validate.py healthy-fitness-coach`：`Skill is valid!`。
+- `git diff --check`：通过。
+
+本轮修复提交信息：`task-9: fix composite dashboard routing`。
