@@ -341,6 +341,23 @@ function selectProgramChanges(judgmentsInput = {}, currentProgram = {}) {
   return { status: changes.length ? 'micro_adjust' : 'continue', kept, keep: kept, changes, current_program: clone(currentProgram), proposed_program: proposed, next_program: proposed, field_diffs: fieldDiffs, diff: fieldDiffs, program_version: { from: fromVersion, to: toVersion } };
 }
 
+function sanitizeDecision(decision = {}) {
+  const changes = asArray(decision.changes);
+  const invalidChanges = changes.filter((change) => !change || !dateValue(change.review_date)
+    || !text(change.expected_effect).trim() || !text(change.rollback_condition).trim());
+  return {
+    decision: {
+      ...decision,
+      kept: asArray(decision.kept ?? decision.keep),
+      changes: changes.filter((change) => change && dateValue(change.review_date)
+        && text(change.expected_effect).trim() && text(change.rollback_condition).trim()),
+      field_diffs: asArray(decision.field_diffs ?? decision.diff),
+      program_version: decision.program_version || { from: 'unknown', to: 'unknown' }
+    },
+    rejected_changes: invalidChanges.map((change) => ({ variable: change?.variable || 'unknown', reason: 'missing_or_invalid_review_date_or_adjustment_fields' }))
+  };
+}
+
 function buildDecisionLogEntry(input = {}) {
   const sourceFacts = input.facts || deriveReviewFacts(input);
   const facts = input.review_date || input.reviewDate
@@ -348,7 +365,10 @@ function buildDecisionLogEntry(input = {}) {
     : sourceFacts;
   const judgments = input.judgments || buildReviewJudgments(facts);
   const currentProgram = input.current_program || input.currentProgram || {};
-  const decision = input.decision || selectProgramChanges(judgments, currentProgram);
+  const generatedDecision = selectProgramChanges(judgments, currentProgram);
+  const suppliedDecision = input.decision ? sanitizeDecision(input.decision) : null;
+  const decision = suppliedDecision ? suppliedDecision.decision : generatedDecision;
+  const rejectedChanges = suppliedDecision ? suppliedDecision.rejected_changes : [];
   const reviewDate = decision.changes[0]?.review_date || input.review_date || input.reviewDate || addDays(facts.data_range?.end, 14);
   return {
     schema_version: '1.0',
@@ -357,12 +377,15 @@ function buildDecisionLogEntry(input = {}) {
     evidence_order: EVIDENCE_ORDER.slice(),
     facts: facts.facts,
     inference: judgments.judgments.map((item) => item.inference),
-    uncertainty: [...new Set(judgments.judgments.flatMap((item) => item.uncertainty || []))],
+    uncertainty: [...new Set([
+      ...judgments.judgments.flatMap((item) => item.uncertainty || []),
+      ...rejectedChanges.map((item) => `外部决策调整已排除：${item.variable}缺少有效复核日期或必填回退信息。`)
+    ])],
     decision: { keep: decision.kept, changes: decision.changes, do_not_change: decision.field_diffs.filter((diff) => !decision.changes.some((item) => item.path === diff.path)).map((diff) => diff.path) },
     validation: { metrics: [...new Set(judgments.judgments.map((item) => item.validation?.metric).filter(Boolean))], review_date: reviewDate },
     program_version: decision.program_version,
-    current_program: decision.current_program,
-    proposed_program: decision.proposed_program,
+    current_program: decision.current_program || currentProgram,
+    proposed_program: decision.proposed_program || currentProgram,
     field_diffs: decision.field_diffs,
     judgments: judgments.judgments
   };

@@ -200,3 +200,25 @@ test('rejects a direct adjustment judgment without a known review date', () => {
   }] }, { version: 'v1', session_budget: { total_work_sets_max: 12 } });
   assert.equal(result.changes.length, 0);
 });
+
+test('decision log drops injected changes when the per-change review date is missing', () => {
+  const entry = buildDecisionLogEntry({
+    date: '2026-09-01',
+    review_date: '2026-09-15',
+    current_program: { version: 'v1', session_budget: { total_work_sets_max: 12 } },
+    records: [record('2026-08-25', 'a', 60), record('2026-09-01', 'b', 62.5)],
+    decision: { kept: [], changes: [{ variable: 'volume', expected_effect: 'less fatigue', rollback_condition: 'fatigue persists' }], field_diffs: [], program_version: { from: 'v1', to: 'v2' } }
+  });
+  assert.deepEqual(entry.decision.changes, []);
+});
+
+test('decision log drops injected changes with an invalid per-change review date', () => {
+  const entry = buildDecisionLogEntry({
+    date: '2026-09-01',
+    review_date: '2026-09-15',
+    current_program: { version: 'v1', session_budget: { total_work_sets_max: 12 } },
+    records: [record('2026-08-25', 'a', 60), record('2026-09-01', 'b', 62.5)],
+    decision: { kept: [], changes: [{ variable: 'volume', review_date: '2026-02-30', expected_effect: 'less fatigue', rollback_condition: 'fatigue persists' }], field_diffs: [], program_version: { from: 'v1', to: 'v2' } }
+  });
+  assert.deepEqual(entry.decision.changes, []);
+});

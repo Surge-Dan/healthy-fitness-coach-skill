@@ -54,3 +54,23 @@ GREEN。针对 `task-7-review.md` 的 F1、F2、F3 及无效复核日期观察�
 - 完成率缺失项保留为 `known: false` 的窗口占位，不跨缺失窗口判断连续低完成率。
 - `selectProgramChanges` 拒绝没有有效复核日期的直接调整 judgment；正常路径仍从已知范围末日推导复核日期。
 - 本次修订不触碰 `dist/`；提交仅包含任务7代码、测试和报告追加内容。
+
+## 最终复审修订（D1）
+
+### STATUS
+
+GREEN。修复 `buildDecisionLogEntry(input.decision)` 绕过逐项复核日期校验的问题。
+
+### RED / GREEN
+
+- RED：新增缺失及非法逐项复核日期的决策日志测试；目标测试 12 项中 10 项通过、2 项失败，均显示注入 adjustment 未被排除。
+- GREEN：`node --test healthy-fitness-coach/tests/review-decision-engine.test.js`，12/12 通过。
+- 全量回归：`node --test (Get-ChildItem 'healthy-fitness-coach/tests' -Filter '*.test.js').FullName`，169/169 通过。
+- `git diff --check`：通过。
+
+### 修订内容
+
+- `buildDecisionLogEntry` 对外部预构造 `decision.changes` 逐项复用有效日期门，并要求预期影响与回退条件存在。
+- 缺失或非法日期的注入调整不进入最终日志 `decision.changes`，同时写入不确定性说明；有效调整仍保留。
+- 生成路径不变，`selectProgramChanges` 仍负责正常 judgment 的最多两个变量与日期推导。
+- 本次修订不触碰 `dist/`。
