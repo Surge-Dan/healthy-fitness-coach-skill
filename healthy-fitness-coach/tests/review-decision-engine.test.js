@@ -20,6 +20,7 @@ function record(date, id, value, overrides = {}) {
     value,
     unit: 'kg',
     rir: 2,
+    sets: 3,
     completed: true,
     ...overrides
   };
@@ -75,6 +76,39 @@ test('marks missing and mixed-unit evidence unknown instead of generating a tren
   });
   assert.equal(incomplete.quality.status, 'partial');
   assert.equal(incomplete.performance.trend_status, 'unknown');
+
+  const missingRecordFields = deriveReviewFacts({
+    records: [
+      record('2026-08-01', 'a', 60),
+      record(undefined, 'missing-date', 61),
+      record('2026-08-15', 'c', 62.5, { exercise: undefined })
+    ]
+  });
+  assert.equal(missingRecordFields.quality.status, 'unknown');
+  assert.equal(missingRecordFields.performance.trend_status, 'unknown');
+});
+
+test('does not use undated recovery observations to trigger a deload', () => {
+  const facts = deriveReviewFacts({
+    date_start: '2026-08-01',
+    date_end: '2026-08-28',
+    recovery: [{ sleep_hours: 5, fatigue: 8 }, { sleep_hours: 5.5, fatigue: 8 }],
+    records: [
+      record('2026-08-01', 'a', 60), record('2026-08-08', 'b', 57.5),
+      record('2026-08-15', 'c', 55), record('2026-08-22', 'd', 52.5)
+    ]
+  });
+  const judgments = buildReviewJudgments(facts);
+  assert.equal(facts.recovery.status, 'unknown');
+  assert.equal(judgments.judgments.some((item) => item.code === 'poor_recovery_with_decline'), false);
+});
+
+test('keeps missing completion windows as placeholders and blocks sustained-low inference', () => {
+  const facts = deriveReviewFacts({ completion_rate_series: [0.5, null, 0.6], records: [record('2026-08-01', 'a', 60)] });
+  assert.equal(facts.adherence.rates.length, 3);
+  assert.equal(facts.adherence.rates[1].known, false);
+  assert.equal(facts.adherence.sustained_low, false);
+  assert.equal(buildReviewJudgments(facts).judgments.some((item) => item.code === 'low_adherence'), false);
 });
 
 test('judges sustained low adherence as complexity reduction and repeated decline with poor recovery as deload', () => {
@@ -121,7 +155,7 @@ test('selects at most two traceable changes and emits field-level program diff',
     date_end: '2026-08-28',
     review_date: '2026-09-11',
     completion_rate_series: [0.5, 0.6],
-    recovery: [{ sleep_hours: 5, fatigue: 8 }, { sleep_hours: 5.5, fatigue: 8 }],
+    recovery: [{ date: '2026-08-15', sleep_hours: 5, fatigue: 8 }, { date: '2026-08-22', sleep_hours: 5.5, fatigue: 8 }],
     records: [
       record('2026-08-01', 'a', 60), record('2026-08-08', 'b', 57.5),
       record('2026-08-15', 'c', 55), record('2026-08-22', 'd', 52.5)
@@ -154,4 +188,15 @@ test('builds an auditable decision log with fixed evidence order and versions', 
   assert.ok(Array.isArray(entry.decision.keep));
   assert.ok(Array.isArray(entry.decision.changes));
   assert.ok(entry.validation.review_date);
+});
+
+test('rejects a direct adjustment judgment without a known review date', () => {
+  const result = selectProgramChanges({ judgments: [{
+    code: 'direct_adjustment',
+    result: 'adjust',
+    facts: [{ source_record_ids: ['a'] }],
+    decision: { action: 'deload', variable: 'volume' },
+    validation: { metric: 'recovery' }
+  }] }, { version: 'v1', session_budget: { total_work_sets_max: 12 } });
+  assert.equal(result.changes.length, 0);
 });

@@ -19,7 +19,8 @@ function asArray(value) {
 }
 
 function recordId(record, index) {
-  return text(record.source_record_id ?? record.id, `record-${index + 1}`);
+  const source = record && typeof record === 'object' ? record : {};
+  return text(source.source_record_id ?? source.id, `record-${index + 1}`);
 }
 
 function dateValue(value) {
@@ -47,34 +48,47 @@ function weekOf(value) {
 }
 
 function numberFrom(record, keys) {
+  const source = record && typeof record === 'object' ? record : {};
   for (const key of keys) {
-    const value = finite(record[key]);
+    const value = finite(source[key]);
     if (value !== undefined) return value;
   }
   return undefined;
 }
 
 function performancePoint(record, index) {
-  const value = numberFrom(record, ['value', 'load_kg', 'weight_kg', 'volume_kg', 'total_reps', 'reps']);
-  if (value === undefined) return null;
-  const metric = text(record.metric, record.load_kg !== undefined || record.weight_kg !== undefined ? 'load' : 'performance');
-  let unit = record.unit;
-  if (!unit && (record.load_kg !== undefined || record.weight_kg !== undefined || record.volume_kg !== undefined)) unit = 'kg';
-  if (!unit && (record.reps !== undefined || record.total_reps !== undefined)) unit = 'reps';
+  const source = record && typeof record === 'object' ? record : {};
+  const value = numberFrom(source, ['value', 'load_kg', 'weight_kg', 'volume_kg', 'total_reps', 'reps']);
+  const missingFields = [];
+  const rawExercise = source.exercise ?? source.name;
+  const metric = text(source.metric, source.load_kg !== undefined || source.weight_kg !== undefined ? 'load' : 'performance');
+  let unit = source.unit;
+  if (!unit && (source.load_kg !== undefined || source.weight_kg !== undefined || source.volume_kg !== undefined)) unit = 'kg';
+  if (!unit && (source.reps !== undefined || source.total_reps !== undefined)) unit = 'reps';
+  if (!rawExercise || text(rawExercise).trim() === '') missingFields.push('exercise');
+  if (value === undefined) missingFields.push('value');
+  if (!source.metric && source.load_kg === undefined && source.weight_kg === undefined && source.volume_kg === undefined && source.reps === undefined && source.total_reps === undefined) missingFields.push('metric');
+  if (!unit || text(unit).toLowerCase() === 'unknown') missingFields.push('unit');
+  if (numberFrom(source, ['rir', 'rpe_or_rir']) === undefined && finite(source.rpe) === undefined) missingFields.push('rir_or_rpe');
+  if (finite(source.sets) === undefined) missingFields.push('sets');
+  const date = dateValue(source.date ?? source.record_date);
+  if (!date) missingFields.push('date');
   return {
-    date: dateValue(record.date ?? record.record_date),
-    exercise: text(record.exercise ?? record.name, 'unknown'),
+    date,
+    exercise: text(rawExercise, 'unknown'),
     metric,
     value,
     unit: text(unit, 'unknown').toLowerCase(),
-    rir: numberFrom(record, ['rir', 'rpe_or_rir']),
-    rpe: finite(record.rpe),
-    sets: finite(record.sets),
-    source_record_id: recordId(record, index)
+    rir: numberFrom(source, ['rir', 'rpe_or_rir']),
+    rpe: finite(source.rpe),
+    sets: finite(source.sets),
+    missing_fields: missingFields,
+    source_record_id: recordId(source, index)
   };
 }
 
 function comparable(a, b) {
+  if (a.missing_fields?.length || b.missing_fields?.length) return false;
   if (a.exercise !== b.exercise || a.metric !== b.metric || a.unit === 'unknown' || a.unit !== b.unit) return false;
   if (a.rir !== undefined && b.rir !== undefined && Math.abs(a.rir - b.rir) > 1) return false;
   if (a.rpe !== undefined && b.rpe !== undefined && Math.abs(a.rpe - b.rpe) > 1) return false;
@@ -89,14 +103,14 @@ function extractRates(input, summary) {
   const rates = values.map((entry, index) => {
     if (typeof entry === 'object' && entry !== null) {
       const rate = finite(entry.rate ?? entry.completion_rate ?? entry.value);
-      return rate === undefined ? null : { period: text(entry.period, `window-${index + 1}`), rate, source_record_ids: asArray(entry.source_record_ids) };
+      return { period: text(entry.period, `window-${index + 1}`), rate: rate === undefined ? null : rate, known: rate !== undefined, source_record_ids: asArray(entry.source_record_ids) };
     }
     const rate = finite(entry);
-    return rate === undefined ? null : { period: `window-${index + 1}`, rate, source_record_ids: [] };
-  }).filter(Boolean);
+    return { period: `window-${index + 1}`, rate: rate === undefined ? null : rate, known: rate !== undefined, source_record_ids: [] };
+  });
   if (rates.length) return rates;
   const summaryRate = finite(summary.adherence?.rate ?? summary.adherence ?? summary.completion_rate ?? summary.metrics?.adherence);
-  return summaryRate === undefined ? [] : [{ period: 'summary', rate: summaryRate, source_record_ids: [] }];
+  return summaryRate === undefined ? [] : [{ period: 'summary', rate: summaryRate, known: true, source_record_ids: [] }];
 }
 
 function recoveryObservations(input, records) {
@@ -136,6 +150,8 @@ function deriveReviewFacts(input = {}) {
     || warnings.some((warning) => text(warning?.code ?? warning).toLowerCase() === 'mixed_units'))
     || new Set(points.map((point) => `${point.exercise}|${point.metric}|${point.unit}`)).size > new Set(points.map((point) => `${point.exercise}|${point.metric}`)).size;
   const validRecords = sourceRecords.filter((record) => dateValue(record?.date ?? record?.record_date));
+  const incompletePoints = points.filter((point) => point.missing_fields?.length > 0);
+  const actualMissingDates = sourceRecords.map((record, index) => dateValue(record?.date ?? record?.record_date) ? null : `record:${recordId(record, index)}`).filter(Boolean);
   const rates = extractRates(input, summary);
   const comparisons = [];
   const groups = new Map();
@@ -162,17 +178,24 @@ function deriveReviewFacts(input = {}) {
   }
   const improvementCount = comparisons.filter((item) => item.direction === 'up').length;
   const declineCount = comparisons.filter((item) => item.direction === 'down').length;
-  const recovery = recoveryObservations(input, sourceRecords);
-  const poorRecoveryCount = recovery.filter(poorRecovery).length;
   const dates = sourceRecords.map((record) => dateValue(record?.date ?? record?.record_date)).filter(Boolean).sort();
   const start = dateValue(input.date_start ?? input.dateStart ?? summary.period?.start ?? summary.data_range?.date_start) || dates[0] || null;
   const end = dateValue(input.date_end ?? input.dateEnd ?? summary.period?.end ?? summary.data_range?.date_end) || dates.at(-1) || null;
+  const recovery = recoveryObservations(input, sourceRecords).map((observation) => {
+    const inRange = Boolean(observation.date && (!start || observation.date >= start) && (!end || observation.date <= end));
+    const nearTraining = !dates.length || dates.some((date) => Math.abs(Date.parse(`${date}T00:00:00Z`) - Date.parse(`${observation.date}T00:00:00Z`)) <= 14 * 86400000);
+    return { ...observation, associated: inRange && nearTraining };
+  });
+  const associatedRecovery = recovery.filter((observation) => observation.associated);
+  const poorRecoveryCount = associatedRecovery.filter(poorRecovery).length;
   const weeks = new Set(dates.map(weekOf).filter(Boolean));
-  const qualityStatus = !sourceRecords.length ? 'unknown'
+  const qualityStatus = !sourceRecords.length || incompletePoints.length || actualMissingDates.length ? 'unknown'
     : (mixedUnits || missingDates.length || warnings.length || summary.data_quality?.status === 'partial' ? 'partial' : 'complete');
   const uncertainties = [];
   if (!sourceRecords.length) uncertainties.push('训练记录缺失，无法判断趋势。');
   if (missingDates.length) uncertainties.push(`存在缺失日期：${missingDates.join('、')}。`);
+  if (actualMissingDates.length) uncertainties.push(`训练记录中存在缺失日期：${actualMissingDates.join('、')}。`);
+  if (incompletePoints.length) uncertainties.push(`关键比较字段缺失：${[...new Set(incompletePoints.flatMap((point) => point.missing_fields))].join('、')}。`);
   if (mixedUnits) uncertainties.push('测量单位混合或无法统一，未生成表现趋势。');
   if (points.length < MIN_TREND_POINTS) uncertainties.push('可比较表现点不足，暂不外推长期趋势。');
   if (recovery.length < 2) uncertainties.push('恢复记录不足，不能确认恢复模式。');
@@ -185,10 +208,10 @@ function deriveReviewFacts(input = {}) {
   return {
     schema_version: '1.0',
     data_range: { start, end, weeks_observed: weeks.size },
-    quality: { status: qualityStatus, records: sourceRecords.length, valid_records: validRecords.length, missing_dates: missingDates.slice(), warnings: warnings.slice(), mixed_units: mixedUnits },
-    adherence: { rates, current_rate: rates.length ? rates.at(-1).rate : undefined, sustained_low: rates.length >= 2 && rates.slice(-2).every((item) => item.rate < LOW_ADHERENCE_THRESHOLD), status: !rates.length ? 'unknown' : rates.length >= 2 && rates.slice(-2).every((item) => item.rate < LOW_ADHERENCE_THRESHOLD) ? 'low_sustained' : 'observed', threshold: LOW_ADHERENCE_THRESHOLD },
+    quality: { status: qualityStatus, records: sourceRecords.length, valid_records: validRecords.length, missing_dates: [...new Set([...missingDates, ...actualMissingDates])], warnings: warnings.slice(), mixed_units: mixedUnits },
+    adherence: { rates, current_rate: rates.filter((item) => item.known).at(-1)?.rate, sustained_low: rates.length >= 2 && rates.slice(-2).every((item) => item.known && item.rate < LOW_ADHERENCE_THRESHOLD), status: !rates.length || rates.some((item) => !item.known) ? 'unknown' : rates.length >= 2 && rates.slice(-2).every((item) => item.known && item.rate < LOW_ADHERENCE_THRESHOLD) ? 'low_sustained' : 'observed', threshold: LOW_ADHERENCE_THRESHOLD },
     performance: { points, comparisons, improvement_count: improvementCount, decline_count: declineCount, trend_status: trendStatus, trend: trendStatus, plateau_status: plateauStatus },
-    recovery: { observations: recovery, poor_count: poorRecoveryCount, status: !recovery.length ? 'unknown' : poorRecoveryCount >= 2 ? 'poor' : 'not_confirmed' },
+    recovery: { observations: recovery, poor_count: poorRecoveryCount, status: !associatedRecovery.length ? 'unknown' : poorRecoveryCount >= 2 ? 'poor' : 'not_confirmed' },
     evidence: { record_ids: sourceRecords.map(recordId), comparison_record_ids: comparisons.flatMap((item) => item.source_record_ids) },
     review_date: input.review_date ?? input.reviewDate,
     facts: [
@@ -291,10 +314,12 @@ function selectProgramChanges(judgmentsInput = {}, currentProgram = {}) {
   const seen = new Set();
   for (const item of judgments) {
     if (!item || item.result !== 'adjust' || !item.decision || seen.has(item.decision.variable) || changes.length >= 2) continue;
+    const reviewDate = item.validation?.review_date || judgmentsInput.review_date || judgmentsInput.reviewDate
+      || addDays(judgmentsInput.data_range?.end, 14);
+    if (!dateValue(reviewDate)) continue;
     seen.add(item.decision.variable);
     const applied = applyChange(proposed, item.decision);
     const ids = (item.facts || []).flatMap((fact) => asArray(fact.source_record_ids));
-    const reviewDate = item.validation?.review_date || 'unknown';
     changes.push({
       variable: item.decision.variable,
       path: applied.path,

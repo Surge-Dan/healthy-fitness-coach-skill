@@ -33,3 +33,24 @@ GREEN。以起点提交 `2f7f010` 完成任务7；`dist/` 中已有改动保持�
 - 直接传入完成率窗口时，完成率本身仍需调用方保留计划/实际次数来源；引擎不会从缺少计划分母的记录臆造完成率。
 - 复杂度/训练量变更优先作用于现有计划的 `session_budget` 数值字段；计划结构缺少这些字段时，保留可审计的 `review_adjustments` 差异，不伪造动作或负重。
 - `dist/` 未重新打包，符合本任务约束；后续发布流程需单独处理。
+
+## 复审修订（F1–F3）
+
+### STATUS
+
+GREEN。针对 `task-7-review.md` 的 F1、F2、F3 及无效复核日期观察完成修订。
+
+### RED / GREEN
+
+- RED：新增实际记录缺失日期/关键比较字段、无日期恢复、`[0.5, null, 0.6]` 完成率窗口和无复核日期 judgment 测试；目标测试 10 项中 6 项通过、4 项按预期失败。
+- GREEN：`node --test healthy-fitness-coach/tests/review-decision-engine.test.js`，10/10 通过。
+- 全量回归：`node --test (Get-ChildItem 'healthy-fitness-coach/tests' -Filter '*.test.js').FullName`，167/167 通过。
+- `git diff --check`：通过。
+
+### 修订内容
+
+- 实际记录缺失日期、动作、测量值、单位、RIR/RPE 或组数时将质量置为 `unknown`，禁止表现趋势；相近条件比较要求关键字段完整。
+- 恢复证据必须有日期且能落在复盘范围/训练窗口附近；无法关联时恢复状态为 `unknown`，不触发减量。
+- 完成率缺失项保留为 `known: false` 的窗口占位，不跨缺失窗口判断连续低完成率。
+- `selectProgramChanges` 拒绝没有有效复核日期的直接调整 judgment；正常路径仍从已知范围末日推导复核日期。
+- 本次修订不触碰 `dist/`；提交仅包含任务7代码、测试和报告追加内容。
