@@ -4,6 +4,8 @@
 - 分析范围：{{range}}
 - 证据来源：{{sources}}
 - 当前整体置信度：{{confidence}}
+- DNA状态：观察 / 候选规律 / 已验证规律 / 已撤销
+- 上游证据：仅消费复盘事实与决策；原始记录ID不得在本层重复计数
 
 ## 目标DNA
 
@@ -51,8 +53,14 @@
 
 ## 当前假设与反证
 
-| 假设 | 支持事实 | 反证/未知 | 置信度 | 复核日期 |
-| --- | --- | --- | --- | --- |
-| {{hypothesis_1}} | {{facts}} | {{unknowns}} | {{confidence}} | {{review_date}} |
+| 状态 | 假设 | 支持事实/决策 | 反证/未知 | 混杂因素 | 置信度 | 下一次验证 | 复核日期 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 观察/候选/已验证/已撤销 | {{hypothesis_1}} | {{facts_and_decisions}} | {{counterevidence}} | {{confounders}} | {{confidence}} | {{next_validation}} | {{review_date}} |
+
+## DNA变更记录
+
+| 维度 | 原状态 | 新状态 | 动作 | 原因 | 证据ID |
+| --- | --- | --- | --- | --- | --- |
+| {{dimension}} | {{from_status}} | {{to_status}} | 升级/降级/撤销 | {{change_reason}} | {{source_record_ids}} |
 
 不要把训练DNA写成人格标签或医学结论。它是可被新数据推翻的工作假设。

@@ -6,8 +6,107 @@ const test = require('node:test');
 const {
   normalizeTrainingRecords,
   extractTrainingDNA,
-  compareTrainingDNA
+  compareTrainingDNA,
+  consumeReviewEvidence,
+  buildDNAChangelog
 } = require('../references/training-dna-engine.js');
+
+function reviewWindow(id, overrides = {}) {
+  return {
+    window_id: id,
+    facts: {
+      data_range: { start: `2026-06-${id === 'w1' ? '01' : id === 'w2' ? '08' : '15'}`, end: `2026-06-${id === 'w1' ? '07' : id === 'w2' ? '14' : '21'}`, weeks_observed: 1 },
+      quality: { status: 'complete', missing_dates: [], mixed_units: false, warnings: [] },
+      performance: {
+        points: [{ date: '2026-06-01', exercise: '卧推', metric: 'load', value: 60, unit: 'kg', rir: 2, sets: 3, source_record_id: `${id}-a` }, { date: '2026-06-07', exercise: '卧推', metric: 'load', value: 62.5, unit: 'kg', rir: 2, sets: 3, source_record_id: `${id}-b` }],
+        comparisons: [{ exercise: '卧推', metric: 'load', unit: 'kg', before: 60, after: 62.5, delta: 2.5, direction: 'up', source_record_ids: [`${id}-a`, `${id}-b`] }],
+        trend_status: 'improving'
+      },
+      recovery: { status: 'not_confirmed', observations: [{ date: '2026-06-07', sleep_hours: 7, fatigue: 4, source_record_ids: [`${id}-b`] }] },
+      facts: [{ code: 'comparable_performance_comparisons', value: 1, source_record_ids: [`${id}-a`, `${id}-b`] }],
+      evidence: { record_ids: [`${id}-a`, `${id}-b`], comparison_record_ids: [`${id}-a`, `${id}-b`] }
+    },
+    decision: { keep: ['同动作比较'], changes: [], validation: { review_date: '2026-06-28', metrics: ['负重与RIR'] } },
+    ...overrides
+  };
+}
+
+test('consumes one review window as an observation and does not reinterpret raw records', () => {
+  const dna = consumeReviewEvidence({ windows: [reviewWindow('w1')] });
+  const dimension = dna.dimensions.resistance_response;
+  assert.equal(dimension.status, 'observed');
+  assert.equal(dimension.confidence, 'low');
+  assert.equal(dimension.evidence_stage, 'observation');
+  assert.equal(dna.data_quality.raw_records_consumed, 0);
+  assert.equal(Object.keys(dna.dimensions).length, 8);
+});
+
+test('routes review facts through the legacy extractor entry point without raw-record recomputation', () => {
+  const dna = extractTrainingDNA({ reviewWindows: [reviewWindow('w1')] });
+  assert.equal(dna.data_quality.raw_records_consumed, 0);
+  assert.equal(dna.dimensions.resistance_response.evidence_stage, 'observation');
+});
+
+test('does not promote incomplete load, effort, aerobic, or recovery evidence', () => {
+  const incomplete = reviewWindow('w1', {
+    facts: {
+      ...reviewWindow('w1').facts,
+      performance: { points: [{ exercise: '卧推', metric: 'load', value: 60, unit: 'kg', sets: 3, source_record_id: 'w1-a' }], comparisons: [] },
+      recovery: { status: 'unknown', observations: [] }
+    }
+  });
+  const dna = consumeReviewEvidence({ windows: [incomplete, reviewWindow('w2')] });
+  assert.notEqual(dna.dimensions.resistance_response.confidence, 'high');
+  assert.ok(dna.unknowns.includes('resistance_response'));
+  assert.match(dna.dimensions.resistance_response.next_validation, /RPE|RIR|负重/);
+});
+
+test('promotes comparable complete results across review windows without double counting evidence', () => {
+  const dna = consumeReviewEvidence({ windows: [reviewWindow('w1'), reviewWindow('w2'), reviewWindow('w3')] });
+  const dimension = dna.dimensions.resistance_response;
+  assert.equal(dimension.status, 'validated');
+  assert.equal(dimension.confidence, 'high');
+  assert.equal(dimension.evidence_stage, 'validated_rule');
+  assert.ok(dimension.counterevidence.length > 0);
+  assert.ok(dimension.confounders.length > 0);
+  assert.ok(dimension.next_validation);
+  const ids = dna.evidence_ledger.flatMap((entry) => entry.source_record_ids);
+  assert.equal(ids.length, new Set(ids).size);
+});
+
+test('gates recovery DNA on dated recovery results and preserves legacy dimensions', () => {
+  const previous = { dimensions: { goal_constraints: { status: 'observed', confidence: 'low', facts: ['goal=耐力'] }, adherence: { status: 'supported', confidence: 'high' } } };
+  const windows = [reviewWindow('w1'), reviewWindow('w2'), reviewWindow('w3')].map((window) => ({
+    ...window,
+    facts: { ...window.facts, recovery: { status: 'not_confirmed', observations: [{ date: '2026-06-07', sleep_hours: 7, fatigue: 4, source_record_ids: [`${window.window_id}-b`] }] } }
+  }));
+  const dna = consumeReviewEvidence({ previous, windows });
+  assert.equal(dna.dimensions.recovery_response.status, 'validated');
+  assert.equal(dna.dimensions.recovery_response.confidence, 'high');
+  assert.equal(dna.dimensions.goal_constraints.facts[0], 'goal=耐力');
+  assert.equal(dna.dimensions.adherence.status, 'supported');
+});
+
+test('marks missing ranges, duplicates, and mixed units as lower quality and blocks validation', () => {
+  const duplicate = reviewWindow('w2', { facts: { ...reviewWindow('w2').facts, quality: { status: 'partial', missing_dates: ['2026-06-14'], mixed_units: true, warnings: [{ code: 'duplicate_record' }] } } });
+  const dna = consumeReviewEvidence({ windows: [reviewWindow('w1'), duplicate, reviewWindow('w3')] });
+  assert.notEqual(dna.dimensions.resistance_response.status, 'validated');
+  assert.ok(['partial', 'unknown'].includes(dna.data_quality.status));
+  assert.ok(dna.data_quality.duplicate_record_ids.length > 0);
+  assert.equal(dna.data_quality.mixed_units, true);
+});
+
+test('supports demotion and revocation with reasons in the changelog while keeping legacy DNA readable', () => {
+  const previous = { schema_version: '1.0', dimensions: { resistance_response: { status: 'validated', confidence: 'high', hypotheses: ['同条件下表现提升'] } } };
+  const current = consumeReviewEvidence({ previous, windows: [reviewWindow('w1', { facts: { ...reviewWindow('w1').facts, quality: { status: 'unknown', missing_dates: ['2026-06-07'], mixed_units: false, warnings: [] } } })] });
+  const log = buildDNAChangelog(previous, current, { reason: '新窗口缺少可比较结果', generatedAt: '2026-06-30T00:00:00Z' });
+  const resistanceChange = log.changes.find((change) => change.dimension === 'resistance_response');
+  assert.ok(resistanceChange);
+  assert.equal(resistanceChange.action, 'demoted');
+  assert.ok(resistanceChange.reason);
+  assert.equal(current.schema_version, '1.0');
+  assert.ok(current.compatibility.legacy_input_supported);
+});
 
 test('normalizes resistance and aerobic records without dropping provenance', () => {
   const result = normalizeTrainingRecords([

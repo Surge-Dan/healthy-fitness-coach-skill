@@ -135,7 +135,10 @@ function dimension({ sessions, weekCount, hypothesis, nextValidation, emptyUnkno
   return { ...status, facts: [`数据中记录了${sessions.length}次相关训练`, ...(measured.length ? [`其中${measured.length}次包含可比较结果`] : ['没有可比较的结果字段'])], hypotheses: [hypothesis], evidence: evidenceFor(sessions, (session) => `${session.name}；${session.date}`), next_validation: nextValidation, unknown: false };
 }
 
-function extractTrainingDNA({ records = [], dateStart, dateEnd, generatedAt = new Date().toISOString(), plannedSessionsPerWeek, profile = null, missingDates = [] } = {}) {
+function extractTrainingDNA({ records = [], dateStart, dateEnd, generatedAt = new Date().toISOString(), plannedSessionsPerWeek, profile = null, missingDates = [], reviewWindows, windows, reviews, reviewFacts, review_facts, reviewDecisions, review_decisions, reviewDecision, review_decision, facts, decision, previousDNA, previous_dna, revoked_dimensions, reason } = {}) {
+  if (reviewWindows || windows || reviews || reviewFacts || review_facts || facts || decision) {
+    return consumeReviewEvidence({ windows: reviewWindows || windows || reviews, reviewFacts: reviewFacts || review_facts, reviewDecisions: reviewDecisions || review_decisions, reviewDecision: reviewDecision || review_decision, facts, decision, previousDNA: previousDNA || previous_dna, revoked_dimensions, reason, generatedAt });
+  }
   const normalized = normalizeTrainingRecords(records, { dateStart, dateEnd });
   const warnings = normalized.warnings.slice();
   const plannedValue = finiteNumber(plannedSessionsPerWeek);
@@ -174,4 +177,271 @@ function compareTrainingDNA(previous = {}, current = {}) {
   return { changed_dimensions: changes.map((change) => change.dimension), changes };
 }
 
-module.exports = { compareTrainingDNA, extractTrainingDNA, normalizeTrainingRecords, parseWeightKg, validDate, weekStart };
+// The review consumer intentionally accepts only the standard facts and
+// decisions emitted by review-decision-engine. Raw training rows belong to
+// extractTrainingDNA; accepting them here would count the same evidence twice.
+function reviewWindows(input = {}) {
+  const supplied = input.windows || input.review_windows || input.reviews;
+  if (Array.isArray(supplied)) return supplied;
+  if (supplied && typeof supplied === 'object') return [supplied];
+  const suppliedFacts = input.reviewFacts || input.review_facts;
+  if (Array.isArray(suppliedFacts)) {
+    const suppliedDecisions = input.reviewDecisions || input.review_decisions || [];
+    return suppliedFacts.map((facts, index) => ({ window_id: facts?.window_id || `window-${index + 1}`, facts, decision: suppliedDecisions[index] || {} }));
+  }
+  if (suppliedFacts && typeof suppliedFacts === 'object') return [{ window_id: suppliedFacts.window_id || 'window-1', facts: suppliedFacts, decision: input.reviewDecision || input.review_decision || {} }];
+  if (input.facts || input.review_facts || input.decision || input.review_decision) return [input];
+  return [];
+}
+
+function reviewFacts(window) {
+  return window?.facts || window?.review_facts || window?.review?.facts || {};
+}
+
+function reviewDecision(window) {
+  return window?.decision || window?.review_decision || window?.review?.decision || {};
+}
+
+function sourceIds(values) {
+  const result = [];
+  const add = (value) => {
+    if (Array.isArray(value)) value.forEach(add);
+    else if (value !== undefined && value !== null && String(value).trim()) result.push(String(value).trim());
+  };
+  add(values);
+  return [...new Set(result)];
+}
+
+function factsSourceIds(facts, decision) {
+  const ids = [];
+  const addFact = (fact) => {
+    if (!fact || typeof fact !== 'object') return;
+    ids.push(...sourceIds(fact.source_record_ids));
+  };
+  (facts.facts || []).forEach(addFact);
+  (facts.performance?.comparisons || []).forEach((comparison) => ids.push(...sourceIds(comparison.source_record_ids)));
+  (facts.performance?.points || []).forEach((point) => ids.push(...sourceIds(point.source_record_id ?? point.source_record_ids)));
+  (facts.recovery?.observations || []).forEach((observation) => ids.push(...sourceIds(observation.source_record_ids)));
+  ids.push(...sourceIds(facts.evidence?.record_ids), ...sourceIds(facts.evidence?.comparison_record_ids));
+  (decision.changes || []).forEach((change) => ids.push(...sourceIds(change.evidence_record_ids)));
+  return [...new Set(ids)];
+}
+
+function dateRangeComplete(facts) {
+  const range = facts.data_range || facts.dataRange || {};
+  const quality = facts.quality || facts.data_quality || {};
+  const start = validDate(range.start || range.date_start);
+  const end = validDate(range.end || range.date_end);
+  return Boolean(start && end && start <= end && !range.missing_dates?.length && !quality.missing_dates?.length && !facts.missing_dates?.length);
+}
+
+function pointMap(facts) {
+  const result = new Map();
+  (facts.performance?.points || []).forEach((point) => {
+    sourceIds(point.source_record_id ?? point.source_record_ids).forEach((id) => result.set(id, point));
+  });
+  return result;
+}
+
+function numberPresent(value) {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function completePerformanceComparison(comparison, facts) {
+  const ids = sourceIds(comparison?.source_record_ids);
+  if (!ids.length || !numberPresent(comparison?.before) || !numberPresent(comparison?.after)) return { complete: false, dimension: 'resistance_response', ids };
+  const metric = String(comparison.metric || '').toLowerCase();
+  const aerobic = numberPresent(comparison.duration_min) || numberPresent(comparison.distance_km)
+    || /duration|distance|pace|speed|heart|hr|有氧|时长|距离|配速|心率/i.test(`${metric} ${comparison.exercise || ''}`);
+  const dimension = aerobic ? 'aerobic_response' : 'resistance_response';
+  const points = pointMap(facts);
+  const linked = ids.map((id) => points.get(id)).filter(Boolean);
+  if (dimension === 'aerobic_response') {
+    const complete = linked.length >= ids.length
+      ? linked.every((point) => numberPresent(point.duration_min ?? point.duration) && numberPresent(point.distance_km ?? point.distance))
+      : numberPresent(comparison.duration_min) && numberPresent(comparison.distance_km);
+    return { complete, dimension, ids };
+  }
+  const complete = linked.length >= ids.length
+    ? linked.every((point) => numberPresent(point.value ?? point.load_kg ?? point.weight_kg ?? point.volume_kg)
+      && (numberPresent(point.rir) || numberPresent(point.rpe)))
+    : (numberPresent(comparison.load_kg ?? comparison.weight_kg ?? comparison.value)
+      && (numberPresent(comparison.rir) || numberPresent(comparison.rpe)));
+  return { complete, dimension, ids };
+}
+
+function reviewQuality(facts, decision) {
+  const quality = facts.quality || facts.data_quality || {};
+  const warnings = [...(quality.warnings || []), ...(facts.warnings || [])];
+  const warningCodes = warnings.map((warning) => String(warning?.code ?? warning).toLowerCase());
+  const duplicateRecordIds = sourceIds(warnings.filter((warning) => warningCodes[warnings.indexOf(warning)] === 'duplicate_record').flatMap((warning) => warning.source_record_id));
+  const ids = factsSourceIds(facts, decision);
+  const comparisons = (facts.performance?.comparisons || []).map((comparison) => completePerformanceComparison(comparison, facts));
+  const completeComparisons = comparisons.filter((comparison) => comparison.complete);
+  const dimensionComparisons = {
+    resistance_response: completeComparisons.filter((comparison) => comparison.dimension === 'resistance_response'),
+    aerobic_response: completeComparisons.filter((comparison) => comparison.dimension === 'aerobic_response')
+  };
+  const issueCodes = [...new Set([
+    ...(quality.missing_dates || []), ...(facts.missing_dates || []),
+    quality.mixed_units ? 'mixed_units' : '',
+    ...warningCodes.filter((code) => code === 'duplicate_record' || code === 'mixed_units' || code === 'invalid_date')
+  ].filter(Boolean))];
+  return {
+    complete: quality.status === 'complete' && issueCodes.length === 0 && dateRangeComplete(facts),
+    partial: quality.status === 'partial' || issueCodes.length > 0 || !dateRangeComplete(facts),
+    mixed_units: Boolean(quality.mixed_units || warningCodes.includes('mixed_units')),
+    duplicate_record_ids: duplicateRecordIds.length ? duplicateRecordIds : (warningCodes.includes('duplicate_record') ? ids : []),
+    comparisons,
+    completeComparisons,
+    dimensionComparisons,
+    source_record_ids: ids
+  };
+}
+
+function dimensionHypothesis(dimension, windows, decisions) {
+  const relevant = dimension === 'resistance_response' ? '阻力训练' : '有氧训练';
+  const inferred = decisions.flatMap((decision) => (decision.judgments || []).map((judgment) => judgment.inference).filter(Boolean));
+  return inferred[0] || `${relevant}在复盘窗口中出现可比较结果；这只是候选规律，不能替代下一窗口验证。`;
+}
+
+function buildConsumedDimension(dimension, windows, decisions, quality, previousDimension) {
+  const comparableWindows = windows.filter((window) => reviewQuality(reviewFacts(window), reviewDecision(window)).dimensionComparisons[dimension]?.length);
+  const completeWindows = windows.filter((window) => reviewQuality(reviewFacts(window), reviewDecision(window)).complete);
+  const allComparisons = quality.comparisons.filter((comparison) => comparison.dimension === dimension && comparison.complete);
+  const hasData = windows.length > 0 && (allComparisons.length > 0 || comparableWindows.length > 0);
+  const hasEvidenceGap = windows.some((window) => {
+    const facts = reviewFacts(window); const windowQuality = reviewQuality(facts, reviewDecision(window));
+    return !windowQuality.complete || !windowQuality.dimensionComparisons[dimension]?.length;
+  });
+  let status = 'no_data'; let confidence = 'none'; let evidenceStage = 'unknown';
+  if (hasData) {
+    status = 'observed'; confidence = 'low'; evidenceStage = 'observation';
+    if (comparableWindows.length >= 2 && completeWindows.length === windows.length && !quality.mixed_units && !quality.duplicate_record_ids.length) {
+      status = 'candidate'; confidence = 'medium'; evidenceStage = 'candidate_rule';
+    }
+    if (comparableWindows.length >= 3 && completeWindows.length === windows.length && !quality.mixed_units && !quality.duplicate_record_ids.length) {
+      status = 'validated'; confidence = 'high'; evidenceStage = 'validated_rule';
+    }
+  }
+  const counterevidence = [];
+  const declines = quality.comparisons.filter((comparison) => comparison.dimension === dimension && comparison.direction === 'down').length;
+  if (declines) counterevidence.push(`复盘事实中出现${declines}次下降，不能只保留提升解释。`);
+  else counterevidence.push('当前窗口没有足够反向结果；下一次下降仍可能推翻该规律。');
+  const confounders = ['动作变式、技术、睡眠、压力和训练间隔可能混杂结果。'];
+  if (quality.mixed_units) confounders.push('单位混合使不同窗口不可直接比较。');
+  if (quality.duplicate_record_ids.length) confounders.push('重复记录已去重，剩余窗口数量不能等同于独立证据量。');
+  const facts = hasData
+    ? [`消费${comparableWindows.length}个包含${dimension === 'resistance_response' ? '阻力' : '有氧'}可比较结果的复盘窗口。`]
+    : [];
+  const unknown = !hasData || hasEvidenceGap || quality.mixed_units || quality.duplicate_record_ids.length > 0;
+  const nextValidation = dimension === 'resistance_response'
+    ? '再完成至少1～2个复盘窗口，并保持动作、负重、RPE/RIR、组数和日期范围可比。'
+    : '再完成至少1～2个复盘窗口，并记录时长、距离、强度/心率和日期范围。';
+  return {
+    status, confidence, evidence_stage: evidenceStage, facts,
+    hypotheses: hasData ? [dimensionHypothesis(dimension, windows, decisions)] : [],
+    decision_summary: decisions.flatMap((decision) => [...(decision.keep || decision.kept || []), ...(decision.changes || []).map((change) => `${change.variable || 'unknown'}调整`)]).slice(0, 8),
+    counterevidence, confounders, evidence: allComparisons.slice(0, 12).map((comparison) => ({ source_record_ids: comparison.ids, direction: comparison.direction || 'unknown' })),
+    next_validation: nextValidation, unknown, source: 'review_facts_and_decisions', previous_status: previousDimension?.status || undefined
+  };
+}
+
+function buildConsumedRecoveryDimension(windows, previousDimension) {
+  const completeWindows = windows.filter((window) => {
+    const facts = reviewFacts(window); const recovery = facts.recovery || {};
+    const observations = recovery.observations || [];
+    return recovery.status !== 'unknown' && observations.some((observation) => validDate(observation.date) && [observation.sleep_hours, observation.fatigue, observation.stress, observation.status].some((value) => value !== undefined && value !== null && value !== ''));
+  });
+  const hasData = windows.some((window) => (reviewFacts(window).recovery?.observations || []).length > 0);
+  let status = 'no_data'; let confidence = 'none'; let evidenceStage = 'unknown';
+  if (hasData) {
+    status = 'observed'; confidence = 'low'; evidenceStage = 'observation';
+    if (completeWindows.length >= 2 && completeWindows.length === windows.length) { status = 'candidate'; confidence = 'medium'; evidenceStage = 'candidate_rule'; }
+    if (completeWindows.length >= 3 && completeWindows.length === windows.length) { status = 'validated'; confidence = 'high'; evidenceStage = 'validated_rule'; }
+  }
+  const counterevidence = ['恢复结果可能与训练量、生活压力或记录时点不一致有关；下一次异常结果应重新评估。'];
+  return {
+    status, confidence, evidence_stage: evidenceStage,
+    facts: hasData ? [`消费${completeWindows.length}个包含带日期恢复结果的复盘窗口。`] : [],
+    hypotheses: hasData ? ['恢复结果与训练表现的关系仍需在相近训练条件下验证。'] : [],
+    counterevidence, confounders: ['睡眠、压力、营养、疼痛和测量时点可能混杂恢复解释。'],
+    evidence: completeWindows.flatMap((window) => (reviewFacts(window).recovery?.observations || []).filter((observation) => validDate(observation.date)).slice(0, 4).map((observation) => ({ date: observation.date, source_record_ids: sourceIds(observation.source_record_ids) }))),
+    next_validation: '再完成至少1～2个带日期恢复结果的复盘窗口，并关联训练表现与训练间隔。',
+    unknown: !hasData || completeWindows.length !== windows.length, source: 'review_facts_and_decisions', previous_status: previousDimension?.status || undefined
+  };
+}
+
+function consumeReviewEvidence(input = {}) {
+  const windows = reviewWindows(input);
+  const previous = input.previousDNA || input.previous_dna || input.previous || {};
+  const decisions = windows.map(reviewDecision);
+  const qualities = windows.map((window) => reviewQuality(reviewFacts(window), reviewDecision(window)));
+  const allIds = []; const duplicateRecordIds = [];
+  const evidenceLedger = qualities.map((quality, index) => {
+    const uniqueIds = quality.source_record_ids.filter((id) => {
+      if (allIds.includes(id)) { duplicateRecordIds.push(id); return false; }
+      allIds.push(id); return true;
+    });
+    duplicateRecordIds.push(...quality.duplicate_record_ids);
+    return { window_id: windows[index]?.window_id || windows[index]?.id || `window-${index + 1}`, source_record_ids: uniqueIds, comparable_results: quality.completeComparisons.length, quality_status: quality.complete ? 'complete' : 'partial' };
+  });
+  const quality = {
+    status: !windows.length ? 'unknown' : qualities.every((item) => item.complete) && !duplicateRecordIds.length ? 'complete' : qualities.some((item) => item.complete) ? 'partial' : 'unknown',
+    windows_observed: windows.length, comparable_windows: { resistance_response: qualities.filter((item) => item.dimensionComparisons.resistance_response.length).length, aerobic_response: qualities.filter((item) => item.dimensionComparisons.aerobic_response.length).length },
+    duplicate_record_ids: [...new Set(duplicateRecordIds)], mixed_units: qualities.some((item) => item.mixed_units), raw_records_consumed: 0,
+    warnings: [...new Set(qualities.flatMap((item) => item.comparisons.filter((comparison) => !comparison.complete).map(() => 'incomplete_comparison')))]
+  };
+  const allComparisons = []; const comparisonKeys = new Set();
+  qualities.flatMap((item) => item.completeComparisons).forEach((comparison) => {
+    const key = `${comparison.dimension}|${comparison.ids.join('|')}`;
+    if (!comparisonKeys.has(key)) { comparisonKeys.add(key); allComparisons.push(comparison); }
+  });
+  const unknownDimension = (previousDimension) => previousDimension || { status: 'no_data', confidence: 'none', evidence_stage: 'unknown', facts: [], hypotheses: [], counterevidence: [], confounders: [], evidence: [], next_validation: '补充对应复盘事实和决策后更新。', unknown: true, source: 'review_facts_and_decisions' };
+  const dimensions = {
+    goal_constraints: unknownDimension(previous.dimensions?.goal_constraints),
+    constraints: unknownDimension(previous.dimensions?.constraints),
+    execution_preferences: unknownDimension(previous.dimensions?.execution_preferences),
+    adherence: unknownDimension(previous.dimensions?.adherence),
+    risk_boundaries: unknownDimension(previous.dimensions?.risk_boundaries),
+    ...(previous.dimensions || {}),
+    resistance_response: buildConsumedDimension('resistance_response', windows, decisions, { ...quality, comparisons: allComparisons, duplicate_record_ids: quality.duplicate_record_ids }, previous.dimensions?.resistance_response),
+    aerobic_response: buildConsumedDimension('aerobic_response', windows, decisions, { ...quality, comparisons: allComparisons, duplicate_record_ids: quality.duplicate_record_ids }, previous.dimensions?.aerobic_response),
+    recovery_response: buildConsumedRecoveryDimension(windows, previous.dimensions?.recovery_response)
+  };
+  const revocations = input.revoked_dimensions || input.revocations || {};
+  Object.keys(revocations).forEach((dimension) => {
+    if (!dimensions[dimension]) return;
+    dimensions[dimension] = { ...dimensions[dimension], status: 'retired', confidence: 'none', evidence_stage: 'revoked', unknown: true, revocation_reason: typeof revocations[dimension] === 'string' ? revocations[dimension] : revocations[dimension]?.reason || '用户要求撤销该规律。' };
+  });
+  const unknowns = Object.entries(dimensions).filter(([, dimension]) => dimension.unknown).map(([key]) => key);
+  const ranges = windows.map((window) => reviewFacts(window).data_range || reviewFacts(window).dataRange || {})
+    .map((range) => ({ start: validDate(range.start || range.date_start), end: validDate(range.end || range.date_end) }))
+    .filter((range) => range.start && range.end);
+  return {
+    schema_version: '1.0', generated_at: input.generatedAt || new Date().toISOString(), dimensions, unknowns,
+    data_range: { date_start: ranges.length ? ranges.map((range) => range.start).sort()[0] : undefined, date_end: ranges.length ? ranges.map((range) => range.end).sort().at(-1) : undefined, windows_observed: windows.length },
+    data_quality: quality, evidence_ledger: evidenceLedger, decision_ledger: decisions.map((decision, index) => ({ window_id: evidenceLedger[index].window_id, keep: decision.keep || decision.kept || [], changes: decision.changes || [], review_date: decision.validation?.review_date || decision.review_date || undefined })),
+    compatibility: { legacy_input_supported: true, raw_extraction_unchanged: true },
+    changelog: buildDNAChangelog(previous, { dimensions }, { reason: input.reason || '消费复盘事实和决策后更新', generatedAt: input.generatedAt })
+  };
+}
+
+function buildDNAChangelog(previous = {}, current = {}, options = {}) {
+  const before = previous.dimensions || {}; const after = current.dimensions || {}; const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
+  const rank = { no_data: 0, observed: 1, emerging: 2, candidate: 2, supported: 3, validated: 3, retired: -1 };
+  const changes = keys.filter((key) => (before[key]?.status || 'no_data') !== (after[key]?.status || 'no_data')).map((dimension) => {
+    const from = before[dimension]?.status || 'no_data'; const to = after[dimension]?.status || 'no_data';
+    const action = to === 'retired' ? 'revoked' : (rank[to] < rank[from] ? 'demoted' : rank[to] > rank[from] ? 'promoted' : 'updated');
+    return { dimension, from, to, action, reason: options.reason || (action === 'demoted' ? '新复盘证据不足或质量下降。' : action === 'revoked' ? '规律已撤销。' : '复盘证据状态变化。'), generated_at: options.generatedAt || new Date().toISOString() };
+  });
+  return { schema_version: '1.0', changes };
+}
+
+const consumeReviewWindows = consumeReviewEvidence;
+const consumeReviewFacts = consumeReviewEvidence;
+const buildTrainingDNAFromReviews = consumeReviewEvidence;
+const buildDNAFromReview = consumeReviewEvidence;
+const updateTrainingDNAFromReview = consumeReviewEvidence;
+
+module.exports = { buildDNAChangelog, buildDNAFromReview, buildTrainingDNAFromReviews, compareTrainingDNA, consumeReviewEvidence, consumeReviewFacts, consumeReviewWindows, extractTrainingDNA, normalizeTrainingRecords, parseWeightKg, updateTrainingDNAFromReview, validDate, weekStart };
