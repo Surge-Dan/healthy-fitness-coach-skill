@@ -222,3 +222,25 @@ test('decision log drops injected changes with an invalid per-change review date
   });
   assert.deepEqual(entry.decision.changes, []);
 });
+
+test('decision log de-duplicates and caps injected changes with traceable evidence only', () => {
+  const entry = buildDecisionLogEntry({
+    date: '2026-09-01',
+    current_program: { version: 'v1', session_budget: { total_work_sets_max: 12 } },
+    records: [record('2026-08-25', 'a', 60), record('2026-09-01', 'b', 62.5)],
+    decision: {
+      kept: [],
+      field_diffs: [],
+      program_version: { from: 'v1', to: 'v2' },
+      changes: [
+        { variable: 'volume', review_date: '2026-09-15', evidence_record_ids: ['a'], expected_effect: 'less fatigue', rollback_condition: 'fatigue persists' },
+        { variable: 'volume', review_date: '2026-09-15', evidence_record_ids: ['b'], expected_effect: 'less fatigue', rollback_condition: 'fatigue persists' },
+        { variable: 'complexity', review_date: '2026-09-15', evidence_record_ids: [], expected_effect: 'easier completion', rollback_condition: 'completion falls' },
+        { variable: 'progression', review_date: '2026-09-15', evidence_record_ids: ['a'], expected_effect: 'better performance', rollback_condition: 'performance falls' }
+      ]
+    }
+  });
+  assert.ok(entry.decision.changes.length <= 2);
+  assert.equal(new Set(entry.decision.changes.map((change) => change.variable)).size, entry.decision.changes.length);
+  assert.ok(entry.decision.changes.every((change) => Array.isArray(change.evidence_record_ids) && change.evidence_record_ids.length > 0));
+});

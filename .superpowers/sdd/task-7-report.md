@@ -74,3 +74,23 @@ GREEN。修复 `buildDecisionLogEntry(input.decision)` 绕过逐项复核日期�
 - 缺失或非法日期的注入调整不进入最终日志 `decision.changes`，同时写入不确定性说明；有效调整仍保留。
 - 生成路径不变，`selectProgramChanges` 仍负责正常 judgment 的最多两个变量与日期推导。
 - 本次修订不触碰 `dist/`。
+
+## 最终复审修订（D2–D3）
+
+### STATUS
+
+GREEN。封闭外部预构造 `decision.changes` 绕过数量、变量去重和证据来源校验的路径。
+
+### RED / GREEN
+
+- RED：新增外部决策注入四项变更（重复变量、无证据项、超过两项）的回归测试；目标测试 13 项中 12 项通过、1 项失败，证明注入变更未受上限约束。
+- GREEN：`node --test healthy-fitness-coach/tests/review-decision-engine.test.js`，13/13 通过。
+- 全量回归：`node --test (Get-ChildItem 'healthy-fitness-coach/tests' -Filter '*.test.js').FullName`，170/170 通过。
+- `git diff --check`：通过。
+
+### 修订内容
+
+- `sanitizeDecision` 逐项要求非空 `evidence_record_ids`，并规范化、去重来源 ID。
+- 外部变更按变量去重，最多保留两个唯一变量；重复项、无证据项和超出上限项均排除。
+- 所有排除原因写入决策日志不确定性，最终 `decision.changes` 仅保留可追溯调整。
+- 本次修订不触碰 `dist/`。

@@ -343,18 +343,36 @@ function selectProgramChanges(judgmentsInput = {}, currentProgram = {}) {
 
 function sanitizeDecision(decision = {}) {
   const changes = asArray(decision.changes);
-  const invalidChanges = changes.filter((change) => !change || !dateValue(change.review_date)
-    || !text(change.expected_effect).trim() || !text(change.rollback_condition).trim());
+  const acceptedChanges = []; const rejectedChanges = [];
+  const seenVariables = new Set();
+  for (const change of changes) {
+    const evidenceIds = asArray(change?.evidence_record_ids).map((id) => text(id).trim()).filter(Boolean);
+    const reason = !change || !dateValue(change.review_date)
+      ? 'missing_or_invalid_review_date'
+      : !text(change.expected_effect).trim() || !text(change.rollback_condition).trim()
+        ? 'missing_expected_effect_or_rollback_condition'
+        : evidenceIds.length === 0
+          ? 'missing_evidence_record_ids'
+          : seenVariables.has(text(change.variable, 'unknown'))
+            ? 'duplicate_adjustment_variable'
+            : acceptedChanges.length >= 2 ? 'adjustment_limit_exceeded' : null;
+    if (reason) {
+      rejectedChanges.push({ variable: text(change?.variable, 'unknown'), reason });
+      continue;
+    }
+    const variable = text(change.variable, 'unknown');
+    seenVariables.add(variable);
+    acceptedChanges.push({ ...change, variable, evidence_record_ids: [...new Set(evidenceIds)] });
+  }
   return {
     decision: {
       ...decision,
       kept: asArray(decision.kept ?? decision.keep),
-      changes: changes.filter((change) => change && dateValue(change.review_date)
-        && text(change.expected_effect).trim() && text(change.rollback_condition).trim()),
+      changes: acceptedChanges,
       field_diffs: asArray(decision.field_diffs ?? decision.diff),
       program_version: decision.program_version || { from: 'unknown', to: 'unknown' }
     },
-    rejected_changes: invalidChanges.map((change) => ({ variable: change?.variable || 'unknown', reason: 'missing_or_invalid_review_date_or_adjustment_fields' }))
+    rejected_changes: rejectedChanges
   };
 }
 
@@ -379,7 +397,7 @@ function buildDecisionLogEntry(input = {}) {
     inference: judgments.judgments.map((item) => item.inference),
     uncertainty: [...new Set([
       ...judgments.judgments.flatMap((item) => item.uncertainty || []),
-      ...rejectedChanges.map((item) => `外部决策调整已排除：${item.variable}缺少有效复核日期或必填回退信息。`)
+      ...rejectedChanges.map((item) => `外部决策调整已排除：${item.variable}（${item.reason}）。`)
     ])],
     decision: { keep: decision.kept, changes: decision.changes, do_not_change: decision.field_diffs.filter((diff) => !decision.changes.some((item) => item.path === diff.path)).map((diff) => diff.path) },
     validation: { metrics: [...new Set(judgments.judgments.map((item) => item.validation?.metric).filter(Boolean))], review_date: reviewDate },
