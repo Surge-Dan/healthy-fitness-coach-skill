@@ -51,3 +51,9 @@ GREEN。基于起点提交 `a7716fe` 完成训练DNA复盘闭环；`dist/` 中�
 - RED：新增动态维度保留、三窗口 volume-only 负例、`review_facts` + `decision` alias 回归测试；先验证旧DNA不会因当前维度无有效证据被清空，且 `volume/total kg` 不会冒充阻力负重。
 - GREEN：目标测试 `training-dna.test.js` + `training-dna-cli.test.js`，29/29 通过；全量回归 187/187 通过；`git diff --check` 通过。
 - 修订：当前维度没有有效新证据时保留旧DNA，恢复维度同样保留；阻力 load 仅接受明确 `load/weight/负重` 语义或显式 `load_kg/weight_kg` 字段；`review_facts`、`review_decision` 与 `facts`、`decision` alias 统一消费，避免静默丢决策。
+
+## Alias 最终复审修订（P1）
+
+- RED：复现 CLI 接受 `facts/review_facts/reviewFacts` 与 `decision/review_decision/reviewDecision` 的数组、对象组合后丢失 decision；补充逐窗口 snake/camel alias 正负测试。
+- GREEN：目标测试 `training-dna.test.js` + `training-dna-cli.test.js`，33/33 通过；全量回归 191/191 通过。
+- 修订：统一数组 facts 的共享/逐项 decision 展开，单对象 facts 的三种 decision alias 归一化，并支持窗口级 `reviewFacts/reviewDecision`；CLI 完整窗口检查同步接受 camelCase alias。`dist/` 仍未触碰。

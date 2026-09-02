@@ -184,12 +184,20 @@ function reviewWindows(input = {}) {
   const supplied = input.windows || input.review_windows || input.reviews;
   if (Array.isArray(supplied)) return supplied;
   if (supplied && typeof supplied === 'object') return [supplied];
-  const suppliedFacts = input.reviewFacts || input.review_facts;
+  const directFactsEnvelope = input.performance || input.quality || input.data_quality || input.data_range || input.dataRange;
+  const suppliedFacts = input.reviewFacts || input.review_facts || (!directFactsEnvelope ? input.facts : undefined);
   if (Array.isArray(suppliedFacts)) {
-    const suppliedDecisions = input.reviewDecisions || input.review_decisions || (input.decision ? suppliedFacts.map(() => input.decision) : []);
-    return suppliedFacts.map((facts, index) => ({ window_id: facts?.window_id || `window-${index + 1}`, facts, decision: suppliedDecisions[index] || {} }));
+    const suppliedDecisions = input.reviewDecisions || input.review_decisions || decisionAliasValues(input, suppliedFacts.length);
+    return suppliedFacts.map((facts, index) => {
+      const nestedFacts = facts?.facts || facts?.review_facts || facts?.reviewFacts;
+      if (nestedFacts && typeof nestedFacts === 'object' && !Array.isArray(nestedFacts)) {
+        const hasWindowDecision = facts.decision || facts.review_decision || facts.reviewDecision;
+        return { ...facts, window_id: facts.window_id || `window-${index + 1}`, facts: nestedFacts, decision: hasWindowDecision ? reviewDecision(facts) : (suppliedDecisions[index] || {}) };
+      }
+      return { window_id: facts?.window_id || `window-${index + 1}`, facts, decision: suppliedDecisions[index] || {} };
+    });
   }
-  const decisionAlias = input.reviewDecision || input.review_decision || input.decision || {};
+  const decisionAlias = decisionAliasValue(input);
   if (suppliedFacts && typeof suppliedFacts === 'object') return [{ window_id: suppliedFacts.window_id || 'window-1', facts: suppliedFacts, decision: decisionAlias }];
   if (input.performance || input.quality || input.data_quality || input.data_range || input.dataRange) return [{ window_id: input.window_id || input.id || 'window-1', facts: input, decision: decisionAlias }];
   if (input.facts || input.review_facts || input.decision || input.review_decision) return [input];
@@ -197,13 +205,25 @@ function reviewWindows(input = {}) {
 }
 
 function reviewFacts(window) {
-  return window?.facts || window?.review_facts || window?.review?.facts || {};
+  return window?.facts || window?.review_facts || window?.reviewFacts || window?.review?.facts || {};
 }
 
 function reviewDecision(window) {
-  const candidate = window?.decision || window?.review_decision || window?.review?.decision || {};
+  const candidate = window?.decision || window?.review_decision || window?.reviewDecision || window?.review?.decision || {};
   if (candidate.decision && typeof candidate.decision === 'object') return { ...candidate, ...candidate.decision, nested_decision: candidate.decision };
   return candidate;
+}
+
+function decisionAliasValue(input = {}) {
+  return input.decision || input.review_decision || input.reviewDecision || {};
+}
+
+function decisionAliasValues(input = {}, count = 0) {
+  const explicit = input.reviewDecisions || input.review_decisions;
+  if (Array.isArray(explicit)) return explicit;
+  const shared = decisionAliasValue(input);
+  if (Array.isArray(shared)) return shared;
+  return shared && typeof shared === 'object' ? Array.from({ length: count }, () => shared) : [];
 }
 
 function sourceIds(values) {

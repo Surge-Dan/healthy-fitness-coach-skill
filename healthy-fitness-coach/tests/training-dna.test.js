@@ -191,6 +191,29 @@ test('retains decisions when direct review_facts is combined with the decision a
   assert.deepEqual(dna.decision_ledger[0].keep, ['保留同动作比较']);
 });
 
+test('normalizes decision aliases for array and object facts without dropping decisions', () => {
+  const decision = { keep: ['保留别名决策'], changes: [] };
+  const factWindows = [reviewWindow('w1').facts, reviewWindow('w2').facts];
+  for (const alias of ['decision', 'review_decision', 'reviewDecision']) {
+    const arrayInput = { facts: factWindows, [alias]: decision };
+    const arrayDNA = consumeReviewFacts(arrayInput);
+    assert.deepEqual(arrayDNA.decision_ledger.map((entry) => entry.keep), [['保留别名决策'], ['保留别名决策']], alias);
+
+    const objectInput = { facts: factWindows[0], [alias]: decision };
+    const objectDNA = consumeReviewFacts(objectInput);
+    assert.deepEqual(objectDNA.decision_ledger[0].keep, ['保留别名决策'], alias);
+  }
+});
+
+test('normalizes camelCase review facts and per-window decision aliases', () => {
+  const decision = { keep: ['保留窗口别名'], changes: [] };
+  const dna = consumeReviewFacts({ reviewFacts: [
+    { reviewFacts: reviewWindow('w1').facts, reviewDecision: decision },
+    { review_facts: reviewWindow('w2').facts, review_decision: decision }
+  ] });
+  assert.deepEqual(dna.decision_ledger.map((entry) => entry.keep), [['保留窗口别名'], ['保留窗口别名']]);
+});
+
 test('normalizes resistance and aerobic records without dropping provenance', () => {
   const result = normalizeTrainingRecords([
     { record_date: '2026-01-05', id: 'r1', title: '卧推', sets: 3, reps: 8, weight: '60kg', volume: 1440, rpe: 8 },

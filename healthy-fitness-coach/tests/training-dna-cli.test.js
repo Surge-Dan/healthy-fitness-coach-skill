@@ -67,3 +67,44 @@ test('DNA CLI rejects an incomplete review bundle without both facts and decisio
     await rm(temp, { recursive: true, force: true });
   }
 });
+
+test('DNA CLI preserves every accepted decision alias for array and object facts', async () => {
+  const root = join(__dirname, '..');
+  const temp = await mkdtemp(join(tmpdir(), 'healthy-fitness-dna-cli-aliases-'));
+  const facts = { data_range: { start: '2026-01-01', end: '2026-01-07' }, quality: { status: 'complete' }, performance: { points: [], comparisons: [] }, recovery: { status: 'not_confirmed', observations: [] } };
+  const decision = { keep: ['保留CLI别名决策'], changes: [] };
+  try {
+    for (const factsAlias of ['facts', 'review_facts', 'reviewFacts']) {
+      for (const decisionAlias of ['decision', 'review_decision', 'reviewDecision']) {
+        for (const factsShape of ['object', 'array']) {
+          const input = join(temp, `${factsAlias}-${decisionAlias}-${factsShape}.json`);
+          const output = join(temp, `${factsAlias}-${decisionAlias}-${factsShape}.out.json`);
+          await writeFile(input, JSON.stringify({ [factsAlias]: factsShape === 'array' ? [facts] : facts, [decisionAlias]: decision }), 'utf8');
+          const result = await runNode('scripts/extract-training-dna.js', ['--input', input, '--output', output], root);
+          assert.equal(result.code, 0, `${factsAlias}/${decisionAlias}/${factsShape}: ${result.stderr}`);
+          const dna = JSON.parse(await readFile(output, 'utf8'));
+          assert.deepEqual(dna.decision_ledger[0].keep, ['保留CLI别名决策'], `${factsAlias}/${decisionAlias}/${factsShape}`);
+        }
+      }
+    }
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test('DNA CLI rejects every facts alias when its decision alias is absent', async () => {
+  const root = join(__dirname, '..');
+  const temp = await mkdtemp(join(tmpdir(), 'healthy-fitness-dna-cli-missing-decision-'));
+  const facts = { data_range: { start: '2026-01-01', end: '2026-01-07' }, quality: { status: 'complete' } };
+  try {
+    for (const factsAlias of ['facts', 'review_facts', 'reviewFacts']) {
+      const input = join(temp, `${factsAlias}.json`);
+      await writeFile(input, JSON.stringify({ [factsAlias]: facts }), 'utf8');
+      const result = await runNode('scripts/extract-training-dna.js', ['--input', input], root);
+      assert.notEqual(result.code, 0, factsAlias);
+      assert.match(result.stderr, /facts.*decision|decision.*facts/i, factsAlias);
+    }
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});

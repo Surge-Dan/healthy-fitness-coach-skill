@@ -23,7 +23,7 @@ async function main(argv = process.argv.slice(2)) {
   const source = Array.isArray(parsed) ? { records: parsed } : (parsed || {});
   const windowSource = source.windows || source.review_windows || source.reviews;
   const hasCompleteWindows = Array.isArray(windowSource) && windowSource.length > 0 && windowSource.every((window) =>
-    (window?.facts || window?.review_facts) && (window?.decision || window?.review_decision));
+    (window?.facts || window?.review_facts || window?.reviewFacts) && (window?.decision || window?.review_decision || window?.reviewDecision));
   const hasDirectFacts = source.reviewFacts || source.review_facts || source.facts;
   const hasDirectDecision = source.reviewDecision || source.review_decision || source.decision;
   const hasReviewEvidence = hasCompleteWindows || (hasDirectFacts && hasDirectDecision);
