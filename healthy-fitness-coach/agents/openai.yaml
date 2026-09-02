@@ -1,4 +1,4 @@
 interface:
   display_name: "健康健身教练"
-  short_description: "面向普通成年人的安全训练计划、数据复盘、现场辅助与长期调整"
-  default_prompt: "使用 $healthy-fitness-coach 为我制定或复盘一份安全、可持续、可验证的健身方案；按任务自动选择对话或 Markdown 输出。"
+  short_description: "安全训练计划、今日训练、复盘、训记、训练DNA与分享输出"
+  default_prompt: "直接说你的计划、今日训练、复盘、训记、训练DNA或分享需求，$healthy-fitness-coach 会先做安全门和信息充分度判断，再进入合适的训练场景。"
