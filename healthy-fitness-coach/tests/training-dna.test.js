@@ -8,8 +8,10 @@ const {
   extractTrainingDNA,
   compareTrainingDNA,
   consumeReviewEvidence,
+  consumeReviewFacts,
   buildDNAChangelog
 } = require('../references/training-dna-engine.js');
+const { buildDecisionLogEntry, deriveReviewFacts } = require('../references/review-decision-engine.js');
 
 function reviewWindow(id, overrides = {}) {
   return {
@@ -106,6 +108,56 @@ test('supports demotion and revocation with reasons in the changelog while keepi
   assert.ok(resistanceChange.reason);
   assert.equal(current.schema_version, '1.0');
   assert.ok(current.compatibility.legacy_input_supported);
+});
+
+test('consumes a direct review facts object instead of silently treating its facts array as the envelope', () => {
+  const facts = reviewWindow('w1').facts;
+  const dna = consumeReviewFacts(facts);
+  assert.equal(dna.data_quality.windows_observed, 1);
+  assert.equal(dna.dimensions.resistance_response.status, 'observed');
+});
+
+test('does not validate recovery when result is unknown or its window quality is incomplete', () => {
+  const windows = [reviewWindow('w1'), reviewWindow('w2'), reviewWindow('w3')].map((window, index) => ({
+    ...window,
+    facts: { ...window.facts, quality: index === 1 ? { status: 'partial', missing_dates: ['2026-06-14'], mixed_units: false, warnings: [] } : window.facts.quality, recovery: { status: 'unknown', observations: [{ date: '2026-06-07', status: 'unknown', source_record_ids: [`${window.window_id}-recovery`] }] } }
+  }));
+  const dna = consumeReviewEvidence({ windows });
+  assert.notEqual(dna.dimensions.recovery_response.status, 'validated');
+  assert.notEqual(dna.dimensions.recovery_response.confidence, 'high');
+  assert.equal(dna.dimensions.recovery_response.unknown, true);
+});
+
+test('keeps reps-only resistance evidence at observation even across three windows', () => {
+  const windows = [reviewWindow('w1'), reviewWindow('w2'), reviewWindow('w3')].map((window) => ({
+    ...window,
+    facts: { ...window.facts, performance: { ...window.facts.performance, points: window.facts.performance.points.map((point) => ({ ...point, value: undefined, load_kg: undefined, weight_kg: undefined, reps: 8, total_reps: 24 })), comparisons: window.facts.performance.comparisons.map((comparison) => ({ ...comparison, value: undefined, load_kg: undefined, weight_kg: undefined, reps: 8 })) } }
+  }));
+  const dna = consumeReviewEvidence({ windows });
+  assert.equal(dna.dimensions.resistance_response.status, 'observed');
+  assert.notEqual(dna.dimensions.resistance_response.confidence, 'high');
+  assert.match(dna.dimensions.resistance_response.next_validation, /负重/);
+});
+
+test('normalizes nested buildDecisionLogEntry decisions and filters hypotheses by dimension evidence', () => {
+  const facts = deriveReviewFacts({ records: [
+    { date: '2026-08-01', source_record_id: 'a', exercise: '卧推', metric: 'load', value: 60, unit: 'kg', rir: 2, sets: 3 },
+    { date: '2026-08-08', source_record_id: 'b', exercise: '卧推', metric: 'load', value: 62.5, unit: 'kg', rir: 2, sets: 3 }
+  ] });
+  const entry = buildDecisionLogEntry({ date: '2026-08-08', facts, current_program: { version: 'v1' }, review_date: '2026-08-22' });
+  const dna = consumeReviewEvidence({ windows: [{ window_id: 'real', facts, decision: entry }] });
+  assert.ok(dna.decision_ledger[0].keep.length > 0);
+  assert.ok(dna.dimensions.resistance_response.decision_summary.length > 0);
+  assert.ok(!dna.dimensions.resistance_response.hypotheses.some((hypothesis) => /完成率偏低|复杂度/.test(hypothesis)));
+});
+
+test('changelog records revocation reason and evidence IDs for status changes', () => {
+  const previous = { dimensions: { resistance_response: { status: 'validated', confidence: 'high' } } };
+  const dna = consumeReviewEvidence({ previous, windows: [reviewWindow('w1')], revoked_dimensions: { resistance_response: { reason: '用户停止该动作', evidence_record_ids: ['w1-a'] } } });
+  const change = dna.changelog.changes.find((item) => item.dimension === 'resistance_response');
+  assert.equal(change.action, 'revoked');
+  assert.equal(change.reason, '用户停止该动作');
+  assert.deepEqual(change.evidence_record_ids, ['w1-a']);
 });
 
 test('normalizes resistance and aerobic records without dropping provenance', () => {

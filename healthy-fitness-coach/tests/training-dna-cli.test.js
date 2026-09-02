@@ -28,13 +28,41 @@ test('standalone DNA CLI reads JSON and writes an auditable result', async () =>
       { record_date: '2026-01-01', id: 'a', title: '卧推', sets: 3, reps: 8, weight: '60kg', volume: 1440 },
       { record_date: '2026-01-03', id: 'b', title: '跑步', raw_text: '2026-01-03,跑步,time:1800s,5km,140bpm' }
     ] }), 'utf8');
-    const result = await runNode('scripts/extract-training-dna.js', ['--input', input, '--output', output], root);
+    const result = await runNode('scripts/extract-training-dna.js', ['--input', input, '--legacy-raw', '--output', output], root);
     assert.equal(result.code, 0, result.stderr);
     const dna = JSON.parse(await readFile(output, 'utf8'));
     assert.equal(dna.schema_version, '1.0');
     assert.equal(dna.metrics.resistance.sessions, 1);
     assert.equal(dna.metrics.aerobic.sessions, 1);
     assert.ok(Array.isArray(dna.evidence_ledger));
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test('DNA CLI rejects raw records by default and requires explicit legacy mode', async () => {
+  const root = join(__dirname, '..');
+  const temp = await mkdtemp(join(tmpdir(), 'healthy-fitness-dna-cli-default-'));
+  try {
+    const input = join(temp, 'input.json');
+    await writeFile(input, JSON.stringify({ records: [{ record_date: '2026-01-01', title: '卧推', sets: 3, reps: 8, weight: '60kg' }] }), 'utf8');
+    const result = await runNode('scripts/extract-training-dna.js', ['--input', input], root);
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /review|legacy/i);
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test('DNA CLI rejects an incomplete review bundle without both facts and decision', async () => {
+  const root = join(__dirname, '..');
+  const temp = await mkdtemp(join(tmpdir(), 'healthy-fitness-dna-cli-bundle-'));
+  try {
+    const input = join(temp, 'input.json');
+    await writeFile(input, JSON.stringify({ review_facts: { data_range: { start: '2026-01-01', end: '2026-01-07' }, quality: { status: 'complete' } } }), 'utf8');
+    const result = await runNode('scripts/extract-training-dna.js', ['--input', input], root);
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /facts.*decision|decision.*facts/i);
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
