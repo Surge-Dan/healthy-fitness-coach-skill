@@ -186,11 +186,12 @@ function reviewWindows(input = {}) {
   if (supplied && typeof supplied === 'object') return [supplied];
   const suppliedFacts = input.reviewFacts || input.review_facts;
   if (Array.isArray(suppliedFacts)) {
-    const suppliedDecisions = input.reviewDecisions || input.review_decisions || [];
+    const suppliedDecisions = input.reviewDecisions || input.review_decisions || (input.decision ? suppliedFacts.map(() => input.decision) : []);
     return suppliedFacts.map((facts, index) => ({ window_id: facts?.window_id || `window-${index + 1}`, facts, decision: suppliedDecisions[index] || {} }));
   }
-  if (suppliedFacts && typeof suppliedFacts === 'object') return [{ window_id: suppliedFacts.window_id || 'window-1', facts: suppliedFacts, decision: input.reviewDecision || input.review_decision || {} }];
-  if (input.performance || input.quality || input.data_quality || input.data_range || input.dataRange) return [{ window_id: input.window_id || input.id || 'window-1', facts: input, decision: input.reviewDecision || input.review_decision || {} }];
+  const decisionAlias = input.reviewDecision || input.review_decision || input.decision || {};
+  if (suppliedFacts && typeof suppliedFacts === 'object') return [{ window_id: suppliedFacts.window_id || 'window-1', facts: suppliedFacts, decision: decisionAlias }];
+  if (input.performance || input.quality || input.data_quality || input.data_range || input.dataRange) return [{ window_id: input.window_id || input.id || 'window-1', facts: input, decision: decisionAlias }];
   if (input.facts || input.review_facts || input.decision || input.review_decision) return [input];
   return [];
 }
@@ -266,9 +267,9 @@ function completePerformanceComparison(comparison, facts) {
     return { complete, dimension, ids };
   }
   const hasLoad = (point) => numberPresent(point.load_kg ?? point.weight_kg)
-    || (numberPresent(point.value) && /load|weight|kg|磅|负重/i.test(`${point.metric || ''} ${point.unit || ''}`));
+    || (numberPresent(point.value) && /load|weight|负重/i.test(String(point.metric || '')));
   const comparisonHasLoad = numberPresent(comparison.load_kg ?? comparison.weight_kg)
-    || (numberPresent(comparison.value) && /load|weight|kg|磅|负重/i.test(`${comparison.metric || ''} ${comparison.unit || ''}`));
+    || (numberPresent(comparison.value) && /load|weight|负重/i.test(String(comparison.metric || '')));
   const complete = linked.length >= ids.length
     ? linked.every((point) => hasLoad(point)
       && (numberPresent(point.rir) || numberPresent(point.rpe)))
@@ -322,6 +323,7 @@ function buildConsumedDimension(dimension, windows, decisions, quality, previous
   const comparableWindows = windows.filter((window) => reviewQuality(reviewFacts(window), reviewDecision(window)).dimensionComparisons[dimension]?.length);
   const completeWindows = windows.filter((window) => reviewQuality(reviewFacts(window), reviewDecision(window)).complete);
   const allComparisons = quality.comparisons.filter((comparison) => comparison.dimension === dimension && comparison.complete);
+  if (previousDimension && !allComparisons.length) return previousDimension;
   const hasDimensionComparisons = quality.comparisons.some((comparison) => comparison.dimension === dimension);
   const hasData = windows.length > 0 && (allComparisons.length > 0 || comparableWindows.length > 0 || hasDimensionComparisons);
   const hasEvidenceGap = windows.some((window) => {
@@ -371,6 +373,7 @@ function buildConsumedRecoveryDimension(windows, previousDimension, globalQualit
         || validDate(observation.date) && typeof observation.status === 'string' && !/unknown|not[_ -]?confirmed/i.test(observation.status));
   });
   const hasData = windows.some((window) => (reviewFacts(window).recovery?.observations || []).length > 0);
+  if (previousDimension && !completeWindows.length) return previousDimension;
   let status = 'no_data'; let confidence = 'none'; let evidenceStage = 'unknown';
   if (hasData) {
     status = 'observed'; confidence = 'low'; evidenceStage = 'observation';

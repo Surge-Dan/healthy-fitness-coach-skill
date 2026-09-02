@@ -24,7 +24,7 @@ GREEN。基于起点提交 `a7716fe` 完成训练DNA复盘闭环；`dist/` 中�
 
 ## COMMIT
 
-待提交：`task-8: connect training DNA to review loop`。
+基础实现提交：`f4fb919`；审查修订提交：`e5b6f20`、`1aeb06c`；最终复审修订提交：本次提交。
 
 ## CONCERNS
 
@@ -45,3 +45,9 @@ GREEN。基于起点提交 `a7716fe` 完成训练DNA复盘闭环；`dist/` 中�
 修订后目标测试：`node --test healthy-fitness-coach/tests/training-dna.test.js healthy-fitness-coach/tests/training-dna-cli.test.js`，26/26 通过；全量回归：`node --test (Get-ChildItem 'healthy-fitness-coach/tests' -Filter '*.test.js').FullName`，184/184 通过；`git diff --check` 通过。
 
 产品路由文档同步更新：`SKILL.md`、`references/output-routing.md` 和 `references/xunji-integration.md` 现在明确 review-first；raw 仅为显式 legacy 兼容路径。
+
+## 最终复审修订（P1）
+
+- RED：新增动态维度保留、三窗口 volume-only 负例、`review_facts` + `decision` alias 回归测试；先验证旧DNA不会因当前维度无有效证据被清空，且 `volume/total kg` 不会冒充阻力负重。
+- GREEN：目标测试 `training-dna.test.js` + `training-dna-cli.test.js`，29/29 通过；全量回归 187/187 通过；`git diff --check` 通过。
+- 修订：当前维度没有有效新证据时保留旧DNA，恢复维度同样保留；阻力 load 仅接受明确 `load/weight/负重` 语义或显式 `load_kg/weight_kg` 字段；`review_facts`、`review_decision` 与 `facts`、`decision` alias 统一消费，避免静默丢决策。
