@@ -1,0 +1,357 @@
+{
+  "schema_version": "1.0",
+  "comparison_kind": "static_source_contract",
+  "limitations": [
+    "未调用模型，未生成、转写或评分任何模型输出。",
+    "静态断言只能证明源码、模板与确定性函数的能力边界，不能证明自然语言回答质量。",
+    "Token 和完成时间必须由人工在同一模型、同一设置、隔离会话中记录。"
+  ],
+  "baseline": {
+    "source_commit": "180549f30a7579d5f4c2733ee662f64229531e78",
+    "snapshot_path": "healthy-fitness-coach-workspace/training-os-redesign/skill-snapshot"
+  },
+  "current": {
+    "skill_path": "healthy-fitness-coach"
+  },
+  "cases": [
+    {
+      "eval_id": 13,
+      "prompt": "RIR 是什么意思？",
+      "expected_output": "仅用清晰、适合新手的语言解释 RIR 的含义与训练中的使用语境。",
+      "requires_follow_up": false,
+      "model_outputs_recorded": false,
+      "static_assertions": [
+        {
+          "id": "eval_definition_is_new",
+          "description": "当前评测定义包含该成对场景；旧快照只保留评测 1–12。",
+          "status": "pass",
+          "current": {
+            "eval_defined": true
+          },
+          "baseline": {
+            "eval_defined": false
+          }
+        },
+        {
+          "id": "simple_question_contract",
+          "description": "新版明确定义知识问题不建立画像；旧快照没有该训练任务编排契约文件。",
+          "status": "pass",
+          "current": {
+            "path": "healthy-fitness-coach/references/assessment.md",
+            "present": true,
+            "sha256": "6f5b211fda6736d6e3205e9b01b74c8de395d926a60e28093edf857ea08d5cbe",
+            "required_fragments": [
+              "简单知识问题不建立画像"
+            ],
+            "fragments_present": true
+          },
+          "baseline": {
+            "path": "healthy-fitness-coach-workspace/training-os-redesign/skill-snapshot/references/training-orchestration.md",
+            "present": false,
+            "sha256": null,
+            "required_fragments": [],
+            "fragments_present": false
+          }
+        }
+      ],
+      "manual_review": [
+        "在两个全新、隔离的对话中分别粘贴同一提示词；不要沿用画像、文件或记忆。",
+        "记录完整原始输出、输入/输出 Token 与完成时间；本静态结果没有任何模型输出。",
+        "检查是否引入未提供的个人信息、照片、身份或持久化声明。",
+        "确认两版都只解释 RIR，且不把术语问题升级为完整计划或建档。"
+      ]
+    },
+    {
+      "eval_id": 14,
+      "prompt": "我是新手，想开始健身，帮我做训练计划。",
+      "expected_output": "在信息不足时集中询问制定计划所需的关键缺口，而不是先给完整计划。",
+      "requires_follow_up": true,
+      "model_outputs_recorded": false,
+      "static_assertions": [
+        {
+          "id": "eval_definition_is_new",
+          "description": "当前评测定义包含该成对场景；旧快照只保留评测 1–12。",
+          "status": "pass",
+          "current": {
+            "eval_defined": true
+          },
+          "baseline": {
+            "eval_defined": false
+          }
+        },
+        {
+          "id": "plan_gap_contract",
+          "description": "新版为训练计划声明结构性必要字段和缺失时追问；旧快照没有该编排模块。",
+          "status": "pass",
+          "current": {
+            "path": "healthy-fitness-coach/references/training-orchestrator.js",
+            "present": true,
+            "sha256": "b8847c8b6c0c8f0288c41bbcda2379aa068ffd5930c8916be653351273a21a66",
+            "required_fragments": [
+              "training_plan",
+              "'goal'",
+              "'available_equipment'",
+              "state: missing_fields.length > 0 ? 'ask' : 'ready'"
+            ],
+            "fragments_present": true
+          },
+          "baseline": {
+            "path": "healthy-fitness-coach-workspace/training-os-redesign/skill-snapshot/references/training-orchestration.md",
+            "present": false,
+            "sha256": null,
+            "required_fragments": [],
+            "fragments_present": false
+          }
+        }
+      ],
+      "manual_review": [
+        "在两个全新、隔离的对话中分别粘贴同一提示词；不要沿用画像、文件或记忆。",
+        "记录完整原始输出、输入/输出 Token 与完成时间；本静态结果没有任何模型输出。",
+        "检查是否引入未提供的个人信息、照片、身份或持久化声明。",
+        "确认新版集中追问目标、经验、频率/时长、器械和安全缺口，旧版若直接给完整计划应标为失败。"
+      ]
+    },
+    {
+      "eval_id": 15,
+      "prompt": "我 28 岁，是没有疼痛或疾病的新手，动作限制：无。目标是提升体能和力量；我每周 3 天、每次 30 分钟可以稳定安排训练，家里有哑铃和瑜伽垫，偏好短时全身练。请直接帮我开始。",
+      "expected_output": "基于已给全的信息直接生成可确认的用户画像与当前训练计划，而不是重复追问已知信息。",
+      "requires_follow_up": false,
+      "model_outputs_recorded": false,
+      "static_assertions": [
+        {
+          "id": "eval_definition_is_new",
+          "description": "当前评测定义包含该成对场景；旧快照只保留评测 1–12。",
+          "status": "pass",
+          "current": {
+            "eval_defined": true
+          },
+          "baseline": {
+            "eval_defined": false
+          }
+        },
+        {
+          "id": "complete_profile_and_plan_assets",
+          "description": "新版具备画像、当前计划模板，并规定已提供的稳定字段不重复追问。",
+          "status": "pass",
+          "current": {
+            "assessment": {
+              "path": "healthy-fitness-coach/references/assessment.md",
+              "present": true,
+              "sha256": "6f5b211fda6736d6e3205e9b01b74c8de395d926a60e28093edf857ea08d5cbe",
+              "required_fragments": [
+                "已提供且仍适用的稳定字段不重复追问"
+              ],
+              "fragments_present": true
+            },
+            "profile_template": {
+              "path": "healthy-fitness-coach/assets/athlete-profile-template.md",
+              "present": true,
+              "sha256": "428df6eaba10241c8e88b60eeb5e63c196265e849010d118db07c102e9d8a171",
+              "required_fragments": [],
+              "fragments_present": true
+            },
+            "program_template": {
+              "path": "healthy-fitness-coach/assets/current-program-template.md",
+              "present": true,
+              "sha256": "e1564fe500662a9544bcf013d496d214863220856ac1ba829143f60c62f02731",
+              "required_fragments": [],
+              "fragments_present": true
+            }
+          },
+          "baseline": {
+            "assessment": {
+              "path": "healthy-fitness-coach-workspace/training-os-redesign/skill-snapshot/references/assessment.md",
+              "present": true,
+              "sha256": "8afc3c885b542d7ce3fab5c899ee4c2265e1e675d6451917268bafc39c5cb69a",
+              "required_fragments": [
+                "已提供且仍适用的稳定字段不重复追问"
+              ],
+              "fragments_present": false
+            },
+            "profile_template": {
+              "path": "healthy-fitness-coach-workspace/training-os-redesign/skill-snapshot/assets/athlete-profile-template.md",
+              "present": true,
+              "sha256": "c17f112ce9b5458a41c6dde1ed5880e472dd7b6aaeecb6a0171d5ceb0a52f9b4",
+              "required_fragments": [],
+              "fragments_present": true
+            },
+            "program_template": {
+              "path": "healthy-fitness-coach-workspace/training-os-redesign/skill-snapshot/assets/current-program-template.md",
+              "present": true,
+              "sha256": "f6a1416873a875f5d60355e013fcfeffb54308647f054ee4b7cc527a06f40f4c",
+              "required_fragments": [],
+              "fragments_present": true
+            }
+          }
+        }
+      ],
+      "manual_review": [
+        "在两个全新、隔离的对话中分别粘贴同一提示词；不要沿用画像、文件或记忆。",
+        "记录完整原始输出、输入/输出 Token 与完成时间；本静态结果没有任何模型输出。",
+        "检查是否引入未提供的个人信息、照片、身份或持久化声明。",
+        "确认新版复用提示中已给的全部约束，直接给画像和当前计划，不重复盘问。"
+      ]
+    },
+    {
+      "eval_id": 16,
+      "prompt": "我的档案已经记录：目标增肌、可正常进健身房、没有当前疼痛。今天练胸。",
+      "expected_output": "复用已有档案，只补充会影响今天训练的即时状态，再给当日胸部训练安排。",
+      "requires_follow_up": true,
+      "model_outputs_recorded": false,
+      "static_assertions": [
+        {
+          "id": "eval_definition_is_new",
+          "description": "当前评测定义包含该成对场景；旧快照只保留评测 1–12。",
+          "status": "pass",
+          "current": {
+            "eval_defined": true
+          },
+          "baseline": {
+            "eval_defined": false
+          }
+        },
+        {
+          "id": "profile_reuse_and_today_state_contract",
+          "description": "新版把稳定画像与当天状态隔离，且提供今日准备度模块；旧快照缺少两者。",
+          "status": "pass",
+          "current": {
+            "assessment": {
+              "path": "healthy-fitness-coach/references/assessment.md",
+              "present": true,
+              "sha256": "6f5b211fda6736d6e3205e9b01b74c8de395d926a60e28093edf857ea08d5cbe",
+              "required_fragments": [
+                "稳定画像",
+                "当前状态",
+                "不重复追问"
+              ],
+              "fragments_present": true
+            },
+            "readiness": {
+              "path": "healthy-fitness-coach/references/readiness-engine.js",
+              "present": true,
+              "sha256": "c557ebf7a9590baffd2bfe8935ca013623752f17840bed7eb2cb2875694a6474",
+              "required_fragments": [],
+              "fragments_present": true
+            }
+          },
+          "baseline": {
+            "assessment": {
+              "path": "healthy-fitness-coach-workspace/training-os-redesign/skill-snapshot/references/assessment.md",
+              "present": true,
+              "sha256": "8afc3c885b542d7ce3fab5c899ee4c2265e1e675d6451917268bafc39c5cb69a",
+              "required_fragments": [
+                "稳定画像",
+                "当前状态",
+                "不重复追问"
+              ],
+              "fragments_present": false
+            },
+            "readiness": {
+              "path": "healthy-fitness-coach-workspace/training-os-redesign/skill-snapshot/references/readiness-engine.js",
+              "present": false,
+              "sha256": null,
+              "required_fragments": [],
+              "fragments_present": false
+            }
+          }
+        }
+      ],
+      "manual_review": [
+        "在两个全新、隔离的对话中分别粘贴同一提示词；不要沿用画像、文件或记忆。",
+        "记录完整原始输出、输入/输出 Token 与完成时间；本静态结果没有任何模型输出。",
+        "检查是否引入未提供的个人信息、照片、身份或持久化声明。",
+        "确认新版复用已有档案，只询问影响当天胸部训练的即时状态，并给出后续安排。"
+      ]
+    },
+    {
+      "eval_id": 17,
+      "prompt": "请复盘我最近四周的训练日志：我大部分训练都完成了，但后半段睡眠变差、主动作表现回落、疲劳感增加。",
+      "expected_output": "根据四周日志做复盘，只调整1～2个主要变量，并形成可追溯的决策记录。",
+      "requires_follow_up": false,
+      "model_outputs_recorded": false,
+      "static_assertions": [
+        {
+          "id": "eval_definition_is_new",
+          "description": "当前评测定义包含该成对场景；旧快照只保留评测 1–12。",
+          "status": "pass",
+          "current": {
+            "eval_defined": true
+          },
+          "baseline": {
+            "eval_defined": false
+          }
+        },
+        {
+          "id": "review_decision_contract",
+          "description": "新版复盘引擎显式输出事实、推断、不确定性、验证和至多两个调整；旧快照缺少该引擎。",
+          "status": "pass",
+          "current": {
+            "path": "healthy-fitness-coach/references/review-decision-engine.js",
+            "present": true,
+            "sha256": "1f4c76f84820c4d53a4551f7cf6c9fa606d882da904980da05e3eb27504376e1",
+            "required_fragments": [
+              "facts:",
+              "inference:",
+              "uncertainty:",
+              "validation:",
+              "changes.length >= 2"
+            ],
+            "fragments_present": true
+          },
+          "baseline": {
+            "path": "healthy-fitness-coach-workspace/training-os-redesign/skill-snapshot/references/review-decision-engine.js",
+            "present": false,
+            "sha256": null,
+            "required_fragments": [],
+            "fragments_present": false
+          }
+        }
+      ],
+      "manual_review": [
+        "在两个全新、隔离的对话中分别粘贴同一提示词；不要沿用画像、文件或记忆。",
+        "记录完整原始输出、输入/输出 Token 与完成时间；本静态结果没有任何模型输出。",
+        "检查是否引入未提供的个人信息、照片、身份或持久化声明。",
+        "确认新版分开陈述事实、判断和验证项，只调整一至两个主要变量，并输出可追溯决策记录。"
+      ]
+    },
+    {
+      "eval_id": 18,
+      "prompt": "这里只有一条记录：我完成了一次训练。请判断我的训练 DNA。",
+      "expected_output": "明确单次记录不足以形成稳定训练 DNA；如输出 DNA，必须标记为低置信度或未知。",
+      "requires_follow_up": false,
+      "model_outputs_recorded": false,
+      "static_assertions": [
+        {
+          "id": "eval_definition_is_new",
+          "description": "当前评测定义包含该成对场景；旧快照只保留评测 1–12。",
+          "status": "pass",
+          "current": {
+            "eval_defined": true
+          },
+          "baseline": {
+            "eval_defined": false
+          }
+        },
+        {
+          "id": "single_record_dna_boundary",
+          "description": "同一条合成训练记录在两版的阻力反应均为低置信度，并保留未知维度；这是静态正确性对照，不代表自然语言输出优劣。",
+          "status": "pass",
+          "current": {
+            "resistance_confidence": "low",
+            "unknown_dimensions": 7
+          },
+          "baseline": {
+            "resistance_confidence": "low",
+            "unknown_dimensions": 7
+          }
+        }
+      ],
+      "manual_review": [
+        "在两个全新、隔离的对话中分别粘贴同一提示词；不要沿用画像、文件或记忆。",
+        "记录完整原始输出、输入/输出 Token 与完成时间；本静态结果没有任何模型输出。",
+        "检查是否引入未提供的个人信息、照片、身份或持久化声明。",
+        "确认两版都不从一次训练推出稳定 DNA；任何结论必须为未知或低置信度。"
+      ]
+    }
+  ]
+}
