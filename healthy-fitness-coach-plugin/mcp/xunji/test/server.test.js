@@ -423,7 +423,7 @@ test('service returns trend metrics alongside the cached training range', async 
   const service = createTrainingService({
     cache: memoryCache(),
     credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
-    client: { async fetchDay(date) { return { records: [`${date},id:1,胸部训练,1组,60kg,10次`] }; } },
+    client: { async fetchDay(date) { return { records: [`${date},id:${date},胸部训练,1组,60kg,10次,source:xunji`] }; } },
     now: () => 123456
   });
   const result = await service.getTrainingTrends({ start_date: '2026-08-01', end_date: '2026-08-02' });

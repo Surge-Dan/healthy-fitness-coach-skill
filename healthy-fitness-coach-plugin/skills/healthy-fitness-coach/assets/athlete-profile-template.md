@@ -1,40 +1,38 @@
 # ATHLETE_PROFILE
 
-- 生成/更新日期：{{date}}
-- 资料来源：{{source}}
-- 数据范围与未知项：{{scope_and_unknowns}}
+- 资料来源：{{source_or_unknown}}
+- 日期：{{date_or_unknown}}
+- 是否同意持久化：{{persisted_or_unknown}}
+- 未知项：{{unknown_fields}}
+- 字段级来源、日期和持久化意图：{{field_provenance}}
 
-## 基本背景
+## 稳定画像
 
-- 年龄段：{{age_range}}
-- 性别（如用户愿意提供）：{{sex_or_unknown}}
-- 身高/体重（如用户愿意记录）：{{height_weight_or_unknown}}
-- 训练经验：{{experience}}
-- 场地与器械：{{equipment}}
-- 每周可训练次数/单次时长：{{frequency_duration}}
+- 主目标：{{goal}}
+- 训练经验：{{experience_level}}
+- 每周可稳定训练次数：{{training_days_per_week}}
+- 通常单次时长（分钟）：{{available_time_min}}
+- 常用场地：{{training_venue}}
+- 常用器械：{{available_equipment}}
+- 安全限制/伤病医疗约束：{{injury_or_medical_constraints}}
+- 长期偏好：{{long_term_preferences}}
 
-## 目标与优先级
-
-1. 主要目标：{{primary_goal}}
-2. 次要目标：{{secondary_goal}}
-3. 当前成功指标：{{success_metrics}}
-4. 时间窗口：{{time_window}}
-5. 不接受的代价：{{constraints}}
-
-## 安全与限制
-
-- 红旗筛查：{{red_flag_screen}}
-- 近期手术/急性外伤：{{surgery_or_acute_injury}}
-- 已知不适或动作限制：{{limitations}}
-- 停止/转介条件：{{stop_referral_conditions}}
-
-## 生活与恢复
+## 当前状态（仅本轮训练）
 
 - 睡眠：{{sleep}}
-- 工作/学习压力：{{stress}}
-- 日常活动量：{{activity}}
-- 饮食追踪意愿：{{nutrition_tracking_preference}}
+- 压力：{{stress}}
+- 疲劳：{{fatigue}}
+- 疼痛或不适：{{pain}}
+- 当天可用时间（分钟）：{{available_time_min}}
+- 临时器械：{{temporary_equipment}}
+
+## 证据状态（用于复盘）
+
+- 训练记录：{{training_records}}
+- 完成率：{{completion_rate}}
+- 表现：{{performance}}
+- 恢复结果：{{recovery_results}}
 
 ## 使用说明
 
-这份档案只保存用户明确提供或可追溯的数据。未知项保持未知，不根据身材、性别或训练目标猜测。背景发生变化时更新本文件，并在`DECISION_LOG.md`记录对计划的影响。
+只填写用户明确提供的白名单字段；未知项保持未知。稳定、当前和证据状态分别管理，当前状态不写入稳定画像，证据状态不由画像合并延续；`available_equipment` 作为当前状态输入时仅映射到 `temporary_equipment`。拒绝持久化时仅在当前对话使用。稳定字段被用户明确更新时，在 `DECISION_LOG.md` 记录旧值、新值及其字段级来源、日期和持久化意图。此模板不代表 Agent 已获得永久记忆，也不保存 API Key、联系方式、证件信息、账号口令或无关隐私。

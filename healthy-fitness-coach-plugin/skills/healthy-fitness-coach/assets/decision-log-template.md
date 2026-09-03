@@ -12,6 +12,8 @@
 
 {{facts}}
 
+- 来源记录 ID：{{evidence_record_ids}}
+
 ### 推断
 
 {{inference}}
@@ -26,6 +28,8 @@
 - 调整：{{change}}
 - 不调整：{{do_not_change}}
 
+- 证据顺序：事实→推断→不确定性→决策→验证
+
 ### 调整细节
 
 - 改变的变量：{{variables}}
@@ -34,3 +38,6 @@
 - 停止/回退条件：{{stop_revert}}
 - 下一次验证：{{validation_metric}}
 - 复核日期：{{review_date}}
+- 旧计划版本：{{previous_program_version}}
+- 新计划版本：{{next_program_version}}
+- 字段级差异：{{field_diffs}}

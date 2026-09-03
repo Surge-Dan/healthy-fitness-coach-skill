@@ -8,15 +8,28 @@
 
 ## 周结构
 
+> 编译状态：{{program_status}}
+>
+> 结构原因码：{{structure_reason_codes}}
+>
+> 未知/待补充字段：{{missing_fields}}
+
 | 日程 | 训练类型 | 主要内容 | 时长 | 最低有效版本 |
 | --- | --- | --- | --- | --- |
-| {{day_1}} | {{type}} | {{focus}} | {{duration}} | {{minimum}} |
-| {{day_2}} | {{type}} | {{focus}} | {{duration}} | {{minimum}} |
-| {{day_3}} | {{type}} | {{focus}} | {{duration}} | {{minimum}} |
+{{weekly_schedule_rows}}
 
 ## 每次训练规范
 
 每个动作/有氧模块写清：动作或方式、组数/时长、次数/强度、RIR/RPE、休息、替代方案和停止条件。
+
+### 动作选择边界
+
+- 动作槽位：{{movement_slots}}
+- 器械筛选：{{equipment_filter}}
+- 限制筛选：{{constraint_filter}}
+- 替代原则：{{substitution_boundary}}
+
+未完成器械和限制筛选前，不把动作槽位写成唯一处方；不根据性别限制动作或目标。
 
 ## 进阶规则
 
@@ -31,6 +44,8 @@
 1. {{metric_1}}
 2. {{metric_2}}
 3. {{metric_3}}
+
+> 每项指标标注为“阻力训练”或“有氧”。每周期最多保留 3 项；未知数据不补造精确数值。
 
 ## 周期结束判断
 
