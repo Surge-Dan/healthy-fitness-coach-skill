@@ -39,6 +39,7 @@ function assertSameFile(sourceRelative, targetRelative = sourceRelative) {
 const canonicalSkillFiles = [
   'SKILL.md',
   'agents/openai.yaml',
+  'evals/evals.json',
   ...listFiles(path.join(canonical, 'assets'), 'assets'),
   ...listFiles(path.join(canonical, 'references'), 'references')
 ];
@@ -81,6 +82,16 @@ try {
   for (const relative of listFiles(path.join(copiedSkill, 'references'), 'references').filter((file) => file.endsWith('.js'))) {
     require(path.join(copiedSkill, relative));
   }
+  const dnaInput = path.join(copied, 'dna-smoke-input.json');
+  const dnaOutput = path.join(copied, 'dna-smoke-output.json');
+  fs.writeFileSync(dnaInput, JSON.stringify({
+    review_facts: { data_range: { start: '2026-01-01', end: '2026-01-07' }, quality: { status: 'complete' }, performance: { points: [], comparisons: [] }, recovery: { status: 'not_confirmed', observations: [] } },
+    review_decision: { keep: ['Plugin DNA CLI smoke'], changes: [] }
+  }));
+  execFileSync(process.execPath, [path.join(copied, 'scripts', 'extract-training-dna.js'), '--input', dnaInput, '--output', dnaOutput], { encoding: 'utf8' });
+  const dna = JSON.parse(fs.readFileSync(dnaOutput, 'utf8'));
+  assert.equal(dna.schema_version, '1.0', 'copied Plugin DNA CLI must emit the versioned schema');
+  assert.deepEqual(dna.decision_ledger[0].keep, ['Plugin DNA CLI smoke']);
   const recipes = execFileSync(process.execPath, [path.join(copied, 'scripts', 'compile-visual-brief.js'), '--list-recipes'], { encoding: 'utf8' });
   assert.equal(JSON.parse(recipes).length, 12, 'copied Plugin CLI must load all visual recipes');
   const modes = execFileSync(process.execPath, [path.join(copied, 'scripts', 'render-visual-assets.js'), '--list-modes'], { encoding: 'utf8' });
