@@ -21,6 +21,29 @@ test('creates an auditable static comparison for precisely evals 13 through 18',
   assert.ok(result.cases.every((item) => !Object.hasOwn(item, 'new_model_output') && !Object.hasOwn(item, 'old_model_output')));
 });
 
+test('marks a static assertion failed when its current source evidence is missing', () => {
+  const fixtureRoot = fs.mkdtempSync(path.join(__dirname, 'paired-evaluation-missing-'));
+  const current = path.join(fixtureRoot, 'healthy-fitness-coach');
+  const baseline = path.join(fixtureRoot, 'healthy-fitness-coach-workspace', 'training-os-redesign', 'skill-snapshot');
+  try {
+    fs.mkdirSync(path.join(current, 'evals'), { recursive: true });
+    fs.mkdirSync(path.join(current, 'references'), { recursive: true });
+    fs.mkdirSync(path.join(baseline, 'evals'), { recursive: true });
+    fs.mkdirSync(path.join(baseline, 'references'), { recursive: true });
+    fs.copyFileSync(path.join(root, 'healthy-fitness-coach', 'evals', 'evals.json'), path.join(current, 'evals', 'evals.json'));
+    fs.copyFileSync(path.join(root, 'healthy-fitness-coach-workspace', 'training-os-redesign', 'skill-snapshot', 'evals', 'evals.json'), path.join(baseline, 'evals', 'evals.json'));
+    fs.copyFileSync(path.join(root, 'healthy-fitness-coach', 'references', 'training-dna-engine.js'), path.join(current, 'references', 'training-dna-engine.js'));
+    fs.copyFileSync(path.join(root, 'healthy-fitness-coach-workspace', 'training-os-redesign', 'skill-snapshot', 'references', 'training-dna-engine.js'), path.join(baseline, 'references', 'training-dna-engine.js'));
+
+    const result = buildPairedEvaluation({ root: fixtureRoot });
+    const simpleQuestion = result.cases.find((item) => item.eval_id === 13).static_assertions.find((item) => item.id === 'simple_question_contract');
+    assert.equal(simpleQuestion.current.present, false);
+    assert.equal(simpleQuestion.status, 'fail');
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
 test('writes a self-contained review page and results without secrets, personal data, or photos', () => {
   const output = writePairedEvaluationArtifacts({ root });
   const resultText = fs.readFileSync(output.results_path, 'utf8');

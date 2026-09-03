@@ -38,8 +38,15 @@ function evidence(root, relativePath, fragments) {
   };
 }
 
-function assertion({ id, description, current, baseline, status = 'pass' }) {
-  return { id, description, status, current, baseline };
+function currentEvidencePasses(value) {
+  if (Array.isArray(value)) return value.every(currentEvidencePasses);
+  if (!value || typeof value !== 'object') return true;
+  if (Object.hasOwn(value, 'present')) return value.present === true && value.fragments_present === true;
+  return Object.values(value).every(currentEvidencePasses);
+}
+
+function assertion({ id, description, current, baseline, status }) {
+  return { id, description, status: status || (currentEvidencePasses(current) ? 'pass' : 'fail'), current, baseline };
 }
 
 function manualReview(caseId) {
