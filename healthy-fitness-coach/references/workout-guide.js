@@ -48,6 +48,10 @@ function compact(exercise) {
   return { id: exercise.id, slug: exercise.slug, name: exercise.name, equipment: exercise.equipment, muscles: exercise.muscles };
 }
 
+function renderSource(source) {
+  return `[${source.name}](${source.url})（${source.license}）${source.changes ? `，处理说明：${source.changes}` : ''}`;
+}
+
 function matchExercise(query) {
   const raw = typeof query === 'string' ? query.normalize('NFKC').trim() : '';
   if (!raw || raw.length > 120) return { status: 'no_match', query: raw };
@@ -68,10 +72,13 @@ function renderExerciseCard(query) {
   const frames = exercise.frames.slice().sort((a, b) => a.index - b.index).map((frame) =>
     `![${title} 第 ${frame.index} 帧](${RAW_BASE}/${frame.displayPath})`).join('\n\n');
   const sourcePage = `${REPOSITORY}/tree/${COMMIT}/packages/workout-guide/assets/${exercise.slug}`;
-  const attributions = [exercise.attribution, ...exercise.frames.map((frame) => frame.attribution)].filter(Boolean);
-  const sources = [...new Map(attributions.filter((item) => item.source?.url).map((item) => [item.source.url, item.source])).values()];
-  const derivative = sources.map((source) => `；上游素材：[${source.name}](${source.url})（${source.license}）${source.changes ? `，处理说明：${source.changes}` : ''}`).join('');
-  return `# ${title}\n\n- 原始动作名：${exercise.name}\n- 器械：${exercise.equipment}\n- 主要肌群：${exercise.muscles.primary}\n\n${frames}\n\n> 图片加载失败时仍可按文字识别动作，并打开[固定版本源页](${sourcePage})。这些静态示意图用于动作识别与顺序参考，不代表对用户动作质量的评估。\n\n图片署名：${exercise.attribution.creator}；许可：[CC BY-SA 4.0](${exercise.attribution.licenseUrl})${derivative}。图卡基于 workout-guide 固定提交 \`${COMMIT}\` 按需引用，未在发布包内复制图片。`;
+  const sourceLines = [];
+  if (exercise.attribution.source) sourceLines.push(`- 动作级来源：${renderSource(exercise.attribution.source)}`);
+  for (const frame of exercise.frames) {
+    if (frame.attribution.source) sourceLines.push(`- 第 ${frame.index} 帧来源：${renderSource(frame.attribution.source)}`);
+  }
+  const derivative = sourceLines.length ? `\n\n上游衍生来源：\n${sourceLines.join('\n')}` : '';
+  return `# ${title}\n\n- 原始动作名：${exercise.name}\n- 器械：${exercise.equipment}\n- 主要肌群：${exercise.muscles.primary}\n\n${frames}\n\n> 图片加载失败时仍可按文字识别动作，并打开[固定版本源页](${sourcePage})。这些静态示意图用于动作识别与顺序参考，不代表对用户动作质量的评估。\n\n图片署名：${exercise.attribution.creator}；许可：[CC BY-SA 4.0](${exercise.attribution.licenseUrl})。${derivative}\n\n图卡基于 workout-guide 固定提交 \`${COMMIT}\` 按需引用，未在发布包内复制图片。`;
 }
 
 module.exports = { matchExercise, renderExerciseCard, constants: { COMMIT, RAW_BASE, REPOSITORY, CHINESE_ALIASES } };

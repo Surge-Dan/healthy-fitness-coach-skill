@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const childProcess = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
@@ -71,4 +72,74 @@ test('card uses ordered immutable image URLs and complete attribution', () => {
   assert.ok(markdown.indexOf(urls[1]) < markdown.indexOf(urls[2]));
   assert.ok(markdown.includes('图片加载失败'));
   assert.doesNotMatch(markdown, /个性化动作评估/);
+});
+
+test('cards preserve action-level and frame-level upstream source relationships', () => {
+  const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
+  const derived = catalog.exercises.filter((exercise) => exercise.attribution.source);
+  assert.equal(derived.length, 76);
+  for (const exercise of derived) {
+    const markdown = renderExerciseCard(exercise.slug);
+    assert.match(markdown, new RegExp(`动作级来源：\\[${exercise.attribution.source.name}\\]`));
+    for (const frame of exercise.frames.filter((item) => item.attribution.source)) {
+      assert.match(markdown, new RegExp(`第 ${frame.index} 帧来源：\\[${frame.attribution.source.name}\\]`));
+      assert.ok(markdown.includes(frame.attribution.source.url));
+    }
+  }
+});
+
+test('third-party notice includes the complete upstream MIT license and immutable source', () => {
+  const notice = fs.readFileSync(path.join(root, 'references', 'workout-guide-license.md'), 'utf8');
+  const normalizedNotice = notice.replace(/\s+/g, ' ');
+  assert.ok(notice.includes(`https://github.com/bryllim/workout-guide/blob/${constants.COMMIT}/LICENSE`));
+  for (const requiredText of [
+    'MIT License',
+    'Copyright (c) 2026 Bryl Lim',
+    'Permission is hereby granted, free of charge, to any person obtaining a copy',
+    'The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.',
+    'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED',
+    'IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM'
+  ]) {
+    assert.ok(normalizedNotice.includes(requiredText), `missing MIT notice text: ${requiredText}`);
+  }
+});
+
+test('release privacy scanner catches local user paths without relying on wxid', () => {
+  const buildScript = path.resolve(root, '..', 'quality-tests', 'build-release.py');
+  const probe = String.raw`
+import importlib.util
+import pathlib
+import sys
+
+spec = importlib.util.spec_from_file_location("build_release", pathlib.Path(sys.argv[1]))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+users = "Us" + "ers"
+wechat = "We" + "Chat"
+wechat_cache = "xwechat" + "_files"
+home = "ho" + "me"
+backslash = chr(92)
+unsafe = [
+    f"C:{backslash}{users}{backslash}Daniel{backslash}Pictures{backslash}form.png",
+    f"E:/{users}/daniel/Pictures/form.jpg",
+    f"D:/{wechat}/daniel/photo.jpeg",
+    f"D:/{wechat} Files/daniel/photo.png",
+    f"cache/{wechat_cache}/daniel/photo.jpg",
+    f"/{users}/daniel/Pictures/photo.png",
+    f"/{home}/daniel/Pictures/photo.png",
+]
+safe = [
+    "C:/Users/Public/Pictures/sample.png",
+    "/Users/Shared/Pictures/sample.png",
+    "docs/Users/daniel/example.md",
+    "https://example.com/Users/daniel/photo.png",
+]
+assert all(module.find_private_data(item) for item in unsafe)
+assert all(module.find_private_data(item) is None for item in safe)
+`;
+  const result = childProcess.spawnSync('python', ['-X', 'utf8', '-c', probe, buildScript], {
+    encoding: 'utf8'
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });

@@ -11,6 +11,25 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'healthy-fitness-coach'
 EXCLUDED_TESTS = {'paired-evaluation.test.js'}
 
+PRIVATE_DATA_PATTERNS = (
+    ('WeChat account id', re.compile(r'wxid_[a-zA-Z0-9]+')),
+    ('WeChat local cache', re.compile(r'(?:^|[/\\])xwechat_files(?:[/\\]|$)', re.IGNORECASE)),
+    ('Windows user home', re.compile(r'(?<![A-Za-z0-9+.-])[A-Za-z]:[/\\]+Users[/\\]+(?!Public(?:[/\\]|$))[^/\\\s<>"|?*]+', re.IGNORECASE)),
+    ('Windows WeChat home', re.compile(r'(?<![A-Za-z0-9+.-])[A-Za-z]:[/\\]+WeChat(?: Files)?(?:[/\\]|$)', re.IGNORECASE)),
+    ('macOS user home', re.compile(r'(?<![A-Za-z0-9+.-])/Users/(?!Shared(?:/|$)|Public(?:/|$))[^/\s]+')),
+    ('Linux user home', re.compile(r'(?<![A-Za-z0-9+.-])/home/(?!shared?(?:/|$)|public(?:/|$))[^/\s]+', re.IGNORECASE)),
+    ('private key', re.compile(r'-----BEGIN .*PRIVATE KEY-----')),
+    ('OpenAI key', re.compile(r'\bsk-[A-Za-z0-9]{24,}')),
+    ('AWS access key', re.compile(r'\bAKIA[A-Z0-9]{16}')),
+)
+
+def find_private_data(text):
+    """Return the first matched privacy rule name, or None for clean text."""
+    for name, pattern in PRIVATE_DATA_PATTERNS:
+        if pattern.search(text):
+            return name
+    return None
+
 def build():
     entries = []
     for file in sorted(SOURCE.rglob('*')):
@@ -25,9 +44,9 @@ def build():
             continue
         data = file.read_bytes()
         text = data.decode('utf-8')
-        for pattern in (r'wxid_[a-zA-Z0-9]+', r'[A-Za-z]:[/\\]Users[/\\](?!Public\b)[^/\\\s]+', r'-----BEGIN .*PRIVATE KEY-----', r'\bsk-[A-Za-z0-9]{24,}', r'\bAKIA[A-Z0-9]{16}'):
-            if re.search(pattern, text):
-                raise ValueError(f'Private data pattern in {relative}')
+        privacy_match = find_private_data(text)
+        if privacy_match:
+            raise ValueError(f'Private data pattern ({privacy_match}) in {relative}')
         entries.append((relative.as_posix(), data))
     target = ROOT / 'dist' / 'healthy-fitness-coach.zip'
     target.parent.mkdir(exist_ok=True)
