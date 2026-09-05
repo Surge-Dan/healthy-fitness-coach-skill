@@ -10,7 +10,7 @@ const { filterModelFacingRecords, parseTrainingRecords } = require('./parser.js'
 const { assertDate } = require('./schemas.js');
 const { renderTrainingDashboardHtml } = require('./dashboard.js');
 const { buildVisualReportAssets } = require('./visual-report.js');
-const { analyzeTrainingRange } = require('./trends.js');
+const { analyzeTrainingRange, buildReviewFirstTrainingDNA } = require('./trends.js');
 const { compareTrainingDNA } = require('./training-dna.js');
 const { validateUpsertRecords } = require('./upsert.js');
 const { decodeXunjiResponse, XunjiClient } = require('./xunji-client.js');
@@ -241,7 +241,7 @@ function createTrainingService({ cache = null, cacheFactory, dnaStore = null, cl
     const range = await getTrainingRange({ start_date, end_date, refresh_today, credentialOverride: credential });
     if (range.error) return range;
     const trends = analyzeTrainingRange({ ...range, planned_sessions_per_week, profile });
-    const current = trends.training_dna;
+    const current = buildReviewFirstTrainingDNA({ range, planned_sessions_per_week, profile, previous_dna: null });
     let persisted = false;
     let version = 1;
     let previousVersion;

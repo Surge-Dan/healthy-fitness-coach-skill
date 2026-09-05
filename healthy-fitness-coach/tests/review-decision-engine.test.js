@@ -10,6 +10,7 @@ const {
   buildDecisionLogEntry
 } = require('../references/review-decision-engine.js');
 const { summarizeTrainingRange } = require('../references/training-summary.js');
+const { compileProgramRules } = require('../references/program-rules.js');
 
 function record(date, id, value, overrides = {}) {
   return {
@@ -143,6 +144,81 @@ test('allows progression for comparable improvement and observes a single declin
   assert.ok(observed);
   assert.equal(observed.decision.action, 'observe');
   assert.equal(observed.decision.rewrite_plan, false);
+});
+
+test('treats duplicate evidence, conflicting effort, and different equipment as unknown and non-comparable', () => {
+  const cases = [
+    [
+      record('2026-08-01', 'same', 60),
+      record('2026-08-08', 'same', 62.5)
+    ],
+    [
+      record('2026-08-01', 'a', 60, { rpe: 10 }),
+      record('2026-08-08', 'b', 62.5, { rpe: 10 })
+    ],
+    [
+      record('2026-08-01', 'a', 60, { equipment: 'barbell' }),
+      record('2026-08-08', 'b', 62.5, { equipment: 'smith_machine' })
+    ]
+  ];
+
+  for (const records of cases) {
+    const facts = deriveReviewFacts({ records });
+    const judgments = buildReviewJudgments(facts);
+    assert.equal(facts.quality.status, 'unknown');
+    assert.equal(facts.performance.trend_status, 'unknown');
+    assert.equal(facts.performance.comparisons.length, 0);
+    assert.equal(judgments.judgments.some((item) => item.code === 'comparable_improvement'), false);
+    assert.notEqual(judgments.overall, 'progress');
+  }
+});
+
+test('rebuilds executable slots and current program after budget and progression changes', () => {
+  const currentProgram = compileProgramRules({
+    goal: 'build strength',
+    experience_level: 'beginner',
+    training_days_per_week: 2,
+    available_time_min: 45,
+    available_equipment: ['dumbbells', 'bench'],
+    injury_or_medical_constraints: 'none reported'
+  });
+  const judgments = {
+    review_date: '2026-09-15',
+    judgments: [
+      {
+        code: 'low_adherence', result: 'adjust',
+        facts: [{ source_record_ids: ['adherence-1'] }],
+        decision: { action: 'reduce_complexity', variable: 'complexity' },
+        validation: { review_date: '2026-09-15' }
+      },
+      {
+        code: 'comparable_improvement', result: 'adjust',
+        facts: [{ source_record_ids: ['performance-1'] }],
+        decision: { action: 'progress', variable: 'progression' },
+        validation: { review_date: '2026-09-15' }
+      }
+    ]
+  };
+
+  const result = selectProgramChanges(judgments, currentProgram);
+  const proposed = result.proposed_program;
+  assert.equal(currentProgram.session_budget.movement_slots, 3);
+  assert.equal(proposed.session_budget.movement_slots, 2);
+  assert.ok(proposed.session_slots.every((slot) => slot.movement_slots.length === 2));
+  assert.doesNotMatch(proposed.current_program.movement_slots, /horizontal_push/);
+  assert.doesNotMatch(proposed.current_program.weekly_schedule_rows, /horizontal_push/);
+  assert.equal(proposed.current_program.progression_rules, proposed.progression_rule);
+
+  const volumeResult = selectProgramChanges({ judgments: [{
+    code: 'poor_recovery_with_decline', result: 'adjust',
+    facts: [{ source_record_ids: ['recovery-1'] }],
+    decision: { action: 'deload', variable: 'volume' },
+    validation: { review_date: '2026-09-15' }
+  }] }, currentProgram).proposed_program;
+  assert.equal(volumeResult.session_budget.total_work_sets_max, 6);
+  assert.equal(volumeResult.session_budget.sets_per_slot.max, 2);
+  assert.ok(volumeResult.session_slots.every((slot) => /one_to_2_work_sets_each/.test(slot.minimum_version)));
+  assert.match(volumeResult.current_program.weekly_schedule_rows, /one_to_2_work_sets_each/);
 });
 
 test('selects at most two traceable changes and emits field-level program diff', () => {

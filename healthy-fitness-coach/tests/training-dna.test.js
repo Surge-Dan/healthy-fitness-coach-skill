@@ -76,6 +76,33 @@ test('promotes comparable complete results across review windows without double 
   assert.equal(ids.length, new Set(ids).size);
 });
 
+test('preserves declining comparison direction as counterevidence', () => {
+  const base = reviewWindow('w1');
+  const declining = {
+    ...base,
+    facts: {
+      ...base.facts,
+      performance: {
+        ...base.facts.performance,
+        comparisons: [{
+          ...base.facts.performance.comparisons[0],
+          before: 62.5,
+          after: 60,
+          delta: -2.5,
+          direction: 'down'
+        }],
+        trend_status: 'declining'
+      }
+    }
+  };
+
+  const dna = consumeReviewEvidence({ windows: [declining] });
+  const dimension = dna.dimensions.resistance_response;
+  assert.equal(dimension.evidence[0].direction, 'down');
+  assert.match(dimension.counterevidence.join(' '), /出现1次下降/);
+  assert.doesNotMatch(dimension.counterevidence.join(' '), /没有足够反向结果/);
+});
+
 test('gates recovery DNA on dated recovery results and preserves legacy dimensions', () => {
   const previous = { dimensions: { goal_constraints: { status: 'observed', confidence: 'low', facts: ['goal=耐力'] }, adherence: { status: 'supported', confidence: 'high' } } };
   const windows = [reviewWindow('w1'), reviewWindow('w2'), reviewWindow('w3')].map((window) => ({

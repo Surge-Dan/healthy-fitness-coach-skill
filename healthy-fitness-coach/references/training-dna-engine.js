@@ -273,7 +273,8 @@ function numberPresent(value) {
 
 function completePerformanceComparison(comparison, facts) {
   const ids = sourceIds(comparison?.source_record_ids);
-  if (!ids.length || !numberPresent(comparison?.before) || !numberPresent(comparison?.after)) return { complete: false, dimension: 'resistance_response', ids };
+  const direction = comparison?.direction || (comparison?.after > comparison?.before ? 'up' : comparison?.after < comparison?.before ? 'down' : 'flat');
+  if (!ids.length || !numberPresent(comparison?.before) || !numberPresent(comparison?.after)) return { complete: false, dimension: 'resistance_response', ids, direction };
   const metric = String(comparison.metric || '').toLowerCase();
   const aerobic = numberPresent(comparison.duration_min) || numberPresent(comparison.distance_km)
     || /duration|distance|pace|speed|heart|hr|有氧|时长|距离|配速|心率/i.test(`${metric} ${comparison.exercise || ''}`);
@@ -284,7 +285,7 @@ function completePerformanceComparison(comparison, facts) {
     const complete = linked.length >= ids.length
       ? linked.every((point) => numberPresent(point.duration_min ?? point.duration) && numberPresent(point.distance_km ?? point.distance))
       : numberPresent(comparison.duration_min) && numberPresent(comparison.distance_km);
-    return { complete, dimension, ids };
+    return { complete, dimension, ids, direction };
   }
   const hasLoad = (point) => numberPresent(point.load_kg ?? point.weight_kg)
     || (numberPresent(point.value) && /load|weight|负重/i.test(String(point.metric || '')));
@@ -295,7 +296,7 @@ function completePerformanceComparison(comparison, facts) {
       && (numberPresent(point.rir) || numberPresent(point.rpe)))
     : (comparisonHasLoad
       && (numberPresent(comparison.rir) || numberPresent(comparison.rpe)));
-  return { complete, dimension, ids };
+  return { complete, dimension, ids, direction };
 }
 
 function reviewQuality(facts, decision) {

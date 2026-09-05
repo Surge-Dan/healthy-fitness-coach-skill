@@ -306,6 +306,43 @@ function diffObjects(before, after, prefix = '') {
   return diffs;
 }
 
+function synchronizeProgramDerivatives(program) {
+  const movementLimit = finite(program.session_budget?.movement_slots);
+  const totalSetLimit = finite(program.session_budget?.total_work_sets_max);
+  const currentSetMax = finite(program.session_budget?.sets_per_slot?.max);
+  if (movementLimit && totalSetLimit !== undefined && currentSetMax !== undefined) {
+    const setsPerSlotMax = Math.max(1, Math.min(currentSetMax, Math.floor(totalSetLimit / movementLimit)));
+    program.session_budget.sets_per_slot = {
+      ...program.session_budget.sets_per_slot,
+      min: Math.min(finite(program.session_budget.sets_per_slot.min) ?? 1, setsPerSlotMax),
+      max: setsPerSlotMax
+    };
+  }
+  if (Array.isArray(program.session_slots) && movementLimit !== undefined) {
+    program.session_slots = program.session_slots.map((slot) => ({
+      ...slot,
+      movement_slots: asArray(slot.movement_slots).slice(0, Math.max(0, Math.floor(movementLimit))),
+      minimum_version: `keep_first_two_movement_slots_with_one_to_${program.session_budget?.sets_per_slot?.max ?? 1}_work_sets_each`
+    }));
+  }
+  if (!program.current_program || typeof program.current_program !== 'object') return;
+  const firstSlot = program.session_slots?.[0];
+  const rows = asArray(program.session_slots).map((slot, index) => {
+    const content = asArray(slot.movement_slots).map((movement) => movement.movement_mode).join('、') || '待器械和限制确认';
+    return `| Day ${index + 1} | ${slot.focus} | ${content} | ${text(program.session_budget?.declared_minutes, '未提供')} min | ${slot.minimum_version} |`;
+  });
+  Object.assign(program.current_program, {
+    program_status: program.status,
+    weekly_schedule_rows: rows.join('\n') || '| 未提供 | 未提供 | 待补充编排信息 | 未提供 | 未提供 |',
+    movement_slots: asArray(program.session_slots).map((slot) => `${slot.id}: ${asArray(slot.movement_slots).map((movement) => movement.movement_mode).join('、')}`).join('；') || '未提供',
+    equipment_filter: firstSlot ? asArray(firstSlot.equipment_filter).join('、') || '未提供' : '未提供',
+    constraint_filter: firstSlot?.constraint_filter || '未提供',
+    substitution_boundary: firstSlot?.substitution_boundary || '未提供',
+    progression_rules: program.progression_rule,
+    regression_rules: program.regression_rule
+  });
+}
+
 function selectProgramChanges(judgmentsInput = {}, currentProgram = {}) {
   const priority = { low_adherence: 1, poor_recovery_with_decline: 2, comparable_improvement: 3 };
   const judgments = asArray(judgmentsInput.judgments ?? judgmentsInput).slice().sort((a, b) => (priority[a?.code] || 9) - (priority[b?.code] || 9));
@@ -334,6 +371,7 @@ function selectProgramChanges(judgmentsInput = {}, currentProgram = {}) {
   }
   if (judgments.some((item) => item.code === 'effective_structure' || item.code === 'comparable_improvement')) kept.push('当前有效的动作选择与记录方式');
   if (!kept.length) kept.push('安全边界、同动作比较原则和未触发调整的计划字段');
+  if (changes.length) synchronizeProgramDerivatives(proposed);
   const fromVersion = text(currentProgram.version, 'unknown');
   const toVersion = changes.length ? (fromVersion === 'unknown' ? 'v2' : `${fromVersion}-reviewed`) : fromVersion;
   proposed.version = toVersion;

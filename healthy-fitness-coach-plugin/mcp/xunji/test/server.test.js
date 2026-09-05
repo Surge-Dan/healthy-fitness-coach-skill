@@ -257,6 +257,31 @@ test('service re-filters Garmin records from a cache hit before model output', a
   assert.deepEqual(result.records.map((record) => record.id), ['safe']);
 });
 
+test('service DNA extraction uses review-first evidence and keeps incomplete evidence below supported/high', async () => {
+  const service = createTrainingService({
+    cache: memoryCache(),
+    credentialProvider: async () => 'FAKE_TEST_CREDENTIAL',
+    client: {
+      async fetchDay(date) {
+        return {
+          records: [
+            `id: bench-${date} train_time: ${date} 08:00 name: 卧推 3 sets x 8 reps weight: 60kg`,
+            `id: bench-${date}-2 train_time: ${date} 08:00 name: 卧推 3 sets x 8 reps weight: 62.5kg`
+          ]
+        };
+      }
+    },
+    now: () => 1000
+  });
+
+  const result = await service.getTrainingDNA({ start_date: '2026-08-01', end_date: '2026-08-02' });
+  assert.equal(result.error, undefined);
+  assert.notEqual(result.training_dna.dimensions.resistance_response.status, 'supported');
+  assert.notEqual(result.training_dna.dimensions.resistance_response.confidence, 'high');
+  assert.equal(result.training_dna.data_quality.raw_records_consumed, 0);
+  assert.equal(result.range.records.length, 4);
+});
+
 test('refresh_today does not refresh a historical range end', async () => {
   const calls = [];
   const service = createTrainingService({

@@ -7,6 +7,25 @@ const { join } = require('node:path');
 const { spawnSync } = require('node:child_process');
 const test = require('node:test');
 
+test('workspace visual fixtures do not expose local messaging-app paths or account ids', () => {
+  const repositoryRoot = join(__dirname, '..', '..', '..', '..');
+  const tracked = spawnSync('git', ['ls-files', '-z', '--', 'healthy-fitness-coach-workspace'], {
+    cwd: repositoryRoot,
+    encoding: 'buffer'
+  });
+  assert.equal(tracked.status, 0, tracked.stderr?.toString('utf8'));
+  const files = tracked.stdout.toString('utf8').split('\0').filter(Boolean);
+  const forbidden = [
+    ['wx', 'id_demo_001'].join(''),
+    ['xwe', 'chat_files_demo'].join(''),
+    ['D:', '/Synthetic/', 'WeChat/', 'render-share-png.png'].join('')
+  ];
+  for (const file of files) {
+    const source = readFileSync(join(repositoryRoot, file)).toString('utf8');
+    for (const marker of forbidden) assert.equal(source.includes(marker), false, `private fixture marker in ${file}: ${marker}`);
+  }
+});
+
 test('render-share-card creates a PNG at the requested social ratio', () => {
   const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-png-'));
   const input = join(root, 'share.json');
@@ -50,7 +69,7 @@ test('visual composition renderer exports star-trail collage as a distinct photo
     recipe: 'star-trail-collage',
     title: '今天也在变强',
     subtitle: '把出现，变成自己的节奏',
-    photos: ['D:/WeChat/xwechat_files/wxid_ro1t5w4qycz622_8905/temp/RWTemp/2026-08/e0f90f6dbb3adbab619492252e923472/27e989c2d993387103706a49fd55c22d.png'],
+    photos: ['fixtures/nonexistent-photo.png'],
     metrics: [{ label: '训练天数', value: '74' }]
   }));
   const result = spawnSync('python', ['scripts/render-visual-composition.py', '--input', input, '--output', output, '--ratio', '3:4'], { cwd: join(__dirname, '..'), encoding: 'utf8' });

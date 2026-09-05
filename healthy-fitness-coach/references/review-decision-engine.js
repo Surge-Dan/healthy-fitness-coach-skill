@@ -73,14 +73,18 @@ function performancePoint(record, index) {
   if (finite(source.sets) === undefined) missingFields.push('sets');
   const date = dateValue(source.date ?? source.record_date);
   if (!date) missingFields.push('date');
+  const rir = numberFrom(source, ['rir', 'rpe_or_rir']);
+  const rpe = finite(source.rpe);
   return {
     date,
     exercise: text(rawExercise, 'unknown'),
     metric,
     value,
     unit: text(unit, 'unknown').toLowerCase(),
-    rir: numberFrom(source, ['rir', 'rpe_or_rir']),
-    rpe: finite(source.rpe),
+    rir,
+    rpe,
+    effort_conflict: rir !== undefined && rpe !== undefined && Math.abs(rir + rpe - 10) > 1,
+    equipment: text(source.equipment ?? source.equipment_id ?? source.machine ?? source.apparatus).trim().toLowerCase(),
     sets: finite(source.sets),
     missing_fields: missingFields,
     source_record_id: recordId(source, index)
@@ -89,7 +93,10 @@ function performancePoint(record, index) {
 
 function comparable(a, b) {
   if (a.missing_fields?.length || b.missing_fields?.length) return false;
+  if (a.source_record_id === b.source_record_id) return false;
+  if (a.effort_conflict || b.effort_conflict) return false;
   if (a.exercise !== b.exercise || a.metric !== b.metric || a.unit === 'unknown' || a.unit !== b.unit) return false;
+  if ((a.equipment || b.equipment) && a.equipment !== b.equipment) return false;
   if (a.rir !== undefined && b.rir !== undefined && Math.abs(a.rir - b.rir) > 1) return false;
   if (a.rpe !== undefined && b.rpe !== undefined && Math.abs(a.rpe - b.rpe) > 1) return false;
   if (a.sets !== undefined && b.sets !== undefined && a.sets !== b.sets) return false;
@@ -151,6 +158,9 @@ function deriveReviewFacts(input = {}) {
     || new Set(points.map((point) => `${point.exercise}|${point.metric}|${point.unit}`)).size > new Set(points.map((point) => `${point.exercise}|${point.metric}`)).size;
   const validRecords = sourceRecords.filter((record) => dateValue(record?.date ?? record?.record_date));
   const incompletePoints = points.filter((point) => point.missing_fields?.length > 0);
+  const sourceRecordIds = sourceRecords.map(recordId);
+  const duplicateRecordIds = [...new Set(sourceRecordIds.filter((id, index) => sourceRecordIds.indexOf(id) !== index))];
+  const effortConflictIds = points.filter((point) => point.effort_conflict).map((point) => point.source_record_id);
   const actualMissingDates = sourceRecords.map((record, index) => dateValue(record?.date ?? record?.record_date) ? null : `record:${recordId(record, index)}`).filter(Boolean);
   const rates = extractRates(input, summary);
   const comparisons = [];
@@ -161,6 +171,13 @@ function deriveReviewFacts(input = {}) {
     list.push(point);
     groups.set(key, list);
   });
+  const equipmentConflicts = [...groups.values()].flatMap((list) => list.slice(1).map((after, index) => {
+    const before = list[index];
+    return (before.equipment || after.equipment) && before.equipment !== after.equipment
+      ? [before.source_record_id, after.source_record_id]
+      : [];
+  })).flat();
+  const comparisonConflict = duplicateRecordIds.length > 0 || effortConflictIds.length > 0 || equipmentConflicts.length > 0;
   if (!mixedUnits) {
     for (const list of groups.values()) {
       for (let index = 1; index < list.length; index += 1) {
@@ -189,7 +206,7 @@ function deriveReviewFacts(input = {}) {
   const associatedRecovery = recovery.filter((observation) => observation.associated);
   const poorRecoveryCount = associatedRecovery.filter(poorRecovery).length;
   const weeks = new Set(dates.map(weekOf).filter(Boolean));
-  const qualityStatus = !sourceRecords.length || incompletePoints.length || actualMissingDates.length ? 'unknown'
+  const qualityStatus = !sourceRecords.length || incompletePoints.length || actualMissingDates.length || comparisonConflict ? 'unknown'
     : (mixedUnits || missingDates.length || warnings.length || summary.data_quality?.status === 'partial' ? 'partial' : 'complete');
   const uncertainties = [];
   if (!sourceRecords.length) uncertainties.push('训练记录缺失，无法判断趋势。');
@@ -197,6 +214,9 @@ function deriveReviewFacts(input = {}) {
   if (actualMissingDates.length) uncertainties.push(`训练记录中存在缺失日期：${actualMissingDates.join('、')}。`);
   if (incompletePoints.length) uncertainties.push(`关键比较字段缺失：${[...new Set(incompletePoints.flatMap((point) => point.missing_fields))].join('、')}。`);
   if (mixedUnits) uncertainties.push('测量单位混合或无法统一，未生成表现趋势。');
+  if (duplicateRecordIds.length) uncertainties.push(`来源记录ID重复：${duplicateRecordIds.join('、')}，不能当作独立证据。`);
+  if (effortConflictIds.length) uncertainties.push(`RIR与RPE互相冲突：${[...new Set(effortConflictIds)].join('、')}，相关表现不可比。`);
+  if (equipmentConflicts.length) uncertainties.push('同名动作的器械不一致，相关表现不可比。');
   if (points.length < MIN_TREND_POINTS) uncertainties.push('可比较表现点不足，暂不外推长期趋势。');
   if (recovery.length < 2) uncertainties.push('恢复记录不足，不能确认恢复模式。');
   const lastDirection = comparisons.at(-1)?.direction;
@@ -208,11 +228,26 @@ function deriveReviewFacts(input = {}) {
   return {
     schema_version: '1.0',
     data_range: { start, end, weeks_observed: weeks.size },
-    quality: { status: qualityStatus, records: sourceRecords.length, valid_records: validRecords.length, missing_dates: [...new Set([...missingDates, ...actualMissingDates])], warnings: warnings.slice(), mixed_units: mixedUnits },
+    quality: {
+      status: qualityStatus,
+      records: sourceRecords.length,
+      valid_records: validRecords.length,
+      missing_dates: [...new Set([...missingDates, ...actualMissingDates])],
+      warnings: [
+        ...warnings,
+        ...duplicateRecordIds.map((source_record_id) => ({ code: 'duplicate_record', source_record_id })),
+        ...[...new Set(effortConflictIds)].map((source_record_id) => ({ code: 'effort_conflict', source_record_id })),
+        ...(equipmentConflicts.length ? [{ code: 'equipment_conflict', source_record_ids: [...new Set(equipmentConflicts)] }] : [])
+      ],
+      mixed_units: mixedUnits,
+      duplicate_record_ids: duplicateRecordIds,
+      effort_conflict_record_ids: [...new Set(effortConflictIds)],
+      equipment_conflict_record_ids: [...new Set(equipmentConflicts)]
+    },
     adherence: { rates, current_rate: rates.filter((item) => item.known).at(-1)?.rate, sustained_low: rates.length >= 2 && rates.slice(-2).every((item) => item.known && item.rate < LOW_ADHERENCE_THRESHOLD), status: !rates.length || rates.some((item) => !item.known) ? 'unknown' : rates.length >= 2 && rates.slice(-2).every((item) => item.known && item.rate < LOW_ADHERENCE_THRESHOLD) ? 'low_sustained' : 'observed', threshold: LOW_ADHERENCE_THRESHOLD },
     performance: { points, comparisons, improvement_count: improvementCount, decline_count: declineCount, trend_status: trendStatus, trend: trendStatus, plateau_status: plateauStatus },
     recovery: { observations: recovery, poor_count: poorRecoveryCount, status: !associatedRecovery.length ? 'unknown' : poorRecoveryCount >= 2 ? 'poor' : 'not_confirmed' },
-    evidence: { record_ids: sourceRecords.map(recordId), comparison_record_ids: comparisons.flatMap((item) => item.source_record_ids) },
+    evidence: { record_ids: sourceRecordIds, comparison_record_ids: comparisons.flatMap((item) => item.source_record_ids) },
     review_date: input.review_date ?? input.reviewDate,
     facts: [
       { code: 'records_observed', value: sourceRecords.length, source_record_ids: sourceRecords.map(recordId) },
@@ -306,6 +341,43 @@ function diffObjects(before, after, prefix = '') {
   return diffs;
 }
 
+function synchronizeProgramDerivatives(program) {
+  const movementLimit = finite(program.session_budget?.movement_slots);
+  const totalSetLimit = finite(program.session_budget?.total_work_sets_max);
+  const currentSetMax = finite(program.session_budget?.sets_per_slot?.max);
+  if (movementLimit && totalSetLimit !== undefined && currentSetMax !== undefined) {
+    const setsPerSlotMax = Math.max(1, Math.min(currentSetMax, Math.floor(totalSetLimit / movementLimit)));
+    program.session_budget.sets_per_slot = {
+      ...program.session_budget.sets_per_slot,
+      min: Math.min(finite(program.session_budget.sets_per_slot.min) ?? 1, setsPerSlotMax),
+      max: setsPerSlotMax
+    };
+  }
+  if (Array.isArray(program.session_slots) && movementLimit !== undefined) {
+    program.session_slots = program.session_slots.map((slot) => ({
+      ...slot,
+      movement_slots: asArray(slot.movement_slots).slice(0, Math.max(0, Math.floor(movementLimit))),
+      minimum_version: `keep_first_two_movement_slots_with_one_to_${program.session_budget?.sets_per_slot?.max ?? 1}_work_sets_each`
+    }));
+  }
+  if (!program.current_program || typeof program.current_program !== 'object') return;
+  const firstSlot = program.session_slots?.[0];
+  const rows = asArray(program.session_slots).map((slot, index) => {
+    const content = asArray(slot.movement_slots).map((movement) => movement.movement_mode).join('、') || '待器械和限制确认';
+    return `| Day ${index + 1} | ${slot.focus} | ${content} | ${text(program.session_budget?.declared_minutes, '未提供')} min | ${slot.minimum_version} |`;
+  });
+  Object.assign(program.current_program, {
+    program_status: program.status,
+    weekly_schedule_rows: rows.join('\n') || '| 未提供 | 未提供 | 待补充编排信息 | 未提供 | 未提供 |',
+    movement_slots: asArray(program.session_slots).map((slot) => `${slot.id}: ${asArray(slot.movement_slots).map((movement) => movement.movement_mode).join('、')}`).join('；') || '未提供',
+    equipment_filter: firstSlot ? asArray(firstSlot.equipment_filter).join('、') || '未提供' : '未提供',
+    constraint_filter: firstSlot?.constraint_filter || '未提供',
+    substitution_boundary: firstSlot?.substitution_boundary || '未提供',
+    progression_rules: program.progression_rule,
+    regression_rules: program.regression_rule
+  });
+}
+
 function selectProgramChanges(judgmentsInput = {}, currentProgram = {}) {
   const priority = { low_adherence: 1, poor_recovery_with_decline: 2, comparable_improvement: 3 };
   const judgments = asArray(judgmentsInput.judgments ?? judgmentsInput).slice().sort((a, b) => (priority[a?.code] || 9) - (priority[b?.code] || 9));
@@ -334,6 +406,7 @@ function selectProgramChanges(judgmentsInput = {}, currentProgram = {}) {
   }
   if (judgments.some((item) => item.code === 'effective_structure' || item.code === 'comparable_improvement')) kept.push('当前有效的动作选择与记录方式');
   if (!kept.length) kept.push('安全边界、同动作比较原则和未触发调整的计划字段');
+  if (changes.length) synchronizeProgramDerivatives(proposed);
   const fromVersion = text(currentProgram.version, 'unknown');
   const toVersion = changes.length ? (fromVersion === 'unknown' ? 'v2' : `${fromVersion}-reviewed`) : fromVersion;
   proposed.version = toVersion;

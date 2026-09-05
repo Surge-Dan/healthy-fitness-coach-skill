@@ -1,5 +1,6 @@
 'use strict';
 
+const { deriveReviewFacts, buildDecisionLogEntry } = require('../../../skills/healthy-fitness-coach/references/review-decision-engine.js');
 const { extractTrainingDNA, validDate } = require('./training-dna.js');
 const { buildTrainingGuidance } = require('./training-guidance.js');
 const { summarizeTrainingRange } = require('./training-summary.js');
@@ -152,4 +153,31 @@ function analyzeTrainingRange(input = {}) {
   return result;
 }
 
-module.exports = { analyzeTrainingRange, weekStart };
+function buildReviewFirstTrainingDNA({ range = {}, planned_sessions_per_week, profile = null, previous_dna = null } = {}) {
+  const records = Array.isArray(range.records) ? range.records : [];
+  const dateStart = validDate(range.date_start) || range.dates?.[0] || validDate(records[0]?.record_date);
+  const dateEnd = validDate(range.date_end) || range.dates?.[range.dates.length - 1] || validDate(records[records.length - 1]?.record_date) || dateStart;
+  const reviewFacts = deriveReviewFacts({
+    records,
+    date_start: dateStart,
+    date_end: dateEnd,
+    missing_dates: Array.isArray(range.missing_dates) ? range.missing_dates : [],
+    review_date: dateEnd,
+    profile
+  });
+  const reviewDecision = buildDecisionLogEntry({
+    facts: reviewFacts,
+    date: dateEnd || 'unknown',
+    review_date: dateEnd || 'unknown',
+    current_program: profile?.current_program || profile?.currentProgram || {}
+  });
+  return extractTrainingDNA({
+    review_facts: reviewFacts,
+    decision: reviewDecision,
+    previousDNA: previous_dna,
+    plannedSessionsPerWeek: planned_sessions_per_week,
+    profile
+  });
+}
+
+module.exports = { analyzeTrainingRange, buildReviewFirstTrainingDNA, weekStart };
