@@ -104,7 +104,9 @@ test('third-party notice includes the complete upstream MIT license and immutabl
   }
 });
 
-test('release privacy scanner catches local user paths without relying on wxid', () => {
+test('release privacy scanner catches local user paths without relying on wxid', {
+  skip: !fs.existsSync(path.resolve(root, '..', 'quality-tests', 'build-release.py')) && 'Release builder is outside the standalone Skill package'
+}, () => {
   const buildScript = path.resolve(root, '..', 'quality-tests', 'build-release.py');
   const probe = String.raw`
 import importlib.util
