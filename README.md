@@ -29,6 +29,8 @@ Healthy Fitness Coach 面向 18～55 岁、无重大疾病的健身新手与普�
 
 用户不需要了解内部引擎名称。已有画像和当前周期会被优先复用；只有会改变安全性或方案结构的缺口才会被追问。今日训练缺少非关键上下文时，会明确保守假设并给出可执行的最低任务。
 
+需要动作示意时，可以说“给我杠铃卧推三帧动作图”，或在本地运行 `node healthy-fitness-coach/scripts/workout-guide.js --card 杠铃卧推`。具体动作会直接生成图卡；“卧推”“划船”等宽泛名称会先返回候选，避免混淆器械和角度。302 条动作目录离线可查，图片不打包，按需从固定上游提交联网加载；加载失败仍保留动作文字和源页。图片采用 CC BY-SA 4.0 并保留 Bryl Lim、Everkinetic 衍生来源与修改说明，详见 [`workout-guide-license.md`](healthy-fitness-coach/references/workout-guide-license.md)。静态示意图不等于个性化动作评估。
+
 ## 已实现的任务路由
 
 | 你可以说 | 默认处理 | 默认交付 |

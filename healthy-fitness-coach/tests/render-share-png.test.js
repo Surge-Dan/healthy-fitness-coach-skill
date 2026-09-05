@@ -50,7 +50,7 @@ test('visual composition renderer exports star-trail collage as a distinct photo
     recipe: 'star-trail-collage',
     title: '今天也在变强',
     subtitle: '把出现，变成自己的节奏',
-    photos: ['D:/WeChat/xwechat_files/wxid_ro1t5w4qycz622_8905/temp/RWTemp/2026-08/e0f90f6dbb3adbab619492252e923472/27e989c2d993387103706a49fd55c22d.png'],
+    photos: ['fixtures/nonexistent-photo.png'],
     metrics: [{ label: '训练天数', value: '74' }]
   }));
   const result = spawnSync('python', ['scripts/render-visual-composition.py', '--input', input, '--output', output, '--ratio', '3:4'], { cwd: join(__dirname, '..'), encoding: 'utf8' });

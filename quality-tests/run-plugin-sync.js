@@ -38,6 +38,7 @@ function assertSameFile(sourceRelative, targetRelative = sourceRelative) {
 
 const canonicalSkillFiles = [
   'SKILL.md',
+  'LICENSE',
   'agents/openai.yaml',
   'evals/evals.json',
   ...listFiles(path.join(canonical, 'assets'), 'assets'),

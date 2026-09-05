@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
+const { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -133,7 +133,10 @@ test('visual compiler CLI emits three recommendations and an auditable manifest'
   rmSync(root, { recursive: true, force: true });
 });
 
-test('plugin visual compiler is independently runnable from the plugin root', () => {
+const pluginRoot = join(__dirname, '..', '..', 'healthy-fitness-coach-plugin');
+test('plugin visual compiler is independently runnable from the plugin root', {
+  skip: !existsSync(pluginRoot) && 'Standalone Skill package: sibling plugin is not distributed'
+}, () => {
   const root = mkdtempSync(join(tmpdir(), 'fitness-plugin-visual-compiler-'));
   const input = join(root, 'input.json');
   const output = join(root, 'manifest.json');

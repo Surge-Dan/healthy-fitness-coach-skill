@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
+const { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -71,7 +71,10 @@ test('render-visual-assets CLI lets an explicit palette override an input style 
   rmSync(root, { recursive: true, force: true });
 });
 
-test('plugin visual CLI is independently runnable and can explicitly embed a photo', () => {
+const pluginRoot = join(__dirname, '..', '..', 'healthy-fitness-coach-plugin');
+test('plugin visual CLI is independently runnable and can explicitly embed a photo', {
+  skip: !existsSync(pluginRoot) && 'Standalone Skill package: sibling plugin is not distributed'
+}, () => {
   const root = mkdtempSync(join(tmpdir(), 'healthy-fitness-plugin-cli-'));
   const input = join(root, 'input.json');
   const photo = join(root, 'photo.png');

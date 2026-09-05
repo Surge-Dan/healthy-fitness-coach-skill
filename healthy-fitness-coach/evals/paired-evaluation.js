@@ -192,7 +192,10 @@ function renderEvidence(value) {
 
 function renderReviewPage(result) {
   const caseSections = result.cases.map((item) => {
-    const assertions = item.static_assertions.map((entry) => `<details open><summary>${escapeHtml(entry.id)} · ${escapeHtml(entry.description)}</summary><div class="grid"><section><h4>新版静态证据</h4>${renderEvidence(entry.current)}</section><section><h4>旧版静态证据</h4>${renderEvidence(entry.baseline)}</section></div></details>`).join('');
+    const assertions = item.static_assertions.map((entry) => {
+      const status = entry.status === 'pass' ? 'pass' : 'fail';
+      return `<details open style="border-left:4px solid ${status === 'pass' ? '#267342' : '#b42318'}"><summary><span class="status ${status}">${status.toUpperCase()}</span> ${escapeHtml(entry.id)} · ${escapeHtml(entry.description)}</summary><div class="grid"><section><h4>新版静态证据</h4>${renderEvidence(entry.current)}</section><section><h4>旧版静态证据</h4>${renderEvidence(entry.baseline)}</section></div></details>`;
+    }).join('');
     const checklist = item.manual_review.map((line) => `<li>${escapeHtml(line)}</li>`).join('');
     return `<article><h2>评测 ${item.eval_id}</h2><p><strong>提示词：</strong>${escapeHtml(item.prompt)}</p><p><strong>预期：</strong>${escapeHtml(item.expected_output)}</p><p><strong>需要追问：</strong>${item.requires_follow_up ? '是' : '否'}；<strong>模型输出：</strong>未记录模型输出。</p><h3>自动化静态比较</h3>${assertions}<h3>人工成对审查</h3><ul>${checklist}</ul><label>新版原始输出（人工粘贴，不会保存）<textarea aria-label="新版原始输出"></textarea></label><label>旧版原始输出（人工粘贴，不会保存）<textarea aria-label="旧版原始输出"></textarea></label><label>Token 与完成时间记录（人工填写，不会保存）<textarea aria-label="Token 与完成时间记录"></textarea></label></article>`;
   }).join('');
