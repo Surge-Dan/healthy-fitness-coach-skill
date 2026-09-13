@@ -29,6 +29,14 @@ Healthy Fitness Coach 面向 18～55 岁、无重大疾病的健身新手与普�
 
 用户不需要了解内部引擎名称。已有画像和当前周期会被优先复用；只有会改变安全性或方案结构的缺口才会被追问。今日训练缺少非关键上下文时，会明确保守假设并给出可执行的最低任务。
 
+### 安装与发布包
+
+普通用户应安装完整的 `healthy-fitness-coach/` Skill 目录，或直接上传仓库中打包好的 [`dist/healthy-fitness-coach.skill`](dist/healthy-fitness-coach.skill)；不要只上传单个 `SKILL.md`，否则会缺少参考文件和脚本。训练计划、动作指导、复盘、训练DNA、报告和分享图都包含在独立 Skill 包内，训记连接器是可选扩展。
+
+安装后不需要先填写完整问卷。Skill 会先判断当前任务：制定计划时，只追问会改变安全性或方案结构的信息；信息已经足够时直接给出初版方案，并把必要假设写清楚。后续训练记录、睡眠、疲劳和身体反馈会用于迭代，而不是把一次对话包装成完整的长期结论。
+
+如果要接入训记，只需在自己的 Agent 会话中提供官方接口说明和个人 Open API Key。凭据仅用于训记连接，并保存在本机受保护的凭据存储中；不要放进公开截图、README 或 GitHub 仓库。
+
 需要动作示意时，可以说“给我杠铃卧推三帧动作图”，或在本地运行 `node healthy-fitness-coach/scripts/workout-guide.js --card 杠铃卧推`。具体动作会直接生成图卡；“卧推”“划船”等宽泛名称会先返回候选，避免混淆器械和角度。302 条动作目录离线可查，图片不打包，按需从固定上游提交联网加载；加载失败仍保留动作文字和源页。图片采用 CC BY-SA 4.0 并保留 Bryl Lim、Everkinetic 衍生来源与修改说明，详见 [`workout-guide-license.md`](healthy-fitness-coach/references/workout-guide-license.md)。静态示意图不等于个性化动作评估。
 
 ## 已实现的任务路由
