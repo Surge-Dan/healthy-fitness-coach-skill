@@ -34,7 +34,7 @@ Healthy Fitness Coach不是只服务于“健身房撸铁”。它按训练目�
 
 ## 给新用户：只需要说一句话
 
-安装完整的 Skill 目录（或直接上传 `dist/healthy-fitness-coach.skill`）后，不需要安装Node或运行命令，直接对Agent说：
+安装完整的Skill目录（或直接上传`dist/healthy-fitness-coach.skill`）后，不需要安装Node或运行命令，直接对Agent说：
 
 ```text
 我想开始健身，帮我制定一个适合我的训练计划。
