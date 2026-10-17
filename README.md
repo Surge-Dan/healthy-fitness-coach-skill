@@ -312,3 +312,9 @@ python -m scripts.package_skill `
 本许可证适用于本项目拥有版权的代码和文档。第三方依赖、字体、图标、图片和外部数据仍需遵守各自的许可证或服务条款。
 
 本项目按“现状”提供，不对特定用途适用性作明示或默示保证。使用训练建议和数据连接功能时，请结合自身健康状况，并对最终决定负责。
+
+## Star history
+
+Star history会根据GitHub上的公开数据自动更新，时间轴按项目公开后的Star累积情况展示，纵轴会根据实际数量自动调整。
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Surge-Dan/healthy-fitness-coach-skill&type=Date&theme=dark)](https://www.star-history.com/#Surge-Dan/healthy-fitness-coach-skill&Date)
