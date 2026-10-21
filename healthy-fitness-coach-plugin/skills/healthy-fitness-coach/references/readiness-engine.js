@@ -1,59 +1,13 @@
 'use strict';
 
+const { inspectSafety } = require('./safety-context.js');
 const { normalizeCurrentState } = require('./athlete-state.js');
 
-const RED_FLAG_PATTERN = /(?:chest\s*(?:pain|pressure|tightness)|shortness\s+of\s+breath|abnormal\s+shortness\s+of\s+breath|faint(?:ing)?|near[- ]?(?:fainting|syncope)|presyncope|dizz(?:y|iness)|palpitation|progressive\s+(?:numbness|weakness)|severe\s+pain|acute\s+(?:injury|trauma)|recent\s+surgery|pregnan|post[- ]?partum|rapid(?:ly)?\s+worsen|unable\s+to\s+bear\s+weight|cannot\s+bear\s+weight|severe\s+swelling|obvious\s+deformity|bowel\s+or\s+bladder\s+(?:dysfunction|changes?)|胸痛|胸部压迫感|呼吸困难|异常气短|晕厥|接近晕厥|明显头晕|异常心悸|进行性麻木无力|大小便功能异常|剧烈疼痛|急性(?:外伤|损伤)|近期手术|妊娠|产后|快速恶化|情况紧急|无法负重|严重肿胀|明显畸形)/iu;
 const PAIN_PATTERN = /(?:pain|discomfort|sore|ache|tight(?:ness)?|stiff(?:ness)?|疼|痛|不适|紧|僵|酸)/iu;
 const POOR_SLEEP_PATTERN = /(?:poor|bad|insufficient|short|差|不足|不好)/iu;
 const HIGH_FATIGUE_PATTERN = /(?:high|severe|very|heavy|高|严重|很累|疲劳)/iu;
 const SAFE_MARKER_PATTERN = /^(?:none|no(?:\s+(?:pain|flags?))?|false|0|无(?:红旗)?|没有(?:红旗)?|未报告|未提供|unknown|未知)$/iu;
-const NEGATION_PREFIX_PATTERN = /(?:没有|无|未有|否认|否定|not|no|without|denies)\s*$/iu;
 const NEGATED_PAIN_ONLY_PATTERN = /^(?:没有|无|未有|否认|not|no|without|denies)\s*(?:胸痛|pain|discomfort|不适)\s*$/iu;
-
-function values(value) {
-  return Array.isArray(value) ? value : [value];
-}
-
-function redFlagValues(source, output = []) {
-  if (!source || typeof source !== 'object') return output;
-  for (const [key, value] of Object.entries(source)) {
-    if (/^red[_-]?flags?$/iu.test(key)) {
-      output.push(...values(value));
-    } else if (value && typeof value === 'object') {
-      redFlagValues(value, output);
-    }
-  }
-  return output;
-}
-
-function isMeaningfulFlag(flag) {
-  if (flag === true) return true;
-  if (typeof flag === 'number') return Number.isFinite(flag) && flag !== 0;
-  if (typeof flag === 'string') {
-    const text = flag.trim();
-    return text !== '' && !SAFE_MARKER_PATTERN.test(text)
-      && !(NEGATION_PREFIX_PATTERN.test(text) || (NEGATION_PREFIX_PATTERN.test(text.slice(0, Math.max(0, text.search(RED_FLAG_PATTERN)))) && !hasPositiveRedFlagText(text)));
-  }
-  return Boolean(flag && typeof flag === 'object' && Object.keys(flag).length > 0);
-}
-
-function hasPositiveRedFlagText(value) {
-  const text = String(value || '');
-  const matcher = new RegExp(RED_FLAG_PATTERN.source, 'giu');
-  for (const match of text.matchAll(matcher)) {
-    const before = text.slice(Math.max(0, match.index - 8), match.index);
-    if (!NEGATION_PREFIX_PATTERN.test(before)) return true;
-  }
-  return false;
-}
-
-function hasRedFlag(input, currentState) {
-  const flags = redFlagValues(input).concat(redFlagValues(currentState));
-  const pain = [input.pain, input.symptoms, currentState.pain, currentState.symptoms]
-    .filter((value) => value !== undefined)
-    .join(' ');
-  return flags.some(isMeaningfulFlag) || hasPositiveRedFlagText(flags.join(' ')) || hasPositiveRedFlagText(pain);
-}
 
 function finiteNumber(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
@@ -144,15 +98,18 @@ function assessTodayReadiness(input = {}) {
   const sessionId = input.session_id ?? input.sessionId;
   const facts = [];
 
-  if (hasRedFlag(input, sourceState)) {
-    facts.push({ code: 'red_flag_reported', value: true });
+  const safety = inspectSafety(input);
+  if (safety.status !== 'clear') {
+    facts.push({ code: safety.status === 'clarify' ? 'historical_symptom_unconfirmed' : 'red_flag_reported', value: true });
     return commonResult({
       status: 'stop',
       facts,
-      reasonCodes: ['red_flag'],
+      reasonCodes: [safety.status === 'clarify' ? 'confirm_current_symptoms' : 'red_flag'],
       adjustment: { variable: 'none', primary_variables_changed: 0 },
       minimumTask: null,
-      stopConditions: [{ code: 'seek_appropriate_assessment', text: '出现红旗或急性严重症状时，停止自动训练处方并及时获得合适评估。' }]
+      stopConditions: safety.status === 'clarify'
+        ? [{ code: 'confirm_current_symptoms', text: '先确认历史症状是否已评估、现在是否仍存在，再决定训练安排。' }]
+        : [{ code: 'seek_appropriate_assessment', text: '出现红旗或急性严重症状时，停止自动训练处方并及时获得合适评估。' }]
     });
   }
 

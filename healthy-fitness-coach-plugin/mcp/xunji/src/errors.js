@@ -1,6 +1,10 @@
 'use strict';
 
 const MESSAGES = {
+  preview_required: ['A matching, unexpired preview is required.', 'Preview these exact records and confirm that preview before writing.'],
+  writeback_unknown: ['The write outcome is unknown.', 'Do not resubmit. Reconcile the server records and confirm whether the change was applied.'],
+  reconciliation_required: ['This batch was already submitted.', 'Read the server records before any further write.'],
+
   missing_credentials: ['Training access has not been configured.', 'Run the local credential setup script, then retry.'],
   invalid_credentials: ['Training access was rejected.', 'Replace the local credential and retry.'],
   invalid_date: ['The requested date is invalid.', 'Use a calendar date in YYYY-MM-DD format.'],

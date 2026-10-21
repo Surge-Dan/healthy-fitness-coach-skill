@@ -1,0 +1,12 @@
+{
+  "name": "surge-dan-fitness",
+  "interface": { "displayName": "Healthy Fitness Coach" },
+  "plugins": [
+    {
+      "name": "healthy-fitness-coach-plugin",
+      "source": { "source": "local", "path": "./healthy-fitness-coach-plugin" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_USE" },
+      "category": "Health & Fitness"
+    }
+  ]
+}

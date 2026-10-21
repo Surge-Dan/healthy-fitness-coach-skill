@@ -46,7 +46,7 @@ Healthy Fitness Coach不是只服务于“健身房撸铁”。它按训练目�
 我想连接训记。
 ```
 
-确认后，把训记官方导入/导出说明直接复制给Agent，或者发送截图，并提供你的Open API Key。Skill会根据官方说明识别接口、读取方式和返回格式；凭据只用于训记本地连接，并保存在本机受保护存储中，不会写入仓库、报告、Markdown或回复内容。
+Agent先检查连接能力。Windows本地Plugin在受保护入口配置凭据，不要在聊天或截图中提交API Key。手机没有兼容连接器时，导入训记导出文本、文件或截图，先核对日期、单位和组次；也可跳过连接先训练。当前仓库未提供手机远程服务。
 
 连接成功后可以继续说：
 
@@ -237,11 +237,28 @@ node healthy-fitness-coach/scripts/extract-training-dna.js --input training-rang
 
 ### 连接训记
 
-普通用户只需要在Agent中表达“我想连接训记”，再提供官方调用说明和Open API Key。可以复制文字，也可以发送截图；不需要单独安装Plugin或运行命令。
+表达“我想连接训记”后，Agent按环境提供连接或导入路径。自动连接需要已配置的兼容工具，仅上传Skill不会自动注册连接器。无连接条件时直接导入数据，无需安装开发依赖。
 
 ### CodexPlugin高级模式
 
+使用支持插件管理命令的 Codex CLI，可从仓库目录注册并安装：
+
+```powershell
+codex plugin marketplace add .
+codex plugin add healthy-fitness-coach-plugin@surge-dan-fitness
+```
+
+仓库提供 `.agents/plugins/marketplace.json` 作为安装入口。连接器需要本机 Node 运行时及依赖；凭据配置见 Plugin README。安装或升级后新建聊天加载，必要时重启桌面客户端。
+
 如果希望长期在本机自动读取训记，可选安装[`healthy-fitness-coach-plugin/`](healthy-fitness-coach-plugin/)。插件提供本地训记MCP连接器、加密凭据存储、日期范围读取、趋势分析、训练DNA提取与版本保存，以及确认后写回，普通用户不需要使用这条路径。
+
+## 手机与换设备
+
+手机默认先给今日任务、最低版本与最少反馈；完整证据按需展开。不能创建文件时返回可复制摘要，不输出HTML源码冒充面板。
+
+说“生成训练接续摘要”或“导入训练摘要继续训练”，保存当前计划版本、最近训练、下次安排与有效期。电脑可保留版本快照和当前指针；另一设备由用户携带摘要导入，没有自动云同步。
+
+写回需要确认匹配的限时预览；超时结果未知先核对，服务端已确认但缓存失败时不重发。历史补录可按日期刷新，最近七天缓存满五分钟更新。
 
 ## 数据与安全
 
@@ -271,10 +288,10 @@ LICENSE                          # MIT License
 
 ```powershell
 cd healthy-fitness-coach
-node --test tests
+node --test
 
 cd ..\healthy-fitness-coach-plugin\mcp\xunji
-node --test test
+node --test
 
 cd ..\..\..
 node quality-tests\run-gherkin.js

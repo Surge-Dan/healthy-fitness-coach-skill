@@ -228,7 +228,7 @@ test('MCP server registers read, preview, write, trend, and training DNA tools',
   } });
   assert.deepEqual(Object.keys(server._registeredTools).sort(), [
     'xunji_extract_training_dna', 'xunji_get_training_day', 'xunji_get_training_range', 'xunji_get_training_trends',
-    'xunji_preview_training_upsert', 'xunji_upsert_training_records'
+    'xunji_preview_training_upsert', 'xunji_reconcile_training_upsert', 'xunji_upsert_training_records'
   ]);
 });
 
@@ -370,7 +370,7 @@ test('service refuses an unconfirmed write-back', async () => {
     credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
     client: { async upsertRecords() { calls += 1; return { records: [] }; } }
   });
-  const result = await service.upsertTrainingRecords({ records: ['2026-08-01,胸部训练'], confirm: false });
+  const result = await submitPreviewed(service, { records: ['2026-08-01,胸部训练'], confirm: false });
   assert.equal(result.error.code, 'writeback_not_confirmed');
   assert.equal(calls, 0);
 });
@@ -389,7 +389,7 @@ test('service caches the server-normalized upsert response as the final result',
     } },
     now: () => 456789
   });
-  const result = await service.upsertTrainingRecords({ records: ['2026-08-01,id:1,胸部训练'], confirm: true });
+  const result = await submitPreviewed(service, { records: ['2026-08-01,id:1,胸部训练'], confirm: true });
   assert.equal(result.date, '2026-08-01');
   assert.equal(result.records[0].raw_text, '2026-08-01,id:1,胸部训练,标准化');
   assert.equal(cached.date, '2026-08-01');
@@ -404,8 +404,8 @@ test('service rejects a cross-date write-back response before caching it', async
     credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
     client: { async upsertRecords() { return { records: ['2026-08-02,id:wrong,title'] }; } }
   });
-  const result = await service.upsertTrainingRecords({ records: ['2026-08-01,id:1,title'], confirm: true });
-  assert.equal(result.error.code, 'invalid_upsert');
+  const result = await submitPreviewed(service, { records: ['2026-08-01,id:1,title'], confirm: true });
+  assert.equal(result.error.code, 'writeback_unknown');
   assert.equal(writes, 0);
 });
 
@@ -423,7 +423,7 @@ test('upsert never exposes Garmin rows even when the server returns them', async
     }
   });
 
-  const result = await service.upsertTrainingRecords({
+  const result = await submitPreviewed(service, {
     records: ['2026-08-01,胸部训练,1.卧推,1组,60kg,10次'],
     confirm: true
   });
@@ -439,8 +439,8 @@ test('service rejects date-less write-back rows and never returns raw unsafe ser
     credentialProvider: async () => 'SYNTHETIC_ACCOUNT_A',
     client: { async upsertRecords() { return { records: ['id:missing-date,title'] }; } }
   });
-  const result = await service.upsertTrainingRecords({ records: ['2026-08-01,id:1,title'], confirm: true });
-  assert.equal(result.error.code, 'invalid_upsert');
+  const result = await submitPreviewed(service, { records: ['2026-08-01,id:1,title'], confirm: true });
+  assert.equal(result.error.code, 'writeback_unknown');
   assert.equal(writes, 0);
 });
 
@@ -481,3 +481,9 @@ test('service persists versioned training DNA and returns an auditable diff', as
   assert.deepEqual(second.training_dna.changes.changed_dimensions, []);
   assert.ok(Array.isArray(second.training_dna.changes.changed_dimensions));
 });
+
+async function submitPreviewed(service, args) {
+  if (!args.confirm) return service.upsertTrainingRecords(args);
+  const preview = await service.previewTrainingUpsert({ records: args.records });
+  return service.upsertTrainingRecords({ ...args, preview_id: preview.preview_id });
+}

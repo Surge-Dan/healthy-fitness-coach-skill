@@ -13,12 +13,12 @@ description: 面向 18～55 岁、无重大疾病的健身新手与普通进阶�
 
 每次请求按下面顺序推进，只读取当前任务需要的下一层资料，不把所有引擎内容复制到入口：
 
-1. **识别简单问题或训练任务**：先读取 `references/training-orchestration.md`，按 `references/training-orchestrator.js` 识别 `knowledge_question`、`training_plan`、`today_workout`、`training_review`、`training_system`、`xunji_analysis` 或 `share_output`。简单知识问题直接回答，不创建画像缺口或文件资产。
-2. **执行安全门**：先读 `references/safety-screening.md`。出现胸痛、明显气短、晕厥/接近晕厥、异常心悸、进行性麻木无力、急性严重外伤、近期手术等红旗时，固定进入安全分流，不继续生成训练处方、报告或分享图。一般不适只在无红旗时调整，并保留 24～48 小时复评条件。
+1. **识别简单问题或训练任务**：先读取 `references/training-orchestration.md`，按 `references/training-orchestrator.js` 识别 `knowledge_question`、`training_plan`、`today_workout`、`training_review`、`training_system`、`xunji_connect`、`xunji_analysis`、`xunji_writeback`、`resume_training` 或 `share_output`。简单知识问题直接回答，不创建画像缺口或文件资产。
+2. **执行安全门**：入口和准备度统一使用 `references/safety-context.js`，否认症状不触发红旗，历史/含糊情况先确认当前状态，纯术语提问直接解释。先读 `references/safety-screening.md`。出现胸痛、明显气短、晕厥/接近晕厥、异常心悸、进行性麻木无力、急性严重外伤、近期手术等红旗时，固定进入安全分流，不继续生成训练处方、报告或分享图。一般不适只在无红旗时调整，并保留 24～48 小时复评条件。
 3. **读取已有画像和当前计划**：已有稳定画像、当前状态、证据记录和 `CURRENT_PROGRAM.md` 优先复用；按需读取 `references/assessment.md`、`references/athlete-state.js`、`references/programming.md`。已知信息不重复追问，未知项不补造为事实。
 4. **运行信息充分度判断**：依据编排契约判断 `ready`、`ask` 或 `assume`。只追问会改变安全性或方案结构的缺口；今日训练缺少非关键上下文时采用保守假设并明确说明，不把普通请求变成长问卷。
 5. **进入对应场景引擎**：只加载一个最小场景集合：计划读 `references/programming.md`；今日训练先读 `references/readiness-engine.js`，再按需读 `references/exercise-coaching.md`。计划或动作指导先选定适用动作；用户需要示意图且动作无歧义时，再用 `references/workout-guide.js` 生成三帧图卡，简单知识问答不强制出图。复盘读 `references/review-adjustment.md`；训练系统或训练DNA读 `references/training-dna.md`；有氧、阻力、功率、间歇或混合训练读 `references/training-domains.md`；训记读 `references/xunji-integration.md`；分享读 `references/share-cards.md` 与视觉资料账本；饮食和恢复分别读对应领域参考。
-6. **默认生成匹配资产**：按 `references/output-routing.md` 和 `references/output-routing.js` 使用任务默认模式。计划默认交付 `ATHLETE_PROFILE.md`、`CURRENT_PROGRAM.md` 及 `TRAINING_PLAN_INDEX.md`；复盘默认交付 `WEEKLY_REVIEW.md`、`DECISION_LOG.md` 及索引；训练系统默认交付 `ATHLETE_PROFILE.md`、`TRAINING_DNA.md`、`CURRENT_PROGRAM.md`、`DECISION_LOG.md` 及索引；训记默认交付 `TRAINING_ANALYSIS.md`，明确要求趋势时再生成面板；分享请求生成事实说明和分享图。多文件交付先给索引，不覆盖已有文件。
+6. **默认生成匹配资产**：先检查宿主能力；手机/无文件环境按 `references/mobile-continuity.md` 给可读摘要，不输出源码冒充面板。按 `references/output-routing.md` 和 `references/output-routing.js` 使用任务默认模式。计划默认交付 `ATHLETE_PROFILE.md`、`CURRENT_PROGRAM.md` 及 `TRAINING_PLAN_INDEX.md`；复盘默认交付 `WEEKLY_REVIEW.md`、`DECISION_LOG.md` 及索引；训练系统默认交付 `ATHLETE_PROFILE.md`、`TRAINING_DNA.md`、`CURRENT_PROGRAM.md`、`DECISION_LOG.md` 及索引；训记默认交付 `TRAINING_ANALYSIS.md`，明确要求趋势时再生成面板；分享请求生成事实说明和分享图。多文件交付先给索引，不覆盖已有文件。
 7. **收集最少反馈并更新决策记录**：记录与本次决策相关的完成情况、RPE/RIR、疼痛或有氧时长、恢复和用户反馈；每轮最多调整 1～2 个主要变量。需要持久化时先说明数据范围、来源、日期和用户同意状态，并把调整理由、预期影响、回退条件和下一次验证写入 `DECISION_LOG.md`。
 
 ## 安全边界
@@ -37,3 +37,7 @@ description: 面向 18～55 岁、无重大疾病的健身新手与普通进阶�
 ## 证据表达
 
 回答“为什么适合你”时区分指南、原始研究/系统综述、专业团队转译和创作者执行体验，并标明适用条件、证据等级与不确定性。人物专属问题先经过 `references/creator-query-protocol.md` 的“可回答/需要检索/未知人物”证据门；不可访问的受限内容不绕过登录、验证码、robots 或反爬。
+
+## 连接与接续
+
+连接先读 `references/xunji-integration.md` 并用 `references/connection-capabilities.js` 判断能力；未就绪则导入文本/文件/截图或先训练，不索取聊天 Key。恢复或导出接续摘要读 `references/mobile-continuity.md`，用 `references/training-continuity.js` 检查有效期与版本冲突，不承诺云同步。写回绑定具体预览，未知结果先核对。

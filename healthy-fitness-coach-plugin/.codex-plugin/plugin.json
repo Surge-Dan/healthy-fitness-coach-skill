@@ -1,6 +1,6 @@
 {
   "name": "healthy-fitness-coach-plugin",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "基于健康边界的训练、营养与恢复指导，并可读取、分析、预览和按 ID 安全写回训记训练数据。",
   "author": {
     "name": "梅乃丹"

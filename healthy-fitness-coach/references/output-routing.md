@@ -41,10 +41,14 @@
 
 ## 趋势面板交付
 
-趋势模式调用 `xunji_get_training_trends`，把返回的 `dashboard_html` 保存到当前工作区 `fitness-reports/`。使用非 PII 文件名和碰撞后缀，不覆盖既有报告；没有写入工具时，直接返回 HTML 内容并说明未创建文件。
+趋势模式调用 `xunji_get_training_trends`，把返回的 `dashboard_html` 保存到当前工作区 `fitness-reports/`。使用非 PII 文件名和碰撞后缀，不覆盖既有报告；没有写入工具时返回可读趋势摘要并说明未创建文件；仅明确要求源码才返回 HTML。
 
 ## Markdown 交付
 
 Markdown 模式且具备写入工具时，默认在 `fitness-reports/` 创建完整 `.md` 文件，使用 `references/report-artifact.js` 生成不覆盖的确定性路径；没有写入工具时直接返回完整 Markdown，并说明未创建文件。
 
 资产计划的路径也使用相同的非覆盖原则：先尝试原文件名，存在冲突时按 `-2`、`-3` 递增。调用者应在实际写入前保留计划中的 `paths`，而不是重新拼接文件名。
+
+## 手机与接续覆盖
+
+`capabilities.mobile: true` 或 `can_write_files: false` 优先返回 conversation 与可复制摘要，不倾倒 HTML。桌面资产计划保留。连接、写回、恢复分别为 `xunji_connect`、`xunji_writeback`、`resume_training`，使用对话。按 `references/mobile-continuity.md` 保存接续快照和当前指针，旧版本保留。

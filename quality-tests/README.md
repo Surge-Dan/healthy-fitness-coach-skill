@@ -7,13 +7,13 @@
 ```powershell
 # 独立Skill单元/集成/视觉回归
 cd healthy-fitness-coach
-node --test tests
-node --experimental-test-coverage --test tests
+node --test
+node --experimental-test-coverage --test
 
 # 训记MCP连接器
 cd ..\healthy-fitness-coach-plugin\mcp\xunji
-node --test test
-node --experimental-test-coverage --test test
+node --test
+node --experimental-test-coverage --test
 
 # Gherkin验收场景与轻量变异测试
 cd ..\..\..

@@ -86,7 +86,7 @@
           "current": {
             "path": "healthy-fitness-coach/references/training-orchestrator.js",
             "present": true,
-            "sha256": "b8847c8b6c0c8f0288c41bbcda2379aa068ffd5930c8916be653351273a21a66",
+            "sha256": "6754a5679bd1454a2722b81f40abc9a072e67d3491c524d0c7927d388d288658",
             "required_fragments": [
               "training_plan",
               "'goal'",
@@ -229,7 +229,7 @@
             "readiness": {
               "path": "healthy-fitness-coach/references/readiness-engine.js",
               "present": true,
-              "sha256": "c557ebf7a9590baffd2bfe8935ca013623752f17840bed7eb2cb2875694a6474",
+              "sha256": "3b36a22b1d166b41f6cf470be8c10490435d5bd6c735cb83f621edb8d33f8652",
               "required_fragments": [],
               "fragments_present": true
             }

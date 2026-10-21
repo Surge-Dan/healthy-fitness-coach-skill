@@ -65,13 +65,47 @@ def build():
     print(f'PASS {len(entries)} files; {len(data)} bytes; SHA256 {hashlib.sha256(data).hexdigest()}')
     return target
 
+def build_plugin():
+    source = ROOT / 'healthy-fitness-coach-plugin'
+    entries = []
+    for file in sorted(source.rglob('*')):
+        if not file.is_file():
+            continue
+        relative = file.relative_to(source)
+        if any(part in {'node_modules', '__pycache__', 'fitness-reports', '.tmp-preview'} for part in relative.parts):
+            continue
+        allowed = relative.parts[0] in {'.codex-plugin', '.mcp.json', 'README.md', 'scripts', 'skills'}
+        if relative.parts[:2] == ('mcp', 'xunji'):
+            allowed = len(relative.parts) >= 3 and relative.parts[2] in {'src', 'scripts', 'test', 'package.json', 'package-lock.json'}
+        if not allowed or file.suffix in {'.pyc', '.pyo'}:
+            continue
+        data = file.read_bytes()
+        privacy_match = find_private_data(data.decode('utf-8'))
+        if privacy_match:
+            raise ValueError(f'Private data pattern ({privacy_match}) in Plugin {relative}')
+        entries.append((source.name + '/' + relative.as_posix(), data))
+    target = ROOT / 'dist' / 'healthy-fitness-coach-plugin.zip'
+    with zipfile.ZipFile(target, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, data in entries:
+            info = zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(info, data)
+    with zipfile.ZipFile(target) as archive:
+        assert archive.testzip() is None
+        assert len(archive.namelist()) == len(entries)
+        for name, data in entries:
+            assert archive.read(name) == data
+    print(f'PASS Plugin {len(entries)} files; SHA256 {hashlib.sha256(target.read_bytes()).hexdigest()}')
+    return target
+
+
 def verify(target):
     # Only extract the freshly audited archive, in a new isolated temp directory.
     with tempfile.TemporaryDirectory(prefix='fitness-release-check-') as temporary:
         with zipfile.ZipFile(target) as archive:
             archive.extractall(temporary)
         skill = Path(temporary) / SOURCE.name
-        result = subprocess.run(['node', '--test', 'tests'], cwd=skill, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        result = subprocess.run(['node', '--test', *[str(p) for p in sorted((skill / 'tests').glob('*.test.js'))]], cwd=skill, capture_output=True, text=True, encoding='utf-8', errors='replace')
         print('\n'.join(result.stdout.splitlines()[-12:]))
         if result.returncode:
             print(result.stdout)
@@ -82,6 +116,9 @@ def verify(target):
         print('PASS extracted complete distributed test suite and Python syntax')
 
 if __name__ == '__main__':
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     target = build()
+    build_plugin()
     if '--verify' in sys.argv:
         verify(target)

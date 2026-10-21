@@ -1,5 +1,7 @@
 'use strict';
 
+const { inspectSafety } = require('./safety-context.js');
+const { connectionDecision } = require('./connection-capabilities.js');
 const { planOutputAssets } = require('./output-routing.js');
 
 const SUPPORTED_TASKS = new Set([
@@ -9,6 +11,10 @@ const SUPPORTED_TASKS = new Set([
   'today_workout',
   'training_review',
   'training_system',
+  'xunji_connect',
+  'xunji_writeback',
+  'resume_training',
+  'training_handoff',
   'xunji_analysis',
   'share_output'
 ]);
@@ -20,6 +26,10 @@ const REQUIRED_FIELDS = {
   today_workout: [],
   training_review: ['records'],
   training_system: ['goal', 'experience_level', 'training_days_per_week', 'available_equipment', 'injury_or_medical_constraints'],
+  xunji_connect: [],
+  xunji_writeback: ['records'],
+  resume_training: ['source_assets'],
+  training_handoff: [],
   xunji_analysis: ['records'],
   share_output: ['source_assets']
 };
@@ -33,7 +43,6 @@ const INSTRUCTION_TASKS = [
   ['training_plan', /(?:训练计划|计划.*训练|(?:给我|帮我|为我|请).{0,6}(?:制定|做|设计|生成|安排).{0,20}(?:计划|方案|训练)|(?:制定|做|设计|生成).{0,20}(?:计划|方案)|(?:安排|规划|排).{0,12}(?:下周|下星期|下个星期|未来).{0,12}(?:训练|锻炼)|program(?:me)?\b)/iu]
 ];
 
-const RED_FLAG_PATTERN = /(?:胸痛|胸部压迫感|呼吸困难|异常气短|晕厥|昏厥|明显头晕|异常心悸|突发.*(?:疼痛|麻木|无力)|剧烈.*(?:疼痛|头痛)|近期手术|急性外伤|妊娠|产后|chest\s*pain|shortness\s+of\s+breath|faint(?:ing)?|severe\s+pain|numbness)/iu;
 const EXPLANATORY_PLAN_QUESTION_PATTERN = /(?:(?:训练计划|计划|方案).{0,12}(?:怎么制定|如何制定|包含哪些(?:内容)?|哪些内容|是什么|有哪些原则)|(?:怎么制定|如何制定|包含哪些(?:内容)?|哪些内容|是什么|有哪些原则).{0,12}(?:训练计划|计划|方案))/iu;
 const DIRECT_PLAN_REQUEST_PATTERN = /(?:给我|帮我|为我|请).{0,6}(?:制定|做|设计|生成|安排)/iu;
 
@@ -48,27 +57,7 @@ function hasValue(value) {
   return value !== undefined && value !== null && String(value).trim() !== '';
 }
 
-function isMeaningfulRedFlag(value) {
-  if (value === true) return true;
-  if (typeof value === 'string') return value.trim() !== '';
-  return Boolean(value && typeof value === 'object' && Object.keys(value).length > 0);
-}
-
-function hasRedFlag(input = {}) {
-  const state = input.currentState || input.current_state || {};
-  const flagSources = [
-    input.red_flags,
-    input.redFlags,
-    input.safety?.red_flags,
-    input.safety?.redFlags,
-    state.red_flags,
-    state.redFlags,
-    state.safety?.red_flags,
-    state.safety?.redFlags
-  ];
-  const entries = flagSources.flatMap((flags) => Array.isArray(flags) ? flags : [flags]);
-  return entries.some(isMeaningfulRedFlag) || RED_FLAG_PATTERN.test(String(input.instruction || input.userInstruction || ''));
-}
+function hasRedFlag(input = {}) { return inspectSafety(input).status !== 'clear'; }
 
 function classifyTrainingTask(input = {}) {
   if (hasRedFlag(input)) return 'safety_routing';
@@ -77,6 +66,11 @@ function classifyTrainingTask(input = {}) {
   if (explicitTask) return explicitTask;
 
   const instruction = String(input.instruction || input.userInstruction || '');
+  if (/^(?:训记|xunji)(?:是什么|是什么软件|怎么用)[？?。\s]*$/iu.test(instruction)) return 'knowledge_question';
+  if (/(?:生成|导出|保存).{0,12}(?:训练接续摘要|训练摘要)/iu.test(instruction)) return 'training_handoff';
+  if (/(?:恢复|继续|导入).{0,12}(?:训练(?:接续)?摘要|接续摘要)|换(?:手机|设备)|新聊天继续/iu.test(instruction)) return 'resume_training';
+  if (/(?:连接|绑定|授权|connect).{0,8}(?:训记|xunji)|(?:训记|xunji).{0,8}(?:连接|绑定|连不上)/iu.test(instruction)) return 'xunji_connect';
+  if (/(?:写回|同步|保存).{0,16}(?:训记|xunji)|(?:训记|xunji).{0,12}(?:写回|上传)/iu.test(instruction)) return 'xunji_writeback';
   if (EXPLANATORY_PLAN_QUESTION_PATTERN.test(instruction) && !DIRECT_PLAN_REQUEST_PATTERN.test(instruction)) {
     return 'knowledge_question';
   }
@@ -140,7 +134,8 @@ function buildWorkflowDecision(input = {}) {
     taskType: task_type,
     userInstruction: input.instruction || input.userInstruction,
     outputDirectory: input.outputDirectory,
-    existingPaths: input.existingPaths
+    existingPaths: input.existingPaths,
+    capabilities: input.capabilities
   });
   const artifact_mode = artifactModeForPlan(assetPlan);
   const reason_codes = [classificationReason(input, task_type), assetPlan.reason];
@@ -149,6 +144,8 @@ function buildWorkflowDecision(input = {}) {
 
   return {
     task_type,
+    safety: inspectSafety(input),
+    connection: task_type === 'xunji_connect' ? connectionDecision(input.capabilities) : null,
     interaction_mode: assetPlan.mode,
     required_fields: requiredFieldsForTask(task_type),
     missing_fields: information.missing_fields,

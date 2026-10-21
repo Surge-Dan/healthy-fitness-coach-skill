@@ -41,3 +41,7 @@
 | `share_output` | `source_assets` | `ask` |
 
 训练计划和系统会从已给出的 `profile`、`currentState` 和 `records` 合并检查，已提供的信息不会重复提问。简单知识问题不产生画像缺口或文件资产。
+
+## 连接与恢复
+
+`xunji_connect` 不要求 records，先返回能力判断；`xunji_writeback` 需要待预览记录；`resume_training` 需要接续摘要作为来源资产。训记知识问答不连接。`safety` 为 clear/clarify/stop，历史情况先澄清。宿主能力传入资产路由，手机优先摘要。

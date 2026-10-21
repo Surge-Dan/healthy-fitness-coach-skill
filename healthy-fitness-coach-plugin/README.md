@@ -55,3 +55,13 @@ npm --prefix .\mcp\xunji ci --omit=dev --ignore-scripts
 ## 已知依赖风险
 
 Node 18 依赖树中仍存在已知的 Hono static-server advisory。该 Plugin 只启动 MCP stdio，绝不创建 Hono HTTP 或静态文件服务，因此该路径不暴露；这不是隐藏审计项。建议未来版本迁移到 Node 20，并在升级后重新审计依赖树。
+
+## 连接与写回恢复
+
+本地连接器仍仅支持 Windows，不提供手机远程服务。凭据通过本机受保护入口配置，禁止在聊天提交 Key。手机可使用独立 Skill 导入数据。
+
+范围、趋势、DNA支持 `refresh_dates` 和 `refresh_all`。最近七天缓存满五分钟更新，90秒内不重复刷新。
+
+写回现在必须先获得十分钟有效的 `preview_id`，确认内容后携带该ID提交。结果未知先用 `xunji_reconcile_training_upsert` 核对，不盲目重试。本地 `write-operations/` 保存提交摘要状态，服务重启仍阻止同批重发；不是服务端幂等保证。用户核对最新记录并确认未写入后才解除锁。服务端确认且本地缓存失败时依然返回 confirmed。
+
+接续摘要由用户主动导入另一设备，没有自动云同步。
